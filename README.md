@@ -6,6 +6,8 @@
 
 **A BCH-focused Stratum server and solo mining pool engine, built on CKPool.**
 
+**[69 BCH mainnet blocks — explore the verified record](docs/proofs/)**
+
 Direct miner payouts · Native CashAddr · Per-address round statistics · Operator tooling
 
 [![License: GPL v3 or later](https://img.shields.io/badge/license-GPLv3%2B-009E61)](COPYING)
@@ -72,14 +74,17 @@ installation without updating their consumers.
 
 ## Production lineage and evidence
 
-The maintainers report **68+ BCH mainnet blocks** from the predecessor deployment operated as
-BlockSniper / EloPool. That is the project's operational history, not a claim that a CashStratum
-release has already shipped or a benchmark against other pool engines.
+**69 BCH mainnet blocks from this modified CKPool lineage, verified against public chain data.**
+The BlockSniper / EloPool deployment is the production history behind CashStratum.
 
-The evidence collection under [docs/proofs/](docs/proofs/) is being prepared. Published entries
-will pair block heights and explorer links with relevant, sanitized operational records.
-On-chain data can verify a block and its coinbase outputs; it cannot by itself identify the
-software build that produced it. Hashrate and timing claims require their own measurements.
+Browse the **[69-block proof index](docs/proofs/)** for heights, UTC block dates, explorer links,
+coinbase tags and verification timestamps. All 69 hashes match the BCH main chain; sanitized
+local solve excerpts are included for 35. The remaining 34 are explicitly marked without a
+recovered local excerpt. JSON, CSV and a public re-verification script accompany the index.
+
+**Last verified: 2026-09-05 (UTC).** This evidence establishes historical blocks and deployment
+tags, not the exact software commit behind each block or a performance advantage over other
+engines. It does not imply that the first CashStratum-branded release has already shipped.
 
 CashStratum is the software. BlockSniper is a reference deployment. Other operators can run
 the engine under their own pool name and branding.

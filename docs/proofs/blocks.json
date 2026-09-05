@@ -1,0 +1,1319 @@
+{
+  "schema_version": 1,
+  "last_updated_utc": "2026-09-05T22:27:16Z",
+  "network": "BCH mainnet",
+  "count": 69,
+  "method": "Local pool record hashes matched to public mainchain headers and coinbase tags. Local log excerpts are additional operator evidence, with finder identities redacted.",
+  "blocks": [
+    {
+      "height": 966569,
+      "hash": "00000000000000000021bb358e667507707cafec440d095ff5fc44f6609c4f3f",
+      "block_time_utc": "2026-09-01T03:50:05Z",
+      "mainchain": true,
+      "coinbase_txid": "054e2f9c6de0d692e1e5a23973bd06e242b27a7a1b27abbbece9c7bde2fff35d",
+      "coinbase_script_hex": "03a9bf0e0004214b966a0480d789330cb567956ab5fee6edce00000115426c6f636b536e697065722e61692f5b536f6c6f5d",
+      "recognized_tags": [
+        "BlockSniper.ai",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:03Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/966569",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/054e2f9c6de0d692e1e5a23973bd06e242b27a7a1b27abbbece9c7bde2fff35d",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/966569",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 928165,
+      "hash": "00000000000000000127df6187f8a7c03cea75845a53744f34e6c7a80e9a318e",
+      "block_time_utc": "2025-12-06T08:33:03Z",
+      "mainchain": true,
+      "coinbase_txid": "712c0ade31c21d986d9bcc5efb571c5cbdebbf63e6197137671f85b0546f90d6",
+      "coinbase_script_hex": "03a5290e00043fea336904b492c6380c77e2fc68fe600500000000000d456c6f506f6f6c2e636c6f7564",
+      "recognized_tags": [
+        "EloPool.cloud"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:03Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/928165",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/712c0ade31c21d986d9bcc5efb571c5cbdebbf63e6197137671f85b0546f90d6",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/928165",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 928098,
+      "hash": "00000000000000000120bbdf48b11cfbfa301c262f96b8e0c27a5d5d4268bd53",
+      "block_time_utc": "2025-12-05T21:48:01Z",
+      "mainchain": true,
+      "coinbase_txid": "0ff18eedd0ae122e9ee85fdfa5c3e1e914d40ad50249611f9a6ff54190bc43e0",
+      "coinbase_script_hex": "0362290e000411533369043ba6f8290c6be2fc68ecfa0900000000000d456c6f506f6f6c2e636c6f7564",
+      "recognized_tags": [
+        "EloPool.cloud"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:04Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/928098",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/0ff18eedd0ae122e9ee85fdfa5c3e1e914d40ad50249611f9a6ff54190bc43e0",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/928098",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 916984,
+      "hash": "0000000000000000000ea84420ce9380daafad934abbe4e4ee320882e1b747b4",
+      "block_time_utc": "2025-09-20T10:02:02Z",
+      "mainchain": true,
+      "coinbase_txid": "59db4fa5fbd681f1a396de61a88741f21658d449802016fb0a7bc441156a7c91",
+      "coinbase_script_hex": "03f8fd0d00049a7bce68047db463390c3f44ce68aa1e0f449f0902000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:03Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/916984",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/59db4fa5fbd681f1a396de61a88741f21658d449802016fb0a7bc441156a7c91",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/916984",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 916429,
+      "hash": "000000000000000000c35a548eae54fd4d65aa0145dd3974a19541e9d5767544",
+      "block_time_utc": "2025-09-16T16:46:10Z",
+      "mainchain": true,
+      "coinbase_txid": "1b095cb9f27a2a3d6bbac75c9b6c98d803eadba585347dfb8227a952407de202",
+      "coinbase_script_hex": "03cdfb0d00045294c9680446e20a0b0c346ec9680381e91498c7dc000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:05Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/916429",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/1b095cb9f27a2a3d6bbac75c9b6c98d803eadba585347dfb8227a952407de202",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/916429",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 916154,
+      "hash": "0000000000000000012c5d09a7b521fab2d1f2c233b7fd68037560e42d5c0a95",
+      "block_time_utc": "2025-09-14T20:24:45Z",
+      "mainchain": true,
+      "coinbase_txid": "4b07b6a617b0f8868172545ecc8190c0241e298883d2968b01350a10d1c1574b",
+      "coinbase_script_hex": "03bafa0d00048d24c76804852b9f060c3ad4c168ef8adb8341a5af010a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:05Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/916154",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/4b07b6a617b0f8868172545ecc8190c0241e298883d2968b01350a10d1c1574b",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/916154",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 915924,
+      "hash": "00000000000000000162e19fdff4c943b8a8441ef0b38d27d700371479ea4c4e",
+      "block_time_utc": "2025-09-13T05:51:49Z",
+      "mainchain": true,
+      "coinbase_txid": "bcb39f1ab5d5b31778ab3b488aa8b78164d5ff0fa24f0cf3c14160d14a6cb267",
+      "coinbase_script_hex": "03d4f90d00047506c568046d0beb2d0c36d4c168325ba37adf3801000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:05Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/915924",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/bcb39f1ab5d5b31778ab3b488aa8b78164d5ff0fa24f0cf3c14160d14a6cb267",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/915924",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 915824,
+      "hash": "00000000000000000171c9b611401d5aaf3307412b50bdb3fc9f26d19179248e",
+      "block_time_utc": "2025-09-12T14:05:13Z",
+      "mainchain": true,
+      "coinbase_txid": "210b5b77bfb3452e2f6e6f4f27b1ddd7609bd9fc3e234a9394705a7da8c51c36",
+      "coinbase_script_hex": "0370f90d00049928c46804a68d8d2b0c2ed4c168c1d2145d17c02c000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:06Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/915824",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/210b5b77bfb3452e2f6e6f4f27b1ddd7609bd9fc3e234a9394705a7da8c51c36",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/915824",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 915321,
+      "hash": "00000000000000000112f65aef8a83e16f0ec2efe5df53bcb1b79dd98e217682",
+      "block_time_utc": "2025-09-09T00:18:10Z",
+      "mainchain": true,
+      "coinbase_txid": "ea2d346989bf4466d30b4c38fe17df5e8cb7aa43436debebc60bd3595005d87a",
+      "coinbase_script_hex": "0379f70d00044272bf680498ef201d0c2e06bf680ac1f604a6431e010a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:06Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/915321",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/ea2d346989bf4466d30b4c38fe17df5e8cb7aa43436debebc60bd3595005d87a",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/915321",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914850,
+      "hash": "0000000000000000001084428aa1eec2e4d86cabcb24ee6073f22aad4285259f",
+      "block_time_utc": "2025-09-05T15:51:57Z",
+      "mainchain": true,
+      "coinbase_txid": "518128e7dc952dd373d544a5eb2a74f4ce47d97304787f3b048f576782817ba4",
+      "coinbase_script_hex": "03a2f50d00041d07bb68047aad8f180c0763ba687c818b0a4d2017000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:06Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914850",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/518128e7dc952dd373d544a5eb2a74f4ce47d97304787f3b048f576782817ba4",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914850",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914754,
+      "hash": "0000000000000000014081a301bbcd7ae0cc5a06320adc38fa3c65e7303767db",
+      "block_time_utc": "2025-09-05T04:27:58Z",
+      "mainchain": true,
+      "coinbase_txid": "889e58bed3191eab6c5bdc3f73e03145b7c10f143ccca454607b0523bbff7182",
+      "coinbase_script_hex": "0342f50d0004ce66ba6804875ea6280cfb62ba685c07becc797731260a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:06Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914754",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/889e58bed3191eab6c5bdc3f73e03145b7c10f143ccca454607b0523bbff7182",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914754",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914557,
+      "hash": "00000000000000000011773663ac09b122167e83ab2a4f888695021d9fe58469",
+      "block_time_utc": "2025-09-03T18:34:12Z",
+      "mainchain": true,
+      "coinbase_txid": "76ad2ca3409bff606e3518194d4b9d04eda9ab47d34650fbd1f3ddb74af52667",
+      "coinbase_script_hex": "037df40d0004248ab86804e3e03a0d0c710cb7687b57f511272d33010a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:06Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914557",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/76ad2ca3409bff606e3518194d4b9d04eda9ab47d34650fbd1f3ddb74af52667",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914557",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914527,
+      "hash": "000000000000000001565c0f9f93413d99efa03b427f112d39adc8bbcc9408b3",
+      "block_time_utc": "2025-09-03T12:31:03Z",
+      "mainchain": true,
+      "coinbase_txid": "1c1c99a0d960fb972ab99df76d76c516a3ae4e4b69f4de0759746a86008bc5f8",
+      "coinbase_script_hex": "035ff40d00040735b868031b25210c5814b768ba7d0000000000000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:06Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914527",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/1c1c99a0d960fb972ab99df76d76c516a3ae4e4b69f4de0759746a86008bc5f8",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914527",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914486,
+      "hash": "000000000000000000c0692576a7c78982229e46a7a651ce0ceba5234934252c",
+      "block_time_utc": "2025-09-03T06:58:03Z",
+      "mainchain": true,
+      "coinbase_txid": "946e54cd6f318cc17c170e3f81e3be0aa1c19fc2e2d5888c56e4a278764dab62",
+      "coinbase_script_hex": "0336f40d0004f2e6b768043515480c0c810eb768e2340000000000000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:07Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914486",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/946e54cd6f318cc17c170e3f81e3be0aa1c19fc2e2d5888c56e4a278764dab62",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914486",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914439,
+      "hash": "00000000000000000077cc196c782571f649b3f0fa0e937f10647ec1304e96c4",
+      "block_time_utc": "2025-09-03T00:21:32Z",
+      "mainchain": true,
+      "coinbase_txid": "79fbde1128b5d76015f7f3ab8690f2a57d6aa9cce737d42772ffd3abd3da7e83",
+      "coinbase_script_hex": "0307f40d0004088ab76804179225300c0d09b76888920000000000000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:07Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914439",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/79fbde1128b5d76015f7f3ab8690f2a57d6aa9cce737d42772ffd3abd3da7e83",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914439",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914407,
+      "hash": "0000000000000000007b90524229e8e6b6b2c430c252839f72b260f78283fc1a",
+      "block_time_utc": "2025-09-02T18:31:08Z",
+      "mainchain": true,
+      "coinbase_txid": "e412f1c04e6ed6806572eb5529e5b3cd3fe2646d8c015fae9df0565f80cc92d6",
+      "coinbase_script_hex": "03e7f30d0004ec37b7680435ca89390cbc05b76828956cc27b69df000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:07Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914407",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/e412f1c04e6ed6806572eb5529e5b3cd3fe2646d8c015fae9df0565f80cc92d6",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914407",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914239,
+      "hash": "0000000000000000011bf51522bd15df753cc6aaaac8a72c141b5f2ed4a70bbc",
+      "block_time_utc": "2025-09-01T18:20:42Z",
+      "mainchain": true,
+      "coinbase_txid": "f76ee5a0e4a82f1f96112104b22fbe9fd7eae5c5c1cba3696a334194cb6d6b9a",
+      "coinbase_script_hex": "033ff30d0004fae3b56804189ffd250cf45cb368491e0d0d401200000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:07Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914239",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/f76ee5a0e4a82f1f96112104b22fbe9fd7eae5c5c1cba3696a334194cb6d6b9a",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914239",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914226,
+      "hash": "00000000000000000144f64dff3f214290b5d5d0c440b698190269a7b09f994f",
+      "block_time_utc": "2025-09-01T15:30:33Z",
+      "mainchain": true,
+      "coinbase_txid": "88cad67b2c93b569e2cf6724934b03cafa2aa285554584596d45fa43bc11f6c7",
+      "coinbase_script_hex": "0332f30d000419bcb56804e275da1a0c745bb368e56ef218212012000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:07Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914226",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/88cad67b2c93b569e2cf6724934b03cafa2aa285554584596d45fa43bc11f6c7",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914226",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914122,
+      "hash": "00000000000000000057e895aad627e038047e0f0f6f51402f9dc6efc3b1a97a",
+      "block_time_utc": "2025-08-31T22:13:50Z",
+      "mainchain": true,
+      "coinbase_txid": "c9a4092c4926d535524017966f5081d7d3375784210bb9bbdd0c037a26c7b7f3",
+      "coinbase_script_hex": "03caf20d00041ec9b468040e1e8f280c725bb3680e12ccea310f0a000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:07Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914122",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/c9a4092c4926d535524017966f5081d7d3375784210bb9bbdd0c037a26c7b7f3",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914122",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 914076,
+      "hash": "000000000000000000d95b3b5fab6774173ae13a6a0b4a237e3482d3383bd1bd",
+      "block_time_utc": "2025-08-31T13:48:39Z",
+      "mainchain": true,
+      "coinbase_txid": "a5d6265898ebde68ef91866f6a57462e982a7368e4cedf2cff4d1318b2b3322d",
+      "coinbase_script_hex": "039cf20d0004b752b4680434570c200c6a5bb368bd42d2bf0e0401000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:07Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/914076",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a5d6265898ebde68ef91866f6a57462e982a7368e4cedf2cff4d1318b2b3322d",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/914076",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 913971,
+      "hash": "0000000000000000017cb3f98f4d45c8d1b5c3b57d75666528b5c227bb1bd414",
+      "block_time_utc": "2025-08-30T21:06:26Z",
+      "mainchain": true,
+      "coinbase_txid": "8cfa7608514c2049532563c8f5fbe5269650c13398d710e3a1b6b2738d466ba1",
+      "coinbase_script_hex": "0333f20d0004d267b36804fcffba1a0c675bb368ca1d4f91854bd4330a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:08Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/913971",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/8cfa7608514c2049532563c8f5fbe5269650c13398d710e3a1b6b2738d466ba1",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/913971",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 913959,
+      "hash": "000000000000000000d9fa3d96ee9fa5c53d8bd9fc597c2d8a2e82b4d7b53751",
+      "block_time_utc": "2025-08-30T18:52:28Z",
+      "mainchain": true,
+      "coinbase_txid": "20e83cd98169061a9b7229cc080839da5da0c6a9004d19bc033b684fde9943be",
+      "coinbase_script_hex": "0327f20d00046c48b368047c231f110c558ab268a9415d3dca0000090a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:08Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/913959",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/20e83cd98169061a9b7229cc080839da5da0c6a9004d19bc033b684fde9943be",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/913959",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 913820,
+      "hash": "00000000000000000068691eff022216b583e44e5adf4120ef54accf5652e2d2",
+      "block_time_utc": "2025-08-29T21:30:32Z",
+      "mainchain": true,
+      "coinbase_txid": "fc1cc883731d3a0182b099f5712c168ce15a6670f897f878c1c9e622e9492138",
+      "coinbase_script_hex": "039cf10d0004f81bb2680441263c050ca697b1686e377dce1b0605000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:08Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/913820",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/fc1cc883731d3a0182b099f5712c168ce15a6670f897f878c1c9e622e9492138",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/913820",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 913680,
+      "hash": "0000000000000000002c99b2c1db2aa7483e34d7177d387a5be51a4693bb6e6a",
+      "block_time_utc": "2025-08-28T21:41:37Z",
+      "mainchain": true,
+      "coinbase_txid": "b3644e4eeaab10dad29937b21ed5b3205030a52cf7fd55cfc3e4c424e3b7fafc",
+      "coinbase_script_hex": "0310f10d000411cdb06804f3f6b5160c8a77b0683f99fb308b0b00000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:08Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/913680",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/b3644e4eeaab10dad29937b21ed5b3205030a52cf7fd55cfc3e4c424e3b7fafc",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/913680",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 913451,
+      "hash": "0000000000000000006aab990316f52e32322239d861cfb03f0e4a6db596b0c5",
+      "block_time_utc": "2025-08-27T06:54:42Z",
+      "mainchain": true,
+      "coinbase_txid": "822f72641d111f989138f71a815c82559720a83ff41f6eeaee72b8e7f1a5ff6c",
+      "coinbase_script_hex": "032bf00d0004b2abae680469b7be320c859bac689a88e957b50a00000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:08Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/913451",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/822f72641d111f989138f71a815c82559720a83ff41f6eeaee72b8e7f1a5ff6c",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/913451",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 913423,
+      "hash": "00000000000000000027080f6522f70c542bf3af11089990eb5c369a8fe373b6",
+      "block_time_utc": "2025-08-27T03:28:18Z",
+      "mainchain": true,
+      "coinbase_txid": "01359833fc41d5b64cd2da33cf772e7b695776cc995957d8f3cba65d271695d8",
+      "coinbase_script_hex": "030ff00d0004527bae6804919863250c859bac684087e957b58b71020a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:09Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/913423",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/01359833fc41d5b64cd2da33cf772e7b695776cc995957d8f3cba65d271695d8",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/913423",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 913256,
+      "hash": "000000000000000000ee52a2f34476ddac5e851c05fa98ef988589de6e4e1436",
+      "block_time_utc": "2025-08-25T21:10:12Z",
+      "mainchain": true,
+      "coinbase_txid": "429757c14baf08bc52701620b94f1e49854bd2ce1b6660e96ef2d581df52278e",
+      "coinbase_script_hex": "0368ef0d000434d1ac680407c3db130c6197ac683088555a071c39010a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:09Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/913256",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/429757c14baf08bc52701620b94f1e49854bd2ce1b6660e96ef2d581df52278e",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/913256",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 912928,
+      "hash": "000000000000000000091decab1789e1aef42bbbf381de868cef1ffefe9ace37",
+      "block_time_utc": "2025-08-23T14:20:52Z",
+      "mainchain": true,
+      "coinbase_txid": "615b904ec6a3edf9bb89e43d1fbd49b15f42855c47e96ad97a3649ea1a64ef2e",
+      "coinbase_script_hex": "0320ee0d000444cea9680424c8da2b0c0305a6680e7676b2afd200000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:10Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/912928",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/615b904ec6a3edf9bb89e43d1fbd49b15f42855c47e96ad97a3649ea1a64ef2e",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/912928",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 912893,
+      "hash": "000000000000000001b2727f4e2e71be2ab7f5aad4a54ceebaff8c89294acc9b",
+      "block_time_utc": "2025-08-23T09:19:27Z",
+      "mainchain": true,
+      "coinbase_txid": "f3136d62b9e10d6df1e86564506f046cee70aed5ca80ea9caa9e77e6629015eb",
+      "coinbase_script_hex": "03fded0d00049f87a968042de5b4200c0305a668777176b2afbe05000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:09Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/912893",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/f3136d62b9e10d6df1e86564506f046cee70aed5ca80ea9caa9e77e6629015eb",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/912893",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 912853,
+      "hash": "0000000000000000001d4db0fc7130ffcee57fc2a66bd9c95614eedf90475fc5",
+      "block_time_utc": "2025-08-23T02:03:17Z",
+      "mainchain": true,
+      "coinbase_txid": "a18369ca8bcfccffcdc3f830f27b1b285463584897d53b3b69232ae41709de4c",
+      "coinbase_script_hex": "03d5ed0d00046521a9680401f2081a0cf804a668990463e4fd4312000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:09Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/912853",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a18369ca8bcfccffcdc3f830f27b1b285463584897d53b3b69232ae41709de4c",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/912853",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 912775,
+      "hash": "000000000000000000cda7e7cba585d5f2071695685efc109cbb8e0a2d3327d3",
+      "block_time_utc": "2025-08-22T15:24:50Z",
+      "mainchain": true,
+      "coinbase_txid": "ca15a606e0a3a38c822718c21fa7d69e3c11a131a0419b971725ecd692331222",
+      "coinbase_script_hex": "0387ed0d0004c28ba8680474f1b0040c9c04a668b58853b209f007000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:10Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/912775",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/ca15a606e0a3a38c822718c21fa7d69e3c11a131a0419b971725ecd692331222",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/912775",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 912602,
+      "hash": "000000000000000000c087c9ded6fca9697606d8a2d3029ba4021188df34ebf0",
+      "block_time_utc": "2025-08-21T10:36:39Z",
+      "mainchain": true,
+      "coinbase_txid": "16ab79c41234cda5cffbbb09228b46076428dab14c02bf79107d4f949ce8febc",
+      "coinbase_script_hex": "03daec0d0004b7f6a6680457e366080ce403a6687faf1a199d5252010a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:10Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/912602",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/16ab79c41234cda5cffbbb09228b46076428dab14c02bf79107d4f949ce8febc",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/912602",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 912567,
+      "hash": "0000000000000000006f55a6173bbb7196d7507f807c6c3b72e1a287acf7cc1c",
+      "block_time_utc": "2025-08-21T04:56:04Z",
+      "mainchain": true,
+      "coinbase_txid": "a938e4c7b050da1768156595b7bd83a95d610b0b2c4af4a6f1d2c677cd706d18",
+      "coinbase_script_hex": "03b7ec0d0004d9a6a6680469064f0a0c3d02a668dc2a4fd32cfc00000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:10Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/912567",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a938e4c7b050da1768156595b7bd83a95d610b0b2c4af4a6f1d2c677cd706d18",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/912567",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 912378,
+      "hash": "00000000000000000148803d98f8dee998543f9a3ff64569f6f02b469549993b",
+      "block_time_utc": "2025-08-19T21:25:47Z",
+      "mainchain": true,
+      "coinbase_txid": "7246e0c2643bd0957b5f7bed65de3d6d23a629f081ca1445af663205aa0913e0",
+      "coinbase_script_hex": "03faeb0d0004dbeba46804ea181b350ce878a168437acfcff8d91e000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:10Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/912378",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/7246e0c2643bd0957b5f7bed65de3d6d23a629f081ca1445af663205aa0913e0",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/912378",
+      "local_solve_log": "not_recovered",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 912116,
+      "hash": "000000000000000000521264e77a6b4d1aa15db0d884598749816991a5d270ef",
+      "block_time_utc": "2025-08-18T01:23:17Z",
+      "mainchain": true,
+      "coinbase_txid": "a8f3ad3576380d63ac949cee133c9d86775a7ca0bdd1b68e2ec24d68b35daf64",
+      "coinbase_script_hex": "03f4ea0d00048580a26804bde596340cd577a1683c8fdd45cfa263270a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:10Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/912116",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a8f3ad3576380d63ac949cee133c9d86775a7ca0bdd1b68e2ec24d68b35daf64",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/912116",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/912116.log",
+      "solve_excerpt_sha256": "7fa538ffa477d3ffd52f5f737687a8a0b37fafe2c68f1b045576a012d32ebff3",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 912035,
+      "hash": "000000000000000001c35b08e2efc1e26f43633d7ffa898a63762a4e00138d68",
+      "block_time_utc": "2025-08-17T11:38:53Z",
+      "mainchain": true,
+      "coinbase_txid": "6d904739137d2665b0dc1a9a7dc911a2a7f37650cb1214ed4333bd108f46d6d4",
+      "coinbase_script_hex": "03a3ea0d00044dbfa168048039f81a0cb474a1682b6faa4ec009bb460a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:11Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/912035",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/6d904739137d2665b0dc1a9a7dc911a2a7f37650cb1214ed4333bd108f46d6d4",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/912035",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/912035.log",
+      "solve_excerpt_sha256": "0dfe03d08de641e7e1ee1758ee55e072ef64e01bee7b102376ef7f95ccac9975",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 912009,
+      "hash": "000000000000000001af87d50e364b4020890abfd3d6b8f79c0e999c538a31ee",
+      "block_time_utc": "2025-08-17T07:22:41Z",
+      "mainchain": true,
+      "coinbase_txid": "d82a3e44cc5c1b074453a05e39eaa4d80cf29ee37253c06128562700f2f442c9",
+      "coinbase_script_hex": "0389ea0d00043583a16804e3d6790e0cb574a168282082a4e61409000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:11Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/912009",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/d82a3e44cc5c1b074453a05e39eaa4d80cf29ee37253c06128562700f2f442c9",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/912009",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/912009.log",
+      "solve_excerpt_sha256": "f48e4c12e853f762099bcd5896996e1a05dd0ad3927ddf7b191000a847f927ac",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911920,
+      "hash": "0000000000000000019624f7df17191f79f54735501e49242ea47843251a604d",
+      "block_time_utc": "2025-08-16T15:29:57Z",
+      "mainchain": true,
+      "coinbase_txid": "718af821f126a9f9c362e9a737097d2f2b677a681ddbc65ccf81560311f057c7",
+      "coinbase_script_hex": "0330ea0d0004f5a3a068044d09e1230c8c01a0687569e1445e6200000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:11Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911920",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/718af821f126a9f9c362e9a737097d2f2b677a681ddbc65ccf81560311f057c7",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911920",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911920.log",
+      "solve_excerpt_sha256": "72a06887ad3e001ea845e806a85ce7760d4b4b224b7939e4acf2c724980f67cc",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911903,
+      "hash": "00000000000000000035e6b501ac12f99faa2751ca4a1ab8d1b85ebe94d04290",
+      "block_time_utc": "2025-08-16T13:18:47Z",
+      "mainchain": true,
+      "coinbase_txid": "52b8b52973d71a8733a892cf78f7f93f5384fd73fd444f9984354c70ae9d9b99",
+      "coinbase_script_hex": "031fea0d00043785a06804033958220c8c01a068be63e1445e6600000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:11Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911903",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/52b8b52973d71a8733a892cf78f7f93f5384fd73fd444f9984354c70ae9d9b99",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911903",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911903.log",
+      "solve_excerpt_sha256": "6360d1eb35bfc3d1712744ab815d7ed2080a34ba6fd40e0dcb48a657e5e8b7ad",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911683,
+      "hash": "000000000000000000b53b9fa9c02eed1b654a39975ad232523d5927d8e2ef8e",
+      "block_time_utc": "2025-08-14T23:39:09Z",
+      "mainchain": true,
+      "coinbase_txid": "5f89911eca5da13d74e4ad9ce2df20437b13f09542a35a86711e9b51fb413444",
+      "coinbase_script_hex": "0343e90d00049d739e6804598b28150c7a6c9e68ad38d1192c0200000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:11Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911683",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/5f89911eca5da13d74e4ad9ce2df20437b13f09542a35a86711e9b51fb413444",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911683",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911683.log",
+      "solve_excerpt_sha256": "ae652778afad955f6449ba484c672755ac82cb6563c7f6455b17a4257b1efaad",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911569,
+      "hash": "00000000000000000152a81dc5a988c415f5ce5d011e456e0bc382f2a20fe598",
+      "block_time_utc": "2025-08-14T03:52:09Z",
+      "mainchain": true,
+      "coinbase_txid": "a9343c123f71f51a252c6f4b10eff5a810c875557d4ef2e6b49ae1919c8c5c72",
+      "coinbase_script_hex": "03d1e80d0004695d9d68043cc8ea270ccc1b9c68a0e278f1542200000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:12Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911569",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a9343c123f71f51a252c6f4b10eff5a810c875557d4ef2e6b49ae1919c8c5c72",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911569",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911569.log",
+      "solve_excerpt_sha256": "7632414952dd107ea2e6b10adc2c8c9fce9e64cf4125164aeaf939a232e844bd",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911549,
+      "hash": "0000000000000000018a676c535b33991a3d97859a46604761c180aa36ab94b9",
+      "block_time_utc": "2025-08-14T01:54:14Z",
+      "mainchain": true,
+      "coinbase_txid": "4e61465cffcf10eff0e104217d87c57032b965d032ae415f8fc1597798f33eee",
+      "coinbase_script_hex": "03bde80d0004c6419d6804c680b40d0cdf1a9c68e96678e7899410000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:12Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911549",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/4e61465cffcf10eff0e104217d87c57032b965d032ae415f8fc1597798f33eee",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911549",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911549.log",
+      "solve_excerpt_sha256": "0968aff4ce62ccbb6ae8280adaf695e1d56567b3628d2303815b5587a4faf8c3",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911502,
+      "hash": "000000000000000000015d6f2d370ba411e194502c5735d5480dd864c6cbbaba",
+      "block_time_utc": "2025-08-13T17:50:32Z",
+      "mainchain": true,
+      "coinbase_txid": "2d3f7f4bfe0e90c868de7ee829706f33d65add8267352dd0d939a627fda0b952",
+      "coinbase_script_hex": "038ee80d000468d09c680416626d370ce7179c689ab898e3d72e00000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:12Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911502",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/2d3f7f4bfe0e90c868de7ee829706f33d65add8267352dd0d939a627fda0b952",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911502",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911502.log",
+      "solve_excerpt_sha256": "5d56575305fb553a4081aaeced30ee406344d6ef1b1154280fc5a96508ea02de",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911458,
+      "hash": "000000000000000001192a6508ed48a0bd0e167c0c0c5fe6e74f2d3532807844",
+      "block_time_utc": "2025-08-13T09:28:10Z",
+      "mainchain": true,
+      "coinbase_txid": "dc813aaaf4436ee75702995a9c365ba86e4689f3d98fd0a7de866fe41d1fa94e",
+      "coinbase_script_hex": "0362e80d0004aa5a9c6804dd400d0b0ccc169c68febfbba738b500000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:12Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911458",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/dc813aaaf4436ee75702995a9c365ba86e4689f3d98fd0a7de866fe41d1fa94e",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911458",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911458.log",
+      "solve_excerpt_sha256": "36bb22c4b0668f2e6aa14795070f86819520bbf092f30f350153ba505d23ee7b",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911379,
+      "hash": "000000000000000000edb3c0441217524ecda9313ab772dc99083c303b7f0124",
+      "block_time_utc": "2025-08-12T19:25:34Z",
+      "mainchain": true,
+      "coinbase_txid": "a681cf8941f4643f49a47f4df48d2cd3d27d3e993222616208c0c6e6056a9792",
+      "coinbase_script_hex": "0313e80d00042e959b6804312f2a3a0c6c379868424b7b42d11c00000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:12Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911379",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a681cf8941f4643f49a47f4df48d2cd3d27d3e993222616208c0c6e6056a9792",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911379",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911379.log",
+      "solve_excerpt_sha256": "a1dd0a19af60dbb03c7e1ff45184ae958e3f644401d7014603d8cee41352019d",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911319,
+      "hash": "000000000000000001560826f934285b47bb82b24f991f24f153121ee2f7bd29",
+      "block_time_utc": "2025-08-12T12:04:33Z",
+      "mainchain": true,
+      "coinbase_txid": "c64bd40b8e2b6ae4096540e566f4d8cb1223a7c6a3c701109fd5de4f69b2e4d5",
+      "coinbase_script_hex": "03d7e70d0004d12d9b6804f48850070cee3098680e00e7934a7400000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:13Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911319",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/c64bd40b8e2b6ae4096540e566f4d8cb1223a7c6a3c701109fd5de4f69b2e4d5",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911319",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911319.log",
+      "solve_excerpt_sha256": "1d16ada53a7cbb19156d9aec060a72ea6f0d664ee7d597d2fe06f59453de323b",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911228,
+      "hash": "000000000000000000f732aae1db09e27b0388bbc2f983c0d3ccd19e45a17dd1",
+      "block_time_utc": "2025-08-11T21:37:48Z",
+      "mainchain": true,
+      "coinbase_txid": "21edd82fe427528baf7c6432722fa9a020fdec39b46b8beeaaec6c48e57ceb1a",
+      "coinbase_script_hex": "037ce70d0004ac629a68044532f4270c732d9868f87d171588e0ff010a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:13Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911228",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/21edd82fe427528baf7c6432722fa9a020fdec39b46b8beeaaec6c48e57ceb1a",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911228",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911228.log",
+      "solve_excerpt_sha256": "01085e25fa726e4a10abc8abbde4f13e179202e6923910702db92335cf747bac",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 911053,
+      "hash": "000000000000000001ac65aab91486feb9170be8b3fdc46c18dce0c0256ca7b3",
+      "block_time_utc": "2025-08-10T17:45:42Z",
+      "mainchain": true,
+      "coinbase_txid": "93671ce9ebfe416169e3839da8402827c19b575c25c6c3a5beeba12ac7543ad3",
+      "coinbase_script_hex": "03cde60d0004c6da986804c9c1a4270c192a98685d110000000000000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:13Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/911053",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/93671ce9ebfe416169e3839da8402827c19b575c25c6c3a5beeba12ac7543ad3",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/911053",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/911053.log",
+      "solve_excerpt_sha256": "8a12f6183a6f044dbc0ecba271c75d31ede7e67d21129baa38a23cb060d448ba",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 910620,
+      "hash": "000000000000000000805a2a110d4adbfa030b0195f747ae5f88adfa8e880465",
+      "block_time_utc": "2025-08-07T16:16:38Z",
+      "mainchain": true,
+      "coinbase_txid": "fc47052225cd1553632f11bab335ee7ba6495d994214ad3077c1ff5089bfbb81",
+      "coinbase_script_hex": "031ce50d000467d1946804bee7b2000cc1b99468abc0c025f6d40e000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:13Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/910620",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/fc47052225cd1553632f11bab335ee7ba6495d994214ad3077c1ff5089bfbb81",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/910620",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/910620.log",
+      "solve_excerpt_sha256": "5ac8382cdd83438da6dccd3099c5beb17b0fa616bfd80e689cde350ae3d26a2e",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 910527,
+      "hash": "000000000000000000969a4fd56c3dc9a56921fd0c6e43b9ad8134067af25b63",
+      "block_time_utc": "2025-08-07T01:02:24Z",
+      "mainchain": true,
+      "coinbase_txid": "926f0247543b7f77b9e8214520647bfc1ea881831d760ea950d598e4176367a7",
+      "coinbase_script_hex": "03bfe40d000420fb936804c06124250cbcd99368aee2a92f3d6d8a000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:13Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/910527",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/926f0247543b7f77b9e8214520647bfc1ea881831d760ea950d598e4176367a7",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/910527",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/910527.log",
+      "solve_excerpt_sha256": "cda039ff2d566264977e3c0494e5e9d351ff1604b9332351db4b6b204c604a1f",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 910381,
+      "hash": "000000000000000001311c3e8930e00a2572a506a9681cc22f6645fcf7eba985",
+      "block_time_utc": "2025-08-06T01:36:21Z",
+      "mainchain": true,
+      "coinbase_txid": "9da8e91a1267c8e07c252862cb661d5eda8c101a54151aeb1f7671c77ae4a266",
+      "coinbase_script_hex": "032de40d000495b1926804614c410d0ce46792689d3c0d41d50312000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:13Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/910381",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/9da8e91a1267c8e07c252862cb661d5eda8c101a54151aeb1f7671c77ae4a266",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/910381",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/910381.log",
+      "solve_excerpt_sha256": "71612feefe237f90f681abde67cbb2ab333c8ace6272d9b033c752024a4fcc26",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 910380,
+      "hash": "000000000000000000b77821b9055980626c0ee8e804a24ca50aa5b54354796d",
+      "block_time_utc": "2025-08-06T01:35:21Z",
+      "mainchain": true,
+      "coinbase_txid": "65f87720ad6f8ff47ff90be4f1b03093ba94c2d0598971e16f021cec3acdf5ed",
+      "coinbase_script_hex": "032ce40d000459b1926804d16cac0d0ce467926804540d41d57747000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:14Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/910380",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/65f87720ad6f8ff47ff90be4f1b03093ba94c2d0598971e16f021cec3acdf5ed",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/910380",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/910380.log",
+      "solve_excerpt_sha256": "5716b2fca108717fed7e9acaab2ad995a18b12ef51ef2f79127b5fe119c48443",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 910200,
+      "hash": "00000000000000000003247ad03ce362e9b242d889ca00337b83a690bc4858e0",
+      "block_time_utc": "2025-08-04T18:36:27Z",
+      "mainchain": true,
+      "coinbase_txid": "00eec241a2f2740da0d912a2f05f52e373ce5769a2c7c65a0f320e970dc995c5",
+      "coinbase_script_hex": "0378e30d0004abfd9068048fb0f0000c7fea9068b32673b7700000190a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:14Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/910200",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/00eec241a2f2740da0d912a2f05f52e373ce5769a2c7c65a0f320e970dc995c5",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/910200",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/910200.log",
+      "solve_excerpt_sha256": "5267f4e12ce1fe4cf1e288521214376810a298a1684db186485b8002b84a4a07",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 910003,
+      "hash": "000000000000000000cfd8499a3040682cabee55cc1460930137e705a28974ef",
+      "block_time_utc": "2025-08-03T12:54:27Z",
+      "mainchain": true,
+      "coinbase_txid": "6ee8330acfa81bafb28347c9286371eb3e423b7f979c71842f8d80c40921c17d",
+      "coinbase_script_hex": "03b3e20d0004035c8f6804906c661d0c6af68e683f9ee4c4076842000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:14Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/910003",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/6ee8330acfa81bafb28347c9286371eb3e423b7f979c71842f8d80c40921c17d",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/910003",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/910003.log",
+      "solve_excerpt_sha256": "141481bd9f243f0e7b07b92118fd9a57e149b1932d85ea475d3165114b02748d",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 909933,
+      "hash": "000000000000000000b11819be0140ab69f98cad64a84bdbf3f60049674cfe70",
+      "block_time_utc": "2025-08-03T00:47:04Z",
+      "mainchain": true,
+      "coinbase_txid": "5d80c1a3d395872a137ea0f46f4398b75f687d7cc42641c05adeb561dece48b4",
+      "coinbase_script_hex": "036de20d000488b18e68047897f7120cf53b8d682227e3c40717cf000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:14Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/909933",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/5d80c1a3d395872a137ea0f46f4398b75f687d7cc42641c05adeb561dece48b4",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/909933",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/909933.log",
+      "solve_excerpt_sha256": "bc702cc92f83fe5ba2ef56bfffda6ae70dc73ca985eca6081ec6b672af95c664",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 909930,
+      "hash": "00000000000000000005e032e77bc84305fbb2e6602004c465b42cb8b1f56459",
+      "block_time_utc": "2025-08-02T23:54:20Z",
+      "mainchain": true,
+      "coinbase_txid": "361fadeeeac9320a191f8f8a0110b8149581ca5aaea7116781366d1ae6bff8ff",
+      "coinbase_script_hex": "036ae20d00041aa58e6804e784d32d0cb93b8d684ee5397c5a0000000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:14Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/909930",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/361fadeeeac9320a191f8f8a0110b8149581ca5aaea7116781366d1ae6bff8ff",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/909930",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/909930.log",
+      "solve_excerpt_sha256": "7c52ead9c076e2f898ebc207143713afd41f6e5a2d5f5b21d7c06820662e1742",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 909890,
+      "hash": "0000000000000000000db13f155adfcb21da5649e2aa878dff43c7d1e85662a4",
+      "block_time_utc": "2025-08-02T18:12:32Z",
+      "mainchain": true,
+      "coinbase_txid": "a3a7583bb4a72747ccfafe44e7e46ccbdc0df437ec1db30cec0297e58717a1bf",
+      "coinbase_script_hex": "0342e20d000410558e6804375b1b370c293b8d682f4c288e134a68000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:14Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/909890",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a3a7583bb4a72747ccfafe44e7e46ccbdc0df437ec1db30cec0297e58717a1bf",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/909890",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/909890.log",
+      "solve_excerpt_sha256": "000c20cf7d58ab7a1c2652a735a67858f6404498292fa5b4cf1d62f344d581ed",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 909866,
+      "hash": "00000000000000000070b3ea5542a916a91a04c27c4a47d5cf471ac2266b3ef3",
+      "block_time_utc": "2025-08-02T12:59:17Z",
+      "mainchain": true,
+      "coinbase_txid": "081717cf5adc5e36d291e0ddd7f0fd286a0a1c17e759248c3e83536e62ac5dba",
+      "coinbase_script_hex": "032ae20d0004a50b8e68046c0844170ca03a8d68a6373c80e98200000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:14Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/909866",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/081717cf5adc5e36d291e0ddd7f0fd286a0a1c17e759248c3e83536e62ac5dba",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/909866",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/909866.log",
+      "solve_excerpt_sha256": "06fc8b3cc8e55fd3f274a44dd4e4289f35dc4196b739a234b8790cf35c22429b",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 909802,
+      "hash": "000000000000000001274baa7d6984e984b690888aff003e275b0e73f8409eba",
+      "block_time_utc": "2025-08-02T02:57:20Z",
+      "mainchain": true,
+      "coinbase_txid": "ff0ae805a377a70f87a3df8f0d25c7515ad3f47898c341ee09d2c54d1dcf5c77",
+      "coinbase_script_hex": "03eae10d0004907e8d68042f808c210c983a8d68a2cbf10c16b33b030a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:15Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/909802",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/ff0ae805a377a70f87a3df8f0d25c7515ad3f47898c341ee09d2c54d1dcf5c77",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/909802",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/909802.log",
+      "solve_excerpt_sha256": "bc08d80219e90338604b4d22ca42dd388f593a81f5a0d663ede57201e280ee11",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 909720,
+      "hash": "0000000000000000008d911006bbbfd3d30085e2fd3668c1047ae9e43f20d5ef",
+      "block_time_utc": "2025-08-01T12:04:27Z",
+      "mainchain": true,
+      "coinbase_txid": "5f4651f2f93855d3ab0f33ea1c30cfed78b41e7f7b6a7165c2e006d939147fa7",
+      "coinbase_script_hex": "0398e10d00044bad8c6804b3c634180c223c8c686517df16319b23000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:15Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/909720",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/5f4651f2f93855d3ab0f33ea1c30cfed78b41e7f7b6a7165c2e006d939147fa7",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/909720",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/909720.log",
+      "solve_excerpt_sha256": "583589f7d4df756ba0873a55b8d88d6c2735965e9e205ed29ac472a26d121188",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 909701,
+      "hash": "000000000000000000b1bbca763941a4e9833fd99780825c1d7e348fa714cc51",
+      "block_time_utc": "2025-08-01T08:55:07Z",
+      "mainchain": true,
+      "coinbase_txid": "a50666072888e4adaab968a47b872c9c6e0e7d272e83ae84e88336b3847c15dd",
+      "coinbase_script_hex": "0385e10d0004eb808c6804086b750a0c7d3c8c684408c44e8d1401000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:15Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/909701",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a50666072888e4adaab968a47b872c9c6e0e7d272e83ae84e88336b3847c15dd",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/909701",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/909701.log",
+      "solve_excerpt_sha256": "1df09731b3cdd3c00d80e8268c9d4731d57099d16815d1b7384ea6df60e477cb",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 909669,
+      "hash": "0000000000000000011907c65e326eee2492950aa7a0622a204a92e10bd7719d",
+      "block_time_utc": "2025-08-01T04:11:42Z",
+      "mainchain": true,
+      "coinbase_txid": "1a5ea0acfcee5af4299bd3096509d72c750b3a57a660da2a1a1b54f01f8bc32d",
+      "coinbase_script_hex": "0365e10d00047b3e8c6804f638b52b0c1b3c8c68fdfb1d1604ad6f000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:15Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/909669",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/1a5ea0acfcee5af4299bd3096509d72c750b3a57a660da2a1a1b54f01f8bc32d",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/909669",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/909669.log",
+      "solve_excerpt_sha256": "8b1478448d523aedd8bf0a527e376acfc5900600342c6ad8b0b96e8c36b7db20",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 909494,
+      "hash": "00000000000000000163482eb6a8c704ca246446c36b5398c7cf3449dc2eaf22",
+      "block_time_utc": "2025-07-30T22:30:45Z",
+      "mainchain": true,
+      "coinbase_txid": "1537374ea7c96a89898e3abc319de65421979f45dc118786e5aaff26b841a833",
+      "coinbase_script_hex": "03b6e00d0004159d8a6804ad131e280ca3098468afae9921c4cb17080a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:15Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/909494",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/1537374ea7c96a89898e3abc319de65421979f45dc118786e5aaff26b841a833",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/909494",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/909494.log",
+      "solve_excerpt_sha256": "78ada761211ed5ed9b2b36ad0c49fd0e8fa19c4f69c39e926b12d9abd3d0ec5b",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 909310,
+      "hash": "0000000000000000011fba0fecf3d062d962d15dd2b9f271460dcba010f7c70f",
+      "block_time_utc": "2025-07-29T16:39:56Z",
+      "mainchain": true,
+      "coinbase_txid": "3a9c279dc3af0a49b815114218d4a4189e11114f1dee13f192c284d8329073b9",
+      "coinbase_script_hex": "03fedf0d00045cf98868048fed9b0d0c800984683e1d0d63722d00000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:16Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/909310",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/3a9c279dc3af0a49b815114218d4a4189e11114f1dee13f192c284d8329073b9",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/909310",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/909310.log",
+      "solve_excerpt_sha256": "2d226020e8f7f3772e44282733a391694ea75fdcbdcf8e153dec3507a2bfe484",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 908385,
+      "hash": "00000000000000000081a199777c7ca6f6079fcc81e6b89cb9af4c3e03cfd9b5",
+      "block_time_utc": "2025-07-23T13:05:56Z",
+      "mainchain": true,
+      "coinbase_txid": "bae52616196f32f9c76f8d19bf647885f28207f6f2d6a443310935ab23f1257b",
+      "coinbase_script_hex": "0361dc0d000434de8068040fbc7d1f0c19d2806851563253f8b5ec000a456c6f506f6f6c2e636c6f7564072f5b536f6c6f5d",
+      "recognized_tags": [
+        "EloPool.cloud",
+        "[Solo]"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:16Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/908385",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/bae52616196f32f9c76f8d19bf647885f28207f6f2d6a443310935ab23f1257b",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/908385",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/908385.log",
+      "solve_excerpt_sha256": "8e25baf5148bc26de622e5af45984184290c64e9d1a6ace3da44c887a0332037",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 908222,
+      "hash": "00000000000000000154e8bc5d8916bb32738fe11d9979dd4fe63e717e209352",
+      "block_time_utc": "2025-07-22T10:16:53Z",
+      "mainchain": true,
+      "coinbase_txid": "bf103606c7c98cec27fa813ddffc616c9f73ec105ca0b6098b45e6686bc74f31",
+      "coinbase_script_hex": "03bedb0d000415657f6804ed5d80090c69477568f82a49bbfaf925020a636b706f6f6c0f2f456c6f506f6f6c2e436c6f75642f",
+      "recognized_tags": [
+        "EloPool.Cloud",
+        "ckpool"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:16Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/908222",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/bf103606c7c98cec27fa813ddffc616c9f73ec105ca0b6098b45e6686bc74f31",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/908222",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/908222.log",
+      "solve_excerpt_sha256": "9af2caa9fe150be6cd774c373833a93502f08cccfb8d1c26cc78b03137a778f9",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 907506,
+      "hash": "000000000000000001fcc0c0f89f3fb3e8965a1808bbec3b89bc0057dea8985d",
+      "block_time_utc": "2025-07-17T13:57:40Z",
+      "mainchain": true,
+      "coinbase_txid": "164ffb32a9586ebf906dc2d49c7f1489f94ce043764580c7e12a6b60911274a5",
+      "coinbase_script_hex": "03f2d80d0004540179680407c09e2b0c3745756855e2b4ae0a107c010a636b706f6f6c0f2f456c6f506f6f6c2e436c6f75642f",
+      "recognized_tags": [
+        "EloPool.Cloud",
+        "ckpool"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:16Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/907506",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/164ffb32a9586ebf906dc2d49c7f1489f94ce043764580c7e12a6b60911274a5",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/907506",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/907506.log",
+      "solve_excerpt_sha256": "c391d32f4a47dc3a7996ef9a9c18d6c72803b4608430046ca0e1992e91c2ca1a",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 907353,
+      "hash": "0000000000000000019de67f391cd31aa07ff2caea5513237f5e7a6a1910092d",
+      "block_time_utc": "2025-07-16T12:09:54Z",
+      "mainchain": true,
+      "coinbase_txid": "04157b988f418a4c0f6d605f3b735872cf38406b9f76f6c9927c65f11f7760c5",
+      "coinbase_script_hex": "0359d80d000489967768048d42c8030ced31756861480000000000000a636b706f6f6c0f2f456c6f506f6f6c2e436c6f75642f",
+      "recognized_tags": [
+        "EloPool.Cloud",
+        "ckpool"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:16Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/907353",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/04157b988f418a4c0f6d605f3b735872cf38406b9f76f6c9927c65f11f7760c5",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/907353",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/907353.log",
+      "solve_excerpt_sha256": "51dc4ef7075dbe435a0e03f3e98a6f05187385977a51af400c3f612112369ae5",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    },
+    {
+      "height": 907231,
+      "hash": "0000000000000000018c2b06ef515e2b1b01379764f77889f588cbcc5c5fe849",
+      "block_time_utc": "2025-07-15T16:42:49Z",
+      "mainchain": true,
+      "coinbase_txid": "e7d1abed15c529fd7f61e631301f306cc288001a3ffb14e3fc4e0197cd09b2e3",
+      "coinbase_script_hex": "03dfd70d000409857668048cf3482f0c81317568ac135cf735783cff0a636b706f6f6c0f2f456c6f506f6f6c2e436c6f75642f",
+      "recognized_tags": [
+        "EloPool.Cloud",
+        "ckpool"
+      ],
+      "checked_at_utc": "2026-09-05T22:27:16Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/907231",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/e7d1abed15c529fd7f61e631301f306cc288001a3ffb14e3fc4e0197cd09b2e3",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/907231",
+      "local_solve_log": "recovered",
+      "solve_excerpt": "logs/907231.log",
+      "solve_excerpt_sha256": "ee8dceea4398c2caf37084cedc26983a1a8cd839809bf55f6a389c76f0a0a427",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+    }
+  ]
+}

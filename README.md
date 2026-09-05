@@ -1,9 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/cashstratum-logo-dark.png">
-  <img src=".github/assets/cashstratum-logo-light.png" alt="CashStratum" width="640">
-</picture>
+<img src=".github/assets/cashstratum-bch-transparent-v2.png" alt="CashStratum" width="640">
 
 # Mining infrastructure for Bitcoin Cash
 

@@ -19,6 +19,7 @@ configure
 libtool
 stamp-h1
 m4/
+src/cashstratum
 src/ckpool
 src/ckpmsg
 src/notifier

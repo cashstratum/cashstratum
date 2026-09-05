@@ -69,12 +69,93 @@ Stratum-processing components. The Go API supplies operator-facing read access; 
 replace the mining engine. Shell tools support installation and terminal monitoring.
 
 Authenticated API routes expose operational data. The lightweight `/ping` route is deliberately
-unauthenticated and separately rate-limited. Deployment documentation will explain network
-boundaries and TLS configuration before public installation instructions are published.
+unauthenticated and separately rate-limited. The full endpoint reference, configuration table and
+deployment procedure — including network boundaries and TLS — are documented in
+**[docs/operator-api.md](docs/operator-api.md)** and summarized below.
 
 The first release will document CashStratum binary, configuration, service and log names,
 including migration from existing CKPool-based installations. Do not rename files in a running
 installation without updating their consumers.
+
+## Operator API
+
+A read-only HTTP API over the pool's own logs and status files, shipped as a single static Go
+binary. It lets a dashboard, a monitoring system or a pool website read pool state without shell
+access to the mining host.
+
+It is **read-only by design**: it never writes to the pool, never touches the engine's control
+sockets, and cannot change pool state. The HTTP server is Go standard library only, and its one
+dependency (used by the optional block notifier) is vendored, so it builds with no network access.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | liveness, log presence and size |
+| `GET /stats` | pool hashrate, workers, users, plus the node's own chain view |
+| `GET /tail?lines=N` | tail the main log (capped at 1000 lines) |
+| `GET /grep?pattern=` | literal search over the main log |
+| `GET /find-block?height=N` | the log burst for one solved height — finder, worker, hashrate at solve time, round shares |
+| `GET /user-file?user=` | one miner's full parsed status |
+| `GET /user-log?user=&lines=N` | tail one miner's status file as raw lines |
+| `GET /shares?since=&user=&limit=` | poll new sharelog records through a resumable cursor |
+| `GET /coinbase?user=` | decode the coinbase the miner is currently working on |
+| `GET /metrics` | service-level counters |
+| `GET /ping` | **unauthenticated** round-trip-time probe for a browser |
+
+Every route except `/ping` requires `Authorization: Bearer $CASHSTRATUM_API_KEY`. Requests are
+rate limited per client IP in a fixed 60-second window — 20 requests by default, with independent
+budgets of 60 for `/shares` (sized for a 2–3 s poll loop) and 60 for `/ping`. Every response
+carries `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`, so a client never
+has to guess its budget.
+
+```bash
+AUTH="Authorization: Bearer $CASHSTRATUM_API_KEY"
+curl -H "$AUTH" "http://127.0.0.1:8888/stats"
+```
+
+```json
+{
+  "hashrate": "50.8P",
+  "workers": 12,
+  "users": 4,
+  "block_height": 966262,
+  "node": { "chain": "main", "blocks": 966262, "headers": 966262, "ibd": false, "synced": true },
+  "timestamp": 1788048342
+}
+```
+
+Hashrates are SI-suffixed strings (`"50.8P"` is 50.8 PH/s, and an idle worker reports a bare
+`"0"`), so parse them suffix-aware rather than as floats.
+
+**Configuration is environment-only** — no config file. `CASHSTRATUM_API_KEY` is required and the
+service refuses to start without it; `CASHSTRATUM_LOG_PATH`, `CASHSTRATUM_USER_LOGS_PATH` and
+`CASHSTRATUM_API_PORT` (default `8888`) cover the rest of a normal deployment. Node RPC
+credentials are **not** configured here: they are read at startup from the pool's own
+configuration file, so they cannot drift from the node the pool is already using.
+
+**Install**, once the release binary is in hand:
+
+```bash
+sudo install -d -m 0755 /opt/cashstratum-api
+sudo install -m 0755 cashstratum-api-linux-amd64 /opt/cashstratum-api/cashstratum-api
+
+sudo install -d -m 0755 /etc/cashstratum-api
+printf 'CASHSTRATUM_API_KEY=%s\n' "$(openssl rand -hex 32)" \
+    | sudo tee /etc/cashstratum-api/cashstratum-api.env >/dev/null
+sudo chmod 0600 /etc/cashstratum-api/cashstratum-api.env
+
+sudo cp cashstratum-api.service /etc/systemd/system/   # edit User= and ExecStart= first
+sudo systemctl daemon-reload
+sudo systemctl enable --now cashstratum-api
+```
+
+Two things reliably go wrong: **run it as the account that runs the pool** (the engine creates its
+log directory mode `0750`, so any other account gets permission denied on every endpoint while
+`/health` still answers), and **do not expose the port to the internet** — the bearer key is the
+only authentication and it travels in cleartext over HTTP. If you want browsers to measure latency
+to the pool host, put a TLS proxy in front of `/ping` alone.
+
+Full reference — every parameter, response, cursor semantics, caveat and the retention timer:
+**[docs/operator-api.md](docs/operator-api.md)**.
 
 ## Production lineage and evidence
 

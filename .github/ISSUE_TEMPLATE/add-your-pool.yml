@@ -1,0 +1,75 @@
+name: Add your pool
+description: List a pool that runs CashStratum in the public directory
+title: "[Pool] "
+labels: ["pool-listing"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Listings are verified, not self-declared. We confirm that you control the domain and that
+        the endpoint actually runs CashStratum before adding it to `pools.yml`.
+  - type: input
+    id: name
+    attributes:
+      label: Pool name
+      placeholder: BlockSniper
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Website
+      placeholder: https://example.com
+    validations:
+      required: true
+  - type: input
+    id: stratum
+    attributes:
+      label: Stratum endpoint
+      placeholder: stratum+tcp://solo.example.com:3333
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - solo
+        - pool
+        - both
+    validations:
+      required: true
+  - type: input
+    id: fee
+    attributes:
+      label: Operator fee (%)
+      placeholder: "2"
+    validations:
+      required: true
+  - type: dropdown
+    id: domain_proof
+    attributes:
+      label: Domain control proof
+      description: Publish `cashstratum-verification=<this issue number>` one of these two ways, then tell us which.
+      options:
+        - DNS TXT record on the apex domain
+        - File at /.well-known/cashstratum.txt
+    validations:
+      required: true
+  - type: checkboxes
+    id: fingerprint
+    attributes:
+      label: Which CashStratum behaviours does your endpoint show?
+      description: We will verify at least one of these ourselves.
+      options:
+        - label: A CashAddr username (`bitcoincash:q…`) is accepted at authorize
+        - label: Password difficulty (`-p d=65536`) is applied
+        - label: A bad-checksum address is rejected with an explicit message
+        - label: Blocks found carry our coinbase tag (link them below)
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Block explorer links, version, hashrate, anything that helps us verify quickly.
+    validations:
+      required: false

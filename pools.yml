@@ -1,0 +1,23 @@
+# Pools running CashStratum.
+#
+# This file is the single source of truth for the pool directory shown in README.md and on
+# cashstratum.com. Listings are VERIFIED, not self-declared: open an "Add your pool" issue and
+# we confirm domain control plus at least one CashStratum-specific stratum behaviour before a
+# pool appears here. See CONTRIBUTING.md#getting-your-pool-listed.
+
+pools:
+  - name: BlockSniper
+    url: https://blocksniper.ai
+    stratum: stratum+tcp://solo.blocksniper.ai:3333
+    mode: solo
+    fee_percent: 2
+    chain: BCH
+    since: 2025
+    formerly: elopool.cloud
+    notes: >-
+      Reference production deployment. 68+ BCH mainnet blocks found. Historical coinbase tags
+      reading "elopool.cloud" refer to this same pool under its previous name.
+    verified: 2026-09-05
+    evidence:
+      - operator: maintainer
+      - onchain: coinbase tag on mainnet blocks

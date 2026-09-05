@@ -1,0 +1,39 @@
+# Build output
+*.o
+*.a
+*.lo
+*.la
+*.so
+*.so.*
+.deps/
+.libs/
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache/
+config.h
+config.h.in
+config.log
+config.status
+configure
+libtool
+stamp-h1
+m4/
+src/ckpool
+src/ckpmsg
+src/notifier
+src/*.d
+
+# Local runtime
+*.conf
+!*.conf.example
+logs/
+*.log
+core
+core.*
+vgcore.*
+
+# OS / editor noise
+.DS_Store
+*.swp
+*~

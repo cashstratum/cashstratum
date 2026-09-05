@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Proofs, benchmarks and operator guides
+    url: https://cashstratum.com
+    about: Block proofs, reproducible test results and getting-started guides.
+  - name: Security vulnerability
+    url: https://github.com/cashstratum/cashstratum/security/advisories/new
+    about: Report privately — never in a public issue.

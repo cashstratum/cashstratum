@@ -6,7 +6,11 @@
 
 **A BCH-focused Stratum server and solo mining pool engine, built on CKPool.**
 
-**[69 BCH mainnet blocks — explore the verified record](docs/proofs/)**
+**[69 BCH mainnet blocks](docs/proofs/) · 215.80288934 BCH mined**
+
+**[≈ $121,575.15 USD in historical gross block rewards](docs/proofs/VALUATION.md)**
+
+Valued per block at historical BCH/USD minute prices; includes transaction fees, before costs.
 
 Direct miner payouts · Native CashAddr · Per-address round statistics · Operator tooling
 

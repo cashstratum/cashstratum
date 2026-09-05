@@ -11,6 +11,13 @@ for release as CashStratum. All 69 hashes match the BCH main chain, and every co
 an EloPool or BlockSniper tag. This is historical deployment evidence, not a claim that the
 newly branded CashStratum release was used for all 69 blocks.
 
+## Historical reward value
+
+**215.80288934 BCH gross rewards**, valued at approximately
+**$121,575.15 USD** using historical BCH/USD minute prices.
+Includes transaction fees; before operator/miner splits and operating costs.
+[Per-block amounts, two-source prices and calculation method](VALUATION.md).
+
 ## Evidence and method
 
 - Selected the 69 confirmed records with audit references from the operator database snapshot.

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "last_updated_utc": "2026-09-05T22:32:43Z",
+  "last_updated_utc": "2026-09-05T22:37:38Z",
   "network": "BCH mainnet",
   "count": 69,
   "method": "Local pool record hashes matched to public mainchain headers and coinbase tags. Local log excerpts are additional operator evidence, with finder identities redacted.",
@@ -21,7 +21,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/054e2f9c6de0d692e1e5a23973bd06e242b27a7a1b27abbbece9c7bde2fff35d",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/966569",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12542747",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00042747",
+        "bch_usd": "247.68",
+        "gross_value_usd": "774.11",
+        "bitstamp_bch_usd": "247.60",
+        "price_candle_end_utc": "2026-09-01T03:50:00Z",
+        "price_age_seconds": 5,
+        "checked_at_utc": "2026-09-05T22:36:31Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 928165,
@@ -38,7 +50,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/712c0ade31c21d986d9bcc5efb571c5cbdebbf63e6197137671f85b0546f90d6",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/928165",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12570713",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00070713",
+        "bch_usd": "573.61",
+        "gross_value_usd": "1792.94",
+        "bitstamp_bch_usd": "573.75",
+        "price_candle_end_utc": "2025-12-06T08:32:00Z",
+        "price_age_seconds": 63,
+        "checked_at_utc": "2026-09-05T22:36:30Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 928098,
@@ -55,7 +79,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/0ff18eedd0ae122e9ee85fdfa5c3e1e914d40ad50249611f9a6ff54190bc43e0",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/928098",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12636404",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00136404",
+        "bch_usd": "561.7",
+        "gross_value_usd": "1756.08",
+        "bitstamp_bch_usd": "561.93",
+        "price_candle_end_utc": "2025-12-05T21:48:00Z",
+        "price_age_seconds": 1,
+        "checked_at_utc": "2026-09-05T22:36:30Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 916984,
@@ -73,7 +109,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/59db4fa5fbd681f1a396de61a88741f21658d449802016fb0a7bc441156a7c91",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/916984",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12630717",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00130717",
+        "bch_usd": "601.58",
+        "gross_value_usd": "1880.72",
+        "bitstamp_bch_usd": "601.43",
+        "price_candle_end_utc": "2025-09-20T10:02:00Z",
+        "price_age_seconds": 2,
+        "checked_at_utc": "2026-09-05T22:36:31Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 916429,
@@ -91,7 +139,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/1b095cb9f27a2a3d6bbac75c9b6c98d803eadba585347dfb8227a952407de202",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/916429",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12644433",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00144433",
+        "bch_usd": "597.45",
+        "gross_value_usd": "1867.89",
+        "bitstamp_bch_usd": "597.35",
+        "price_candle_end_utc": "2025-09-16T16:46:00Z",
+        "price_age_seconds": 10,
+        "checked_at_utc": "2026-09-05T22:36:31Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 916154,
@@ -109,7 +169,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/4b07b6a617b0f8868172545ecc8190c0241e298883d2968b01350a10d1c1574b",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/916154",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12613920",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00113920",
+        "bch_usd": "594.67",
+        "gross_value_usd": "1859.02",
+        "bitstamp_bch_usd": "595.69",
+        "price_candle_end_utc": "2025-09-14T20:24:00Z",
+        "price_age_seconds": 45,
+        "checked_at_utc": "2026-09-05T22:36:33Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 915924,
@@ -127,7 +199,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/bcb39f1ab5d5b31778ab3b488aa8b78164d5ff0fa24f0cf3c14160d14a6cb267",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/915924",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12621588",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00121588",
+        "bch_usd": "601.54",
+        "gross_value_usd": "1880.54",
+        "bitstamp_bch_usd": "601.89",
+        "price_candle_end_utc": "2025-09-13T05:51:00Z",
+        "price_age_seconds": 49,
+        "checked_at_utc": "2026-09-05T22:36:33Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 915824,
@@ -145,7 +229,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/210b5b77bfb3452e2f6e6f4f27b1ddd7609bd9fc3e234a9394705a7da8c51c36",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/915824",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12603710",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00103710",
+        "bch_usd": "590.55",
+        "gross_value_usd": "1846.08",
+        "bitstamp_bch_usd": "590.50",
+        "price_candle_end_utc": "2025-09-12T14:04:00Z",
+        "price_age_seconds": 73,
+        "checked_at_utc": "2026-09-05T22:36:33Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 915321,
@@ -163,7 +259,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/ea2d346989bf4466d30b4c38fe17df5e8cb7aa43436debebc60bd3595005d87a",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/915321",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12628694",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00128694",
+        "bch_usd": "588.05",
+        "gross_value_usd": "1838.41",
+        "bitstamp_bch_usd": "588.07",
+        "price_candle_end_utc": "2025-09-09T00:18:00Z",
+        "price_age_seconds": 10,
+        "checked_at_utc": "2026-09-05T22:36:34Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914850,
@@ -181,7 +289,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/518128e7dc952dd373d544a5eb2a74f4ce47d97304787f3b048f576782817ba4",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914850",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12508224",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00008224",
+        "bch_usd": "611.28",
+        "gross_value_usd": "1910.30",
+        "bitstamp_bch_usd": "611.75",
+        "price_candle_end_utc": "2025-09-05T15:51:00Z",
+        "price_age_seconds": 57,
+        "checked_at_utc": "2026-09-05T22:36:34Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914754,
@@ -199,7 +319,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/889e58bed3191eab6c5bdc3f73e03145b7c10f143ccca454607b0523bbff7182",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914754",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12661462",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00161462",
+        "bch_usd": "594.14",
+        "gross_value_usd": "1857.65",
+        "bitstamp_bch_usd": "593.50",
+        "price_candle_end_utc": "2025-09-05T04:27:00Z",
+        "price_age_seconds": 58,
+        "checked_at_utc": "2026-09-05T22:36:34Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914557,
@@ -217,7 +349,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/76ad2ca3409bff606e3518194d4b9d04eda9ab47d34650fbd1f3ddb74af52667",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914557",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12508827",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00008827",
+        "bch_usd": "597.77",
+        "gross_value_usd": "1868.08",
+        "bitstamp_bch_usd": "597.32",
+        "price_candle_end_utc": "2025-09-03T18:34:00Z",
+        "price_age_seconds": 12,
+        "checked_at_utc": "2026-09-05T22:36:35Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914527,
@@ -235,7 +379,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/1c1c99a0d960fb972ab99df76d76c516a3ae4e4b69f4de0759746a86008bc5f8",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914527",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12934630",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00434630",
+        "bch_usd": "603.15",
+        "gross_value_usd": "1887.47",
+        "bitstamp_bch_usd": "603.31",
+        "price_candle_end_utc": "2025-09-03T12:31:00Z",
+        "price_age_seconds": 3,
+        "checked_at_utc": "2026-09-05T22:36:36Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914486,
@@ -253,7 +409,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/946e54cd6f318cc17c170e3f81e3be0aa1c19fc2e2d5888c56e4a278764dab62",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914486",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12538262",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00038262",
+        "bch_usd": "594.96",
+        "gross_value_usd": "1859.48",
+        "bitstamp_bch_usd": "595.18",
+        "price_candle_end_utc": "2025-09-03T06:58:00Z",
+        "price_age_seconds": 3,
+        "checked_at_utc": "2026-09-05T22:36:36Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914439,
@@ -271,7 +439,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/79fbde1128b5d76015f7f3ab8690f2a57d6aa9cce737d42772ffd3abd3da7e83",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914439",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.13660412",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.01160412",
+        "bch_usd": "583.66",
+        "gross_value_usd": "1830.71",
+        "bitstamp_bch_usd": "583.69",
+        "price_candle_end_utc": "2025-09-03T00:21:00Z",
+        "price_age_seconds": 32,
+        "checked_at_utc": "2026-09-05T22:36:36Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914407,
@@ -289,7 +469,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/e412f1c04e6ed6806572eb5529e5b3cd3fe2646d8c015fae9df0565f80cc92d6",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914407",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12650795",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00150795",
+        "bch_usd": "582.96",
+        "gross_value_usd": "1822.63",
+        "bitstamp_bch_usd": "584.01",
+        "price_candle_end_utc": "2025-09-02T18:31:00Z",
+        "price_age_seconds": 8,
+        "checked_at_utc": "2026-09-05T22:36:37Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914239,
@@ -307,7 +499,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/f76ee5a0e4a82f1f96112104b22fbe9fd7eae5c5c1cba3696a334194cb6d6b9a",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914239",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12502275",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00002275",
+        "bch_usd": "545.49",
+        "gross_value_usd": "1704.67",
+        "bitstamp_bch_usd": "546.28",
+        "price_candle_end_utc": "2025-09-01T18:20:00Z",
+        "price_age_seconds": 42,
+        "checked_at_utc": "2026-09-05T22:36:37Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914226,
@@ -325,7 +529,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/88cad67b2c93b569e2cf6724934b03cafa2aa285554584596d45fa43bc11f6c7",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914226",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12770209",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00270209",
+        "bch_usd": "545.03",
+        "gross_value_usd": "1704.69",
+        "bitstamp_bch_usd": "544.79",
+        "price_candle_end_utc": "2025-09-01T15:29:00Z",
+        "price_age_seconds": 93,
+        "checked_at_utc": "2026-09-05T22:36:38Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914122,
@@ -343,7 +559,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/c9a4092c4926d535524017966f5081d7d3375784210bb9bbdd0c037a26c7b7f3",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914122",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12823819",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00323819",
+        "bch_usd": "546.77",
+        "gross_value_usd": "1710.43",
+        "bitstamp_bch_usd": "545.94",
+        "price_candle_end_utc": "2025-08-31T22:12:00Z",
+        "price_age_seconds": 110,
+        "checked_at_utc": "2026-09-05T22:36:38Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 914076,
@@ -361,7 +589,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a5d6265898ebde68ef91866f6a57462e982a7368e4cedf2cff4d1318b2b3322d",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/914076",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12511446",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00011446",
+        "bch_usd": "546.79",
+        "gross_value_usd": "1708.78",
+        "bitstamp_bch_usd": "546.73",
+        "price_candle_end_utc": "2025-08-31T13:47:00Z",
+        "price_age_seconds": 99,
+        "checked_at_utc": "2026-09-05T22:36:38Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 913971,
@@ -379,7 +619,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/8cfa7608514c2049532563c8f5fbe5269650c13398d710e3a1b6b2738d466ba1",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/913971",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12886727",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00386727",
+        "bch_usd": "545.79",
+        "gross_value_usd": "1707.70",
+        "bitstamp_bch_usd": "545.88",
+        "price_candle_end_utc": "2025-08-30T21:06:00Z",
+        "price_age_seconds": 26,
+        "checked_at_utc": "2026-09-05T22:36:39Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 913959,
@@ -397,7 +649,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/20e83cd98169061a9b7229cc080839da5da0c6a9004d19bc033b684fde9943be",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/913959",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12535111",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00035111",
+        "bch_usd": "543.39",
+        "gross_value_usd": "1698.28",
+        "bitstamp_bch_usd": "543.53",
+        "price_candle_end_utc": "2025-08-30T18:52:00Z",
+        "price_age_seconds": 28,
+        "checked_at_utc": "2026-09-05T22:36:39Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 913820,
@@ -415,7 +679,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/fc1cc883731d3a0182b099f5712c168ce15a6670f897f878c1c9e622e9492138",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/913820",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12591546",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00091546",
+        "bch_usd": "532.44",
+        "gross_value_usd": "1664.36",
+        "bitstamp_bch_usd": "529.96",
+        "price_candle_end_utc": "2025-08-29T21:30:00Z",
+        "price_age_seconds": 32,
+        "checked_at_utc": "2026-09-05T22:36:39Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 913680,
@@ -433,7 +709,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/b3644e4eeaab10dad29937b21ed5b3205030a52cf7fd55cfc3e4c424e3b7fafc",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/913680",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12629823",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00129823",
+        "bch_usd": "552.56",
+        "gross_value_usd": "1727.47",
+        "bitstamp_bch_usd": "552.93",
+        "price_candle_end_utc": "2025-08-28T21:41:00Z",
+        "price_age_seconds": 37,
+        "checked_at_utc": "2026-09-05T22:36:40Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 913451,
@@ -451,7 +739,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/822f72641d111f989138f71a815c82559720a83ff41f6eeaee72b8e7f1a5ff6c",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/913451",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12507532",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00007532",
+        "bch_usd": "556.5",
+        "gross_value_usd": "1739.10",
+        "bitstamp_bch_usd": "557.63",
+        "price_candle_end_utc": "2025-08-27T06:54:00Z",
+        "price_age_seconds": 42,
+        "checked_at_utc": "2026-09-05T22:36:40Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 913423,
@@ -469,7 +769,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/01359833fc41d5b64cd2da33cf772e7b695776cc995957d8f3cba65d271695d8",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/913423",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12612515",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00112515",
+        "bch_usd": "547.3",
+        "gross_value_usd": "1710.93",
+        "bitstamp_bch_usd": "547.03",
+        "price_candle_end_utc": "2025-08-27T03:28:00Z",
+        "price_age_seconds": 18,
+        "checked_at_utc": "2026-09-05T22:36:40Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 913256,
@@ -487,7 +799,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/429757c14baf08bc52701620b94f1e49854bd2ce1b6660e96ef2d581df52278e",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/913256",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12562966",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00062966",
+        "bch_usd": "540.23",
+        "gross_value_usd": "1688.56",
+        "bitstamp_bch_usd": "539.51",
+        "price_candle_end_utc": "2025-08-25T21:10:00Z",
+        "price_age_seconds": 12,
+        "checked_at_utc": "2026-09-05T22:36:41Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 912928,
@@ -505,7 +829,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/615b904ec6a3edf9bb89e43d1fbd49b15f42855c47e96ad97a3649ea1a64ef2e",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/912928",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12593850",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00093850",
+        "bch_usd": "591.19",
+        "gross_value_usd": "1848.02",
+        "bitstamp_bch_usd": "592.20",
+        "price_candle_end_utc": "2025-08-23T14:20:00Z",
+        "price_age_seconds": 52,
+        "checked_at_utc": "2026-09-05T22:36:41Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 912893,
@@ -523,7 +859,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/f3136d62b9e10d6df1e86564506f046cee70aed5ca80ea9caa9e77e6629015eb",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/912893",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12594102",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00094102",
+        "bch_usd": "589.45",
+        "gross_value_usd": "1842.59",
+        "bitstamp_bch_usd": "589.55",
+        "price_candle_end_utc": "2025-08-23T09:17:00Z",
+        "price_age_seconds": 147,
+        "checked_at_utc": "2026-09-05T22:36:42Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 912853,
@@ -541,7 +889,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a18369ca8bcfccffcdc3f830f27b1b285463584897d53b3b69232ae41709de4c",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/912853",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12819029",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00319029",
+        "bch_usd": "593.95",
+        "gross_value_usd": "1857.99",
+        "bitstamp_bch_usd": "593.75",
+        "price_candle_end_utc": "2025-08-23T02:03:00Z",
+        "price_age_seconds": 17,
+        "checked_at_utc": "2026-09-05T22:36:43Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 912775,
@@ -559,7 +919,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/ca15a606e0a3a38c822718c21fa7d69e3c11a131a0419b971725ecd692331222",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/912775",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12507329",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00007329",
+        "bch_usd": "598.33",
+        "gross_value_usd": "1869.83",
+        "bitstamp_bch_usd": "598.09",
+        "price_candle_end_utc": "2025-08-22T15:24:00Z",
+        "price_age_seconds": 50,
+        "checked_at_utc": "2026-09-05T22:36:43Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 912602,
@@ -577,7 +949,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/16ab79c41234cda5cffbbb09228b46076428dab14c02bf79107d4f949ce8febc",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/912602",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12708359",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00208359",
+        "bch_usd": "556.96",
+        "gross_value_usd": "1741.66",
+        "bitstamp_bch_usd": "557.20",
+        "price_candle_end_utc": "2025-08-21T10:36:00Z",
+        "price_age_seconds": 39,
+        "checked_at_utc": "2026-09-05T22:36:43Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 912567,
@@ -595,7 +979,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a938e4c7b050da1768156595b7bd83a95d610b0b2c4af4a6f1d2c677cd706d18",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/912567",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12595043",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00095043",
+        "bch_usd": "561.29",
+        "gross_value_usd": "1754.56",
+        "bitstamp_bch_usd": "561.65",
+        "price_candle_end_utc": "2025-08-21T04:56:00Z",
+        "price_age_seconds": 4,
+        "checked_at_utc": "2026-09-05T22:36:44Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 912378,
@@ -613,7 +1009,19 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/7246e0c2643bd0957b5f7bed65de3d6d23a629f081ca1445af663205aa0913e0",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/912378",
       "local_solve_log": "not_recovered",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "valuation": {
+        "gross_reward_bch": "3.12527071",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00027071",
+        "bch_usd": "555.19",
+        "gross_value_usd": "1735.12",
+        "bitstamp_bch_usd": "555.42",
+        "price_candle_end_utc": "2025-08-19T21:24:00Z",
+        "price_age_seconds": 107,
+        "checked_at_utc": "2026-09-05T22:36:44Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
     },
     {
       "height": 912116,
@@ -644,6 +1052,18 @@
         "source_line_end": 206595,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12665382",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00165382",
+        "bch_usd": "581.03",
+        "gross_value_usd": "1816.68",
+        "bitstamp_bch_usd": "581.10",
+        "price_candle_end_utc": "2025-08-18T01:23:00Z",
+        "price_age_seconds": 17,
+        "checked_at_utc": "2026-09-05T22:36:44Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -675,6 +1095,18 @@
         "source_line_end": 191503,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12758278",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00258278",
+        "bch_usd": "591.38",
+        "gross_value_usd": "1849.59",
+        "bitstamp_bch_usd": "590.87",
+        "price_candle_end_utc": "2025-08-17T11:38:00Z",
+        "price_age_seconds": 53,
+        "checked_at_utc": "2026-09-05T22:36:44Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -706,6 +1138,18 @@
         "source_line_end": 186794,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12691253",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00191253",
+        "bch_usd": "588.41",
+        "gross_value_usd": "1839.91",
+        "bitstamp_bch_usd": "589.02",
+        "price_candle_end_utc": "2025-08-17T07:22:00Z",
+        "price_age_seconds": 41,
+        "checked_at_utc": "2026-09-05T22:36:45Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -737,6 +1181,18 @@
         "source_line_end": 164808,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12609699",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00109699",
+        "bch_usd": "585.75",
+        "gross_value_usd": "1831.11",
+        "bitstamp_bch_usd": "585.76",
+        "price_candle_end_utc": "2025-08-16T15:29:00Z",
+        "price_age_seconds": 57,
+        "checked_at_utc": "2026-09-05T22:36:45Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -768,6 +1224,18 @@
         "source_line_end": 162444,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12542799",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00042799",
+        "bch_usd": "588.28",
+        "gross_value_usd": "1838.63",
+        "bitstamp_bch_usd": "588.77",
+        "price_candle_end_utc": "2025-08-16T13:18:00Z",
+        "price_age_seconds": 47,
+        "checked_at_utc": "2026-09-05T22:36:45Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -799,6 +1267,18 @@
         "source_line_end": 134482,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12604270",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00104270",
+        "bch_usd": "595.07",
+        "gross_value_usd": "1860.21",
+        "bitstamp_bch_usd": "594.47",
+        "price_candle_end_utc": "2025-08-14T23:39:00Z",
+        "price_age_seconds": 9,
+        "checked_at_utc": "2026-09-05T22:36:46Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -830,6 +1310,18 @@
         "source_line_end": 123297,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12686461",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00186461",
+        "bch_usd": "623.25",
+        "gross_value_usd": "1948.82",
+        "bitstamp_bch_usd": "623.70",
+        "price_candle_end_utc": "2025-08-14T03:52:00Z",
+        "price_age_seconds": 9,
+        "checked_at_utc": "2026-09-05T22:36:47Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -861,6 +1353,18 @@
         "source_line_end": 121860,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.13555915",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.01055915",
+        "bch_usd": "623.76",
+        "gross_value_usd": "1955.84",
+        "bitstamp_bch_usd": "623.51",
+        "price_candle_end_utc": "2025-08-14T01:54:00Z",
+        "price_age_seconds": 14,
+        "checked_at_utc": "2026-09-05T22:36:46Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -892,6 +1396,18 @@
         "source_line_end": 116526,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.16220546",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.03720546",
+        "bch_usd": "612.75",
+        "gross_value_usd": "1937.64",
+        "bitstamp_bch_usd": "612.60",
+        "price_candle_end_utc": "2025-08-13T17:50:00Z",
+        "price_age_seconds": 32,
+        "checked_at_utc": "2026-09-05T22:36:47Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -923,6 +1439,18 @@
         "source_line_end": 111525,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12576798",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00076798",
+        "bch_usd": "607.62",
+        "gross_value_usd": "1899.28",
+        "bitstamp_bch_usd": "607.60",
+        "price_candle_end_utc": "2025-08-13T09:28:00Z",
+        "price_age_seconds": 10,
+        "checked_at_utc": "2026-09-05T22:36:48Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -954,6 +1482,18 @@
         "source_line_end": 101565,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12522579",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00022579",
+        "bch_usd": "618.74",
+        "gross_value_usd": "1933.70",
+        "bitstamp_bch_usd": "618.69",
+        "price_candle_end_utc": "2025-08-12T19:25:00Z",
+        "price_age_seconds": 34,
+        "checked_at_utc": "2026-09-05T22:36:48Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -985,6 +1525,18 @@
         "source_line_end": 94633,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12636851",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00136851",
+        "bch_usd": "592.07",
+        "gross_value_usd": "1851.03",
+        "bitstamp_bch_usd": "592.31",
+        "price_candle_end_utc": "2025-08-12T12:04:00Z",
+        "price_age_seconds": 33,
+        "checked_at_utc": "2026-09-05T22:36:48Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1016,6 +1568,18 @@
         "source_line_end": 82713,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12518867",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00018867",
+        "bch_usd": "577.98",
+        "gross_value_usd": "1806.30",
+        "bitstamp_bch_usd": "577.50",
+        "price_candle_end_utc": "2025-08-11T21:37:00Z",
+        "price_age_seconds": 48,
+        "checked_at_utc": "2026-09-05T22:36:49Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1047,6 +1611,18 @@
         "source_line_end": 64820,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12537820",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00037820",
+        "bch_usd": "572.24",
+        "gross_value_usd": "1788.47",
+        "bitstamp_bch_usd": "572.14",
+        "price_candle_end_utc": "2025-08-10T17:45:00Z",
+        "price_age_seconds": 42,
+        "checked_at_utc": "2026-09-05T22:36:49Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1078,6 +1654,18 @@
         "source_line_end": 24118,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12621511",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00121511",
+        "bch_usd": "576.04",
+        "gross_value_usd": "1800.82",
+        "bitstamp_bch_usd": "577.60",
+        "price_candle_end_utc": "2025-08-07T16:16:00Z",
+        "price_age_seconds": 38,
+        "checked_at_utc": "2026-09-05T22:36:49Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1109,6 +1697,18 @@
         "source_line_end": 16093,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12912408",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00412408",
+        "bch_usd": "570.57",
+        "gross_value_usd": "1785.38",
+        "bitstamp_bch_usd": "570.65",
+        "price_candle_end_utc": "2025-08-07T01:02:00Z",
+        "price_age_seconds": 24,
+        "checked_at_utc": "2026-09-05T22:36:52Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1140,6 +1740,18 @@
         "source_line_end": 3215,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12536822",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00036822",
+        "bch_usd": "550.15",
+        "gross_value_usd": "1719.42",
+        "bitstamp_bch_usd": "550.30",
+        "price_candle_end_utc": "2025-08-06T01:36:00Z",
+        "price_age_seconds": 21,
+        "checked_at_utc": "2026-09-05T22:36:51Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1171,6 +1783,18 @@
         "source_line_end": 3196,
         "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12658577",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00158577",
+        "bch_usd": "549.75",
+        "gross_value_usd": "1718.84",
+        "bitstamp_bch_usd": "550.30",
+        "price_candle_end_utc": "2025-08-06T01:35:00Z",
+        "price_age_seconds": 21,
+        "checked_at_utc": "2026-09-05T22:36:51Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1202,6 +1826,18 @@
         "source_line_end": 921,
         "source_sha256": "e6e446c4c9f137aa67ed1d116e23dc2b997424a5bd855511cc146e16f42d7db2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12513980",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00013980",
+        "bch_usd": "566.45",
+        "gross_value_usd": "1770.24",
+        "bitstamp_bch_usd": "566.35",
+        "price_candle_end_utc": "2025-08-04T18:36:00Z",
+        "price_age_seconds": 27,
+        "checked_at_utc": "2026-09-05T22:36:52Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1233,6 +1869,18 @@
         "source_line_end": 263049,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12624401",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00124401",
+        "bch_usd": "541.62",
+        "gross_value_usd": "1693.24",
+        "bitstamp_bch_usd": "541.30",
+        "price_candle_end_utc": "2025-08-03T12:54:00Z",
+        "price_age_seconds": 27,
+        "checked_at_utc": "2026-09-05T22:36:54Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1264,6 +1912,18 @@
         "source_line_end": 257941,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12616799",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00116799",
+        "bch_usd": "521.34",
+        "gross_value_usd": "1629.80",
+        "bitstamp_bch_usd": "522.08",
+        "price_candle_end_utc": "2025-08-03T00:47:00Z",
+        "price_age_seconds": 4,
+        "checked_at_utc": "2026-09-05T22:36:53Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1295,6 +1955,18 @@
         "source_line_end": 257591,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12572107",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00072107",
+        "bch_usd": "519.9",
+        "gross_value_usd": "1625.06",
+        "bitstamp_bch_usd": "520.58",
+        "price_candle_end_utc": "2025-08-02T23:54:00Z",
+        "price_age_seconds": 20,
+        "checked_at_utc": "2026-09-05T22:36:54Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1326,6 +1998,18 @@
         "source_line_end": 255189,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12798370",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00298370",
+        "bch_usd": "526.86",
+        "gross_value_usd": "1648.01",
+        "bitstamp_bch_usd": "527.08",
+        "price_candle_end_utc": "2025-08-02T18:12:00Z",
+        "price_age_seconds": 32,
+        "checked_at_utc": "2026-09-05T22:36:54Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1357,6 +2041,18 @@
         "source_line_end": 253205,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12558933",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00058933",
+        "bch_usd": "536.83",
+        "gross_value_usd": "1677.91",
+        "bitstamp_bch_usd": "536.81",
+        "price_candle_end_utc": "2025-08-02T12:59:00Z",
+        "price_age_seconds": 17,
+        "checked_at_utc": "2026-09-05T22:36:54Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1388,6 +2084,18 @@
         "source_line_end": 249461,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.13888283",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.01388283",
+        "bch_usd": "540.9",
+        "gross_value_usd": "1697.82",
+        "bitstamp_bch_usd": "540.60",
+        "price_candle_end_utc": "2025-08-02T02:57:00Z",
+        "price_age_seconds": 20,
+        "checked_at_utc": "2026-09-05T22:36:55Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1419,6 +2127,18 @@
         "source_line_end": 243384,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12543440",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00043440",
+        "bch_usd": "558.81",
+        "gross_value_usd": "1746.52",
+        "bitstamp_bch_usd": "558.86",
+        "price_candle_end_utc": "2025-08-01T12:04:00Z",
+        "price_age_seconds": 27,
+        "checked_at_utc": "2026-09-05T22:36:55Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1450,6 +2170,18 @@
         "source_line_end": 242252,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12640144",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00140144",
+        "bch_usd": "555.72",
+        "gross_value_usd": "1737.40",
+        "bitstamp_bch_usd": "556.51",
+        "price_candle_end_utc": "2025-08-01T08:55:00Z",
+        "price_age_seconds": 7,
+        "checked_at_utc": "2026-09-05T22:36:55Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1481,6 +2213,18 @@
         "source_line_end": 240425,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12635187",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00135187",
+        "bch_usd": "568.37",
+        "gross_value_usd": "1776.92",
+        "bitstamp_bch_usd": "568.29",
+        "price_candle_end_utc": "2025-08-01T04:11:00Z",
+        "price_age_seconds": 42,
+        "checked_at_utc": "2026-09-05T22:36:56Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1512,6 +2256,18 @@
         "source_line_end": 228872,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12615255",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00115255",
+        "bch_usd": "567.21",
+        "gross_value_usd": "1773.18",
+        "bitstamp_bch_usd": "569.26",
+        "price_candle_end_utc": "2025-07-30T22:30:00Z",
+        "price_age_seconds": 45,
+        "checked_at_utc": "2026-09-05T22:36:56Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1543,6 +2299,18 @@
         "source_line_end": 218088,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12671192",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00171192",
+        "bch_usd": "563.58",
+        "gross_value_usd": "1762.15",
+        "bitstamp_bch_usd": "565.16",
+        "price_candle_end_utc": "2025-07-29T16:39:00Z",
+        "price_age_seconds": 56,
+        "checked_at_utc": "2026-09-05T22:36:56Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1574,6 +2342,18 @@
         "source_line_end": 164206,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12764478",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00264478",
+        "bch_usd": "518.32",
+        "gross_value_usd": "1621.12",
+        "bitstamp_bch_usd": "518.13",
+        "price_candle_end_utc": "2025-07-23T13:05:00Z",
+        "price_age_seconds": 56,
+        "checked_at_utc": "2026-09-05T22:36:57Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1605,6 +2385,18 @@
         "source_line_end": 153010,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.14416056",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.01916056",
+        "bch_usd": "521.71",
+        "gross_value_usd": "1640.34",
+        "bitstamp_bch_usd": "521.41",
+        "price_candle_end_utc": "2025-07-22T10:15:00Z",
+        "price_age_seconds": 113,
+        "checked_at_utc": "2026-09-05T22:36:57Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1636,6 +2428,18 @@
         "source_line_end": 102556,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12608344",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00108344",
+        "bch_usd": "495.29",
+        "gross_value_usd": "1548.32",
+        "bitstamp_bch_usd": "494.49",
+        "price_candle_end_utc": "2025-07-17T13:57:00Z",
+        "price_age_seconds": 40,
+        "checked_at_utc": "2026-09-05T22:36:57Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1667,6 +2471,18 @@
         "source_line_end": 80661,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12655772",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00155772",
+        "bch_usd": "501.17",
+        "gross_value_usd": "1566.94",
+        "bitstamp_bch_usd": "500.85",
+        "price_candle_end_utc": "2025-07-16T12:09:00Z",
+        "price_age_seconds": 54,
+        "checked_at_utc": "2026-09-05T22:36:58Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     },
     {
@@ -1698,7 +2514,29 @@
         "source_line_end": 72190,
         "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
         "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.13075067",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00575067",
+        "bch_usd": "489.23",
+        "gross_value_usd": "1531.66",
+        "bitstamp_bch_usd": "489.20",
+        "price_candle_end_utc": "2025-07-15T16:42:00Z",
+        "price_age_seconds": 49,
+        "checked_at_utc": "2026-09-05T22:36:58Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
       }
     }
-  ]
+  ],
+  "valuation_summary": {
+    "blocks": 69,
+    "gross_reward_bch": "215.80288934",
+    "subsidy_bch": "215.62500000",
+    "transaction_fees_bch": "0.17788934",
+    "historical_gross_value_usd": "121575.15",
+    "bitstamp_comparison_total_usd": "121598.10",
+    "maximum_source_difference_percent": "0.4658",
+    "maximum_primary_price_age_seconds": 147
+  }
 }

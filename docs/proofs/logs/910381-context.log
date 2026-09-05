@@ -1,0 +1,51 @@
+[2025-08-06 01:35:33.120] ZMQ block hash 000000000000000000b77821b9055980626c0ee8e804a24ca50aa5b54354796d from endpoint 0
+[2025-08-06 01:35:33.403] Solved and confirmed block 910380 by [redacted]
+[2025-08-06 01:35:33.403] [redacted unrelated or identifying data]
+[2025-08-06 01:35:33.403] [redacted unrelated or identifying data]
+[2025-08-06 01:35:33.403] Block solved after 634885500000 shares at 105.1% diff
+[2025-08-06 01:35:33.404] Submitting possible block solve share diff 1534157137468.747803 !
+[2025-08-06 01:35:33.405] Stored local workbase with 0 transactions
+[2025-08-06 01:35:33.405] Network diff set to 602927718170.7
+[2025-08-06 01:35:33.411] Block hash changed to 000000000000000000b77821b9055980626c0ee8e804a24ca50aa5b54354796d
+[2025-08-06 01:35:33.411] ZMQ block hash 000000000000000000b77821b9055980626c0ee8e804a24ca50aa5b54354796d from endpoint 1
+[2025-08-06 01:35:33.412] Stored local workbase with 0 transactions
+[2025-08-06 01:35:45.932] [redacted unrelated or identifying data]
+[2025-08-06 01:35:45.932] [redacted unrelated or identifying data]
+[2025-08-06 01:35:51.219] Stored local workbase with 1 transactions
+[2025-08-06 01:36:06.220] Stored local workbase with 3 transactions
+[2025-08-06 01:36:21.222] Stored local workbase with 7 transactions
+[2025-08-06 01:36:33.698] Possible block solve diff 922520985969.089111 !
+[2025-08-06 01:36:33.698] Submitting block data!
+[2025-08-06 01:36:33.701] BLOCK ACCEPTED!
+[2025-08-06 01:36:33.702] ZMQ block hash 000000000000000001311c3e8930e00a2572a506a9681cc22f6645fcf7eba985 from endpoint 0
+[2025-08-06 01:36:33.988] Solved and confirmed block 910381 by [redacted]
+[2025-08-06 01:36:33.988] [redacted unrelated or identifying data]
+[2025-08-06 01:36:33.988] [redacted unrelated or identifying data]
+[2025-08-06 01:36:33.988] Block solved after 8238500000 shares at 1.4% diff
+[2025-08-06 01:36:33.988] Submitting possible block solve share diff 922520985969.089111 !
+[2025-08-06 01:36:33.990] Stored local workbase with 2 transactions
+[2025-08-06 01:36:33.990] Network diff set to 604232132745.5
+[2025-08-06 01:36:33.992] Block hash changed to 000000000000000001311c3e8930e00a2572a506a9681cc22f6645fcf7eba985
+[2025-08-06 01:36:33.993] ZMQ block hash 000000000000000001311c3e8930e00a2572a506a9681cc22f6645fcf7eba985 from endpoint 1
+[2025-08-06 01:36:33.994] Stored local workbase with 2 transactions
+[2025-08-06 01:36:45.936] [redacted unrelated or identifying data]
+[2025-08-06 01:36:45.936] [redacted unrelated or identifying data]
+[2025-08-06 01:36:45.936] [redacted unrelated or identifying data]
+[2025-08-06 01:36:45.936] [redacted unrelated or identifying data]
+[2025-08-06 01:36:51.220] Stored local workbase with 2 transactions
+[2025-08-06 01:37:06.221] Stored local workbase with 3 transactions
+[2025-08-06 01:37:21.221] Stored local workbase with 3 transactions
+[2025-08-06 01:37:36.222] Stored local workbase with 6 transactions
+[2025-08-06 01:37:45.939] [redacted unrelated or identifying data]
+[2025-08-06 01:37:45.940] [redacted unrelated or identifying data]
+[2025-08-06 01:37:45.940] [redacted unrelated or identifying data]
+[2025-08-06 01:37:45.940] [redacted unrelated or identifying data]
+[2025-08-06 01:37:51.222] Stored local workbase with 6 transactions
+[2025-08-06 01:38:06.223] Stored local workbase with 7 transactions
+[2025-08-06 01:38:21.224] Stored local workbase with 15 transactions
+[2025-08-06 01:38:36.224] Stored local workbase with 16 transactions
+[2025-08-06 01:38:45.943] [redacted unrelated or identifying data]
+[2025-08-06 01:38:45.943] [redacted unrelated or identifying data]
+[2025-08-06 01:38:45.943] [redacted unrelated or identifying data]
+[2025-08-06 01:38:45.943] [redacted unrelated or identifying data]
+[2025-08-06 01:38:51.224] Stored local workbase with 16 transactions

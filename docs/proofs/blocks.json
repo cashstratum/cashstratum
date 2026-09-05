@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "last_updated_utc": "2026-09-05T22:27:16Z",
+  "last_updated_utc": "2026-09-05T22:32:43Z",
   "network": "BCH mainnet",
   "count": 69,
   "method": "Local pool record hashes matched to public mainchain headers and coinbase tags. Local log excerpts are additional operator evidence, with finder identities redacted.",
@@ -631,9 +631,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a8f3ad3576380d63ac949cee133c9d86775a7ca0bdd1b68e2ec24d68b35daf64",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/912116",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/912116.log",
-      "solve_excerpt_sha256": "7fa538ffa477d3ffd52f5f737687a8a0b37fafe2c68f1b045576a012d32ebff3",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/912116-context.log",
+      "solve_excerpt_sha256": "21358b4c5d44a8b4f4a00f27d2250c41b624df8c16a07eef2356b17e9cc33a55",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/912116.log",
+      "original_solve_excerpt_sha256": "7fa538ffa477d3ffd52f5f737687a8a0b37fafe2c68f1b045576a012d32ebff3",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 206545,
+        "source_line_end": 206595,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 912035,
@@ -651,9 +662,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/6d904739137d2665b0dc1a9a7dc911a2a7f37650cb1214ed4333bd108f46d6d4",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/912035",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/912035.log",
-      "solve_excerpt_sha256": "0dfe03d08de641e7e1ee1758ee55e072ef64e01bee7b102376ef7f95ccac9975",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/912035-context.log",
+      "solve_excerpt_sha256": "4a8dadae7ce19fae59d2b3a7e591b21ac2715c473d3dff84e887e8a5cc46b1a3",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/912035.log",
+      "original_solve_excerpt_sha256": "0dfe03d08de641e7e1ee1758ee55e072ef64e01bee7b102376ef7f95ccac9975",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 191453,
+        "source_line_end": 191503,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 912009,
@@ -671,9 +693,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/d82a3e44cc5c1b074453a05e39eaa4d80cf29ee37253c06128562700f2f442c9",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/912009",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/912009.log",
-      "solve_excerpt_sha256": "f48e4c12e853f762099bcd5896996e1a05dd0ad3927ddf7b191000a847f927ac",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/912009-context.log",
+      "solve_excerpt_sha256": "0a763bde04d57aeb33d3169b400eadf07710f0203c6ec91fcda0a14a7901855d",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/912009.log",
+      "original_solve_excerpt_sha256": "f48e4c12e853f762099bcd5896996e1a05dd0ad3927ddf7b191000a847f927ac",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 186744,
+        "source_line_end": 186794,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911920,
@@ -691,9 +724,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/718af821f126a9f9c362e9a737097d2f2b677a681ddbc65ccf81560311f057c7",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911920",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911920.log",
-      "solve_excerpt_sha256": "72a06887ad3e001ea845e806a85ce7760d4b4b224b7939e4acf2c724980f67cc",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911920-context.log",
+      "solve_excerpt_sha256": "a704c95e8837605c71255f6889613e61da7a5cd3e96b0b43b7d713f2e255e590",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911920.log",
+      "original_solve_excerpt_sha256": "72a06887ad3e001ea845e806a85ce7760d4b4b224b7939e4acf2c724980f67cc",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 164758,
+        "source_line_end": 164808,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911903,
@@ -711,9 +755,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/52b8b52973d71a8733a892cf78f7f93f5384fd73fd444f9984354c70ae9d9b99",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911903",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911903.log",
-      "solve_excerpt_sha256": "6360d1eb35bfc3d1712744ab815d7ed2080a34ba6fd40e0dcb48a657e5e8b7ad",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911903-context.log",
+      "solve_excerpt_sha256": "1443faf39ef8ff662140a6142100dda233d6ccc65e9a16b85109f60770472f35",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911903.log",
+      "original_solve_excerpt_sha256": "6360d1eb35bfc3d1712744ab815d7ed2080a34ba6fd40e0dcb48a657e5e8b7ad",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 162394,
+        "source_line_end": 162444,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911683,
@@ -731,9 +786,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/5f89911eca5da13d74e4ad9ce2df20437b13f09542a35a86711e9b51fb413444",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911683",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911683.log",
-      "solve_excerpt_sha256": "ae652778afad955f6449ba484c672755ac82cb6563c7f6455b17a4257b1efaad",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911683-context.log",
+      "solve_excerpt_sha256": "b0ba1f130e9bcff682093be5581c1ac9b21c50ab10f9f60ebd5345f6ca691481",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911683.log",
+      "original_solve_excerpt_sha256": "ae652778afad955f6449ba484c672755ac82cb6563c7f6455b17a4257b1efaad",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 134432,
+        "source_line_end": 134482,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911569,
@@ -751,9 +817,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a9343c123f71f51a252c6f4b10eff5a810c875557d4ef2e6b49ae1919c8c5c72",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911569",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911569.log",
-      "solve_excerpt_sha256": "7632414952dd107ea2e6b10adc2c8c9fce9e64cf4125164aeaf939a232e844bd",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911569-context.log",
+      "solve_excerpt_sha256": "2398373bfe663cdeff132cdd2cd4243372e91a13ebc97f740461b99fce7c3ccb",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911569.log",
+      "original_solve_excerpt_sha256": "7632414952dd107ea2e6b10adc2c8c9fce9e64cf4125164aeaf939a232e844bd",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 123247,
+        "source_line_end": 123297,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911549,
@@ -771,9 +848,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/4e61465cffcf10eff0e104217d87c57032b965d032ae415f8fc1597798f33eee",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911549",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911549.log",
-      "solve_excerpt_sha256": "0968aff4ce62ccbb6ae8280adaf695e1d56567b3628d2303815b5587a4faf8c3",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911549-context.log",
+      "solve_excerpt_sha256": "71f91385b9763d52db81441baaf71b6f59dc4b28b3abb8ed269ad36fff68cb66",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911549.log",
+      "original_solve_excerpt_sha256": "0968aff4ce62ccbb6ae8280adaf695e1d56567b3628d2303815b5587a4faf8c3",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 121810,
+        "source_line_end": 121860,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911502,
@@ -791,9 +879,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/2d3f7f4bfe0e90c868de7ee829706f33d65add8267352dd0d939a627fda0b952",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911502",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911502.log",
-      "solve_excerpt_sha256": "5d56575305fb553a4081aaeced30ee406344d6ef1b1154280fc5a96508ea02de",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911502-context.log",
+      "solve_excerpt_sha256": "bf52fc6718bf9534733fb95756fe7f3786a7d49ffa28c5cd8f42f5bea3bf5c5e",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911502.log",
+      "original_solve_excerpt_sha256": "5d56575305fb553a4081aaeced30ee406344d6ef1b1154280fc5a96508ea02de",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 116476,
+        "source_line_end": 116526,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911458,
@@ -811,9 +910,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/dc813aaaf4436ee75702995a9c365ba86e4689f3d98fd0a7de866fe41d1fa94e",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911458",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911458.log",
-      "solve_excerpt_sha256": "36bb22c4b0668f2e6aa14795070f86819520bbf092f30f350153ba505d23ee7b",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911458-context.log",
+      "solve_excerpt_sha256": "e1426f442f8b8abfc0e96ad5b421a9ec116a124f1c3b79f9fe749947d489bc36",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911458.log",
+      "original_solve_excerpt_sha256": "36bb22c4b0668f2e6aa14795070f86819520bbf092f30f350153ba505d23ee7b",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 111475,
+        "source_line_end": 111525,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911379,
@@ -831,9 +941,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a681cf8941f4643f49a47f4df48d2cd3d27d3e993222616208c0c6e6056a9792",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911379",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911379.log",
-      "solve_excerpt_sha256": "a1dd0a19af60dbb03c7e1ff45184ae958e3f644401d7014603d8cee41352019d",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911379-context.log",
+      "solve_excerpt_sha256": "a3d6283d674e4e30f3f2ac8968a8c39a0c565617fad43c082b7342251dc878d3",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911379.log",
+      "original_solve_excerpt_sha256": "a1dd0a19af60dbb03c7e1ff45184ae958e3f644401d7014603d8cee41352019d",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 101515,
+        "source_line_end": 101565,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911319,
@@ -851,9 +972,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/c64bd40b8e2b6ae4096540e566f4d8cb1223a7c6a3c701109fd5de4f69b2e4d5",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911319",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911319.log",
-      "solve_excerpt_sha256": "1d16ada53a7cbb19156d9aec060a72ea6f0d664ee7d597d2fe06f59453de323b",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911319-context.log",
+      "solve_excerpt_sha256": "8c80af59560ae78193f668d801e61abf0e81961fa808fc9b89a8857944399210",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911319.log",
+      "original_solve_excerpt_sha256": "1d16ada53a7cbb19156d9aec060a72ea6f0d664ee7d597d2fe06f59453de323b",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 94583,
+        "source_line_end": 94633,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911228,
@@ -871,9 +1003,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/21edd82fe427528baf7c6432722fa9a020fdec39b46b8beeaaec6c48e57ceb1a",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911228",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911228.log",
-      "solve_excerpt_sha256": "01085e25fa726e4a10abc8abbde4f13e179202e6923910702db92335cf747bac",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911228-context.log",
+      "solve_excerpt_sha256": "38dda2bfe7c5eacd9c07cb5a986115301027bca128e02320f2d0cc5bcbfb7fc8",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911228.log",
+      "original_solve_excerpt_sha256": "01085e25fa726e4a10abc8abbde4f13e179202e6923910702db92335cf747bac",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 82663,
+        "source_line_end": 82713,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 911053,
@@ -891,9 +1034,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/93671ce9ebfe416169e3839da8402827c19b575c25c6c3a5beeba12ac7543ad3",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/911053",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/911053.log",
-      "solve_excerpt_sha256": "8a12f6183a6f044dbc0ecba271c75d31ede7e67d21129baa38a23cb060d448ba",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/911053-context.log",
+      "solve_excerpt_sha256": "41e8ee07f3c29ea2cf7a6562df208f6ce27c2e0aed6a4565a7972f08f0caca2b",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/911053.log",
+      "original_solve_excerpt_sha256": "8a12f6183a6f044dbc0ecba271c75d31ede7e67d21129baa38a23cb060d448ba",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 64770,
+        "source_line_end": 64820,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 910620,
@@ -911,9 +1065,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/fc47052225cd1553632f11bab335ee7ba6495d994214ad3077c1ff5089bfbb81",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/910620",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/910620.log",
-      "solve_excerpt_sha256": "5ac8382cdd83438da6dccd3099c5beb17b0fa616bfd80e689cde350ae3d26a2e",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/910620-context.log",
+      "solve_excerpt_sha256": "5e943406907c8e8d8868aef8a989f85a91a62fd1af86a5c036831ca2e3da7dcc",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/910620.log",
+      "original_solve_excerpt_sha256": "5ac8382cdd83438da6dccd3099c5beb17b0fa616bfd80e689cde350ae3d26a2e",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 24068,
+        "source_line_end": 24118,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 910527,
@@ -931,9 +1096,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/926f0247543b7f77b9e8214520647bfc1ea881831d760ea950d598e4176367a7",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/910527",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/910527.log",
-      "solve_excerpt_sha256": "cda039ff2d566264977e3c0494e5e9d351ff1604b9332351db4b6b204c604a1f",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/910527-context.log",
+      "solve_excerpt_sha256": "4b1cd11e0864dfe1394f89fccbfc835f4c62ae2ea6e52057454df39039890cfd",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/910527.log",
+      "original_solve_excerpt_sha256": "cda039ff2d566264977e3c0494e5e9d351ff1604b9332351db4b6b204c604a1f",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 16043,
+        "source_line_end": 16093,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 910381,
@@ -951,9 +1127,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/9da8e91a1267c8e07c252862cb661d5eda8c101a54151aeb1f7671c77ae4a266",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/910381",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/910381.log",
-      "solve_excerpt_sha256": "71612feefe237f90f681abde67cbb2ab333c8ace6272d9b033c752024a4fcc26",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/910381-context.log",
+      "solve_excerpt_sha256": "66ad94d4af4fc0446a11cea2bb24069abfdb4fa050514115b8e9ffa88abf71b2",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/910381.log",
+      "original_solve_excerpt_sha256": "71612feefe237f90f681abde67cbb2ab333c8ace6272d9b033c752024a4fcc26",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 3165,
+        "source_line_end": 3215,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 910380,
@@ -971,9 +1158,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/65f87720ad6f8ff47ff90be4f1b03093ba94c2d0598971e16f021cec3acdf5ed",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/910380",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/910380.log",
-      "solve_excerpt_sha256": "5716b2fca108717fed7e9acaab2ad995a18b12ef51ef2f79127b5fe119c48443",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/910380-context.log",
+      "solve_excerpt_sha256": "8b68c9db35fecf8f8516b4e6d3788757fb0f380e2d1c25601aa856762c53df4a",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/910380.log",
+      "original_solve_excerpt_sha256": "5716b2fca108717fed7e9acaab2ad995a18b12ef51ef2f79127b5fe119c48443",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 3146,
+        "source_line_end": 3196,
+        "source_sha256": "15ac2690b5f9a79fffce05dd26e3122ea95aa19fd44231eef207d60881c4e8bd",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 910200,
@@ -991,9 +1189,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/00eec241a2f2740da0d912a2f05f52e373ce5769a2c7c65a0f320e970dc995c5",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/910200",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/910200.log",
-      "solve_excerpt_sha256": "5267f4e12ce1fe4cf1e288521214376810a298a1684db186485b8002b84a4a07",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/910200-context.log",
+      "solve_excerpt_sha256": "ae5c1b7c42afcd270f165afb1b76694f16689db4ba6eac0722ea4a8c3b45872f",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/910200.log",
+      "original_solve_excerpt_sha256": "5267f4e12ce1fe4cf1e288521214376810a298a1684db186485b8002b84a4a07",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 871,
+        "source_line_end": 921,
+        "source_sha256": "e6e446c4c9f137aa67ed1d116e23dc2b997424a5bd855511cc146e16f42d7db2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 910003,
@@ -1011,9 +1220,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/6ee8330acfa81bafb28347c9286371eb3e423b7f979c71842f8d80c40921c17d",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/910003",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/910003.log",
-      "solve_excerpt_sha256": "141481bd9f243f0e7b07b92118fd9a57e149b1932d85ea475d3165114b02748d",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/910003-context.log",
+      "solve_excerpt_sha256": "f56901e4b80e27d526ea1e3746ab481cdbeeb6c819d5cb8b792cc2324461dc0d",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/910003.log",
+      "original_solve_excerpt_sha256": "141481bd9f243f0e7b07b92118fd9a57e149b1932d85ea475d3165114b02748d",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 262999,
+        "source_line_end": 263049,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 909933,
@@ -1031,9 +1251,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/5d80c1a3d395872a137ea0f46f4398b75f687d7cc42641c05adeb561dece48b4",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/909933",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/909933.log",
-      "solve_excerpt_sha256": "bc702cc92f83fe5ba2ef56bfffda6ae70dc73ca985eca6081ec6b672af95c664",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/909933-context.log",
+      "solve_excerpt_sha256": "e2e81a3ed1eea939b0fbe4d073fa9121267b84562c2083c6bba943930ad749de",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/909933.log",
+      "original_solve_excerpt_sha256": "bc702cc92f83fe5ba2ef56bfffda6ae70dc73ca985eca6081ec6b672af95c664",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 257891,
+        "source_line_end": 257941,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 909930,
@@ -1051,9 +1282,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/361fadeeeac9320a191f8f8a0110b8149581ca5aaea7116781366d1ae6bff8ff",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/909930",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/909930.log",
-      "solve_excerpt_sha256": "7c52ead9c076e2f898ebc207143713afd41f6e5a2d5f5b21d7c06820662e1742",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/909930-context.log",
+      "solve_excerpt_sha256": "031ccaf44d5d894a9d519506d876031d582568a98b0f36a7315087bf14d14e08",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/909930.log",
+      "original_solve_excerpt_sha256": "7c52ead9c076e2f898ebc207143713afd41f6e5a2d5f5b21d7c06820662e1742",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 257541,
+        "source_line_end": 257591,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 909890,
@@ -1071,9 +1313,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a3a7583bb4a72747ccfafe44e7e46ccbdc0df437ec1db30cec0297e58717a1bf",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/909890",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/909890.log",
-      "solve_excerpt_sha256": "000c20cf7d58ab7a1c2652a735a67858f6404498292fa5b4cf1d62f344d581ed",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/909890-context.log",
+      "solve_excerpt_sha256": "4001e9b74661c0e5db611ffb80a3f0f5923d6254dba4dadde0d5213e644d4601",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/909890.log",
+      "original_solve_excerpt_sha256": "000c20cf7d58ab7a1c2652a735a67858f6404498292fa5b4cf1d62f344d581ed",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 255139,
+        "source_line_end": 255189,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 909866,
@@ -1091,9 +1344,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/081717cf5adc5e36d291e0ddd7f0fd286a0a1c17e759248c3e83536e62ac5dba",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/909866",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/909866.log",
-      "solve_excerpt_sha256": "06fc8b3cc8e55fd3f274a44dd4e4289f35dc4196b739a234b8790cf35c22429b",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/909866-context.log",
+      "solve_excerpt_sha256": "2caf4d338458dbbdc6c6854e1cad6feef8d4bc5c814153c506e501478e39ff4a",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/909866.log",
+      "original_solve_excerpt_sha256": "06fc8b3cc8e55fd3f274a44dd4e4289f35dc4196b739a234b8790cf35c22429b",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 253155,
+        "source_line_end": 253205,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 909802,
@@ -1111,9 +1375,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/ff0ae805a377a70f87a3df8f0d25c7515ad3f47898c341ee09d2c54d1dcf5c77",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/909802",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/909802.log",
-      "solve_excerpt_sha256": "bc08d80219e90338604b4d22ca42dd388f593a81f5a0d663ede57201e280ee11",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/909802-context.log",
+      "solve_excerpt_sha256": "89a4e269a1887aab6729323c1da9f9136e8a8bb73b402f938d3686dd603d999f",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/909802.log",
+      "original_solve_excerpt_sha256": "bc08d80219e90338604b4d22ca42dd388f593a81f5a0d663ede57201e280ee11",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 249411,
+        "source_line_end": 249461,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 909720,
@@ -1131,9 +1406,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/5f4651f2f93855d3ab0f33ea1c30cfed78b41e7f7b6a7165c2e006d939147fa7",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/909720",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/909720.log",
-      "solve_excerpt_sha256": "583589f7d4df756ba0873a55b8d88d6c2735965e9e205ed29ac472a26d121188",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/909720-context.log",
+      "solve_excerpt_sha256": "8543c18f8a95f2c7cb6e1f0fe1f6873e2af81f1c522871c929a2a60d17b44110",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/909720.log",
+      "original_solve_excerpt_sha256": "583589f7d4df756ba0873a55b8d88d6c2735965e9e205ed29ac472a26d121188",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 243334,
+        "source_line_end": 243384,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 909701,
@@ -1151,9 +1437,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/a50666072888e4adaab968a47b872c9c6e0e7d272e83ae84e88336b3847c15dd",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/909701",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/909701.log",
-      "solve_excerpt_sha256": "1df09731b3cdd3c00d80e8268c9d4731d57099d16815d1b7384ea6df60e477cb",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/909701-context.log",
+      "solve_excerpt_sha256": "9e799e9d4a31101cdd34fe73d1296137c15b8ff2d412a02accad03057c53e215",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/909701.log",
+      "original_solve_excerpt_sha256": "1df09731b3cdd3c00d80e8268c9d4731d57099d16815d1b7384ea6df60e477cb",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 242202,
+        "source_line_end": 242252,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 909669,
@@ -1171,9 +1468,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/1a5ea0acfcee5af4299bd3096509d72c750b3a57a660da2a1a1b54f01f8bc32d",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/909669",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/909669.log",
-      "solve_excerpt_sha256": "8b1478448d523aedd8bf0a527e376acfc5900600342c6ad8b0b96e8c36b7db20",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/909669-context.log",
+      "solve_excerpt_sha256": "5e08f6a4485aa3f0f3cc6c8f0d1d341ac709335001df174b8edb515e4b5e6a82",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/909669.log",
+      "original_solve_excerpt_sha256": "8b1478448d523aedd8bf0a527e376acfc5900600342c6ad8b0b96e8c36b7db20",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 240375,
+        "source_line_end": 240425,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 909494,
@@ -1191,9 +1499,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/1537374ea7c96a89898e3abc319de65421979f45dc118786e5aaff26b841a833",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/909494",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/909494.log",
-      "solve_excerpt_sha256": "78ada761211ed5ed9b2b36ad0c49fd0e8fa19c4f69c39e926b12d9abd3d0ec5b",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/909494-context.log",
+      "solve_excerpt_sha256": "9c8ca62ace086f57d336166e996864a3b08dc3fc12935aa7078bcf1b225ce6e7",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/909494.log",
+      "original_solve_excerpt_sha256": "78ada761211ed5ed9b2b36ad0c49fd0e8fa19c4f69c39e926b12d9abd3d0ec5b",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 228822,
+        "source_line_end": 228872,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 909310,
@@ -1211,9 +1530,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/3a9c279dc3af0a49b815114218d4a4189e11114f1dee13f192c284d8329073b9",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/909310",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/909310.log",
-      "solve_excerpt_sha256": "2d226020e8f7f3772e44282733a391694ea75fdcbdcf8e153dec3507a2bfe484",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/909310-context.log",
+      "solve_excerpt_sha256": "7e6fc0ddd5f6909b9e02cf0214f8892300a11634ec04cbda3e89e6dcdb49624e",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/909310.log",
+      "original_solve_excerpt_sha256": "2d226020e8f7f3772e44282733a391694ea75fdcbdcf8e153dec3507a2bfe484",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 218038,
+        "source_line_end": 218088,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 908385,
@@ -1231,9 +1561,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/bae52616196f32f9c76f8d19bf647885f28207f6f2d6a443310935ab23f1257b",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/908385",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/908385.log",
-      "solve_excerpt_sha256": "8e25baf5148bc26de622e5af45984184290c64e9d1a6ace3da44c887a0332037",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/908385-context.log",
+      "solve_excerpt_sha256": "d52a6366fde437741e09e0de85f3574e3b1fb3090588cbe86366e7c7ec89eac7",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/908385.log",
+      "original_solve_excerpt_sha256": "8e25baf5148bc26de622e5af45984184290c64e9d1a6ace3da44c887a0332037",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 164156,
+        "source_line_end": 164206,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 908222,
@@ -1251,9 +1592,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/bf103606c7c98cec27fa813ddffc616c9f73ec105ca0b6098b45e6686bc74f31",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/908222",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/908222.log",
-      "solve_excerpt_sha256": "9af2caa9fe150be6cd774c373833a93502f08cccfb8d1c26cc78b03137a778f9",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/908222-context.log",
+      "solve_excerpt_sha256": "90eb47caaf09bec84d443632a9adfff7c37b07fec12892ce568f7922b3c8abaf",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/908222.log",
+      "original_solve_excerpt_sha256": "9af2caa9fe150be6cd774c373833a93502f08cccfb8d1c26cc78b03137a778f9",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 152960,
+        "source_line_end": 153010,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 907506,
@@ -1271,9 +1623,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/164ffb32a9586ebf906dc2d49c7f1489f94ce043764580c7e12a6b60911274a5",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/907506",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/907506.log",
-      "solve_excerpt_sha256": "c391d32f4a47dc3a7996ef9a9c18d6c72803b4608430046ca0e1992e91c2ca1a",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/907506-context.log",
+      "solve_excerpt_sha256": "26b0434f53153a6e0495758422d4b363e190497d2cbe4f2966c945ec42777603",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/907506.log",
+      "original_solve_excerpt_sha256": "c391d32f4a47dc3a7996ef9a9c18d6c72803b4608430046ca0e1992e91c2ca1a",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 102506,
+        "source_line_end": 102556,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 907353,
@@ -1291,9 +1654,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/04157b988f418a4c0f6d605f3b735872cf38406b9f76f6c9927c65f11f7760c5",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/907353",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/907353.log",
-      "solve_excerpt_sha256": "51dc4ef7075dbe435a0e03f3e98a6f05187385977a51af400c3f612112369ae5",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/907353-context.log",
+      "solve_excerpt_sha256": "cdd0247142a5526437738f4ea57c1253876c9f1499eed8063726e0d7993988c6",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/907353.log",
+      "original_solve_excerpt_sha256": "51dc4ef7075dbe435a0e03f3e98a6f05187385977a51af400c3f612112369ae5",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 80611,
+        "source_line_end": 80661,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     },
     {
       "height": 907231,
@@ -1311,9 +1685,20 @@
       "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/e7d1abed15c529fd7f61e631301f306cc288001a3ffb14e3fc4e0197cd09b2e3",
       "explorer": "https://www.blockchain.com/explorer/blocks/bch/907231",
       "local_solve_log": "recovered",
-      "solve_excerpt": "logs/907231.log",
-      "solve_excerpt_sha256": "ee8dceea4398c2caf37084cedc26983a1a8cd839809bf55f6a389c76f0a0a427",
-      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested"
+      "solve_excerpt": "logs/907231-context.log",
+      "solve_excerpt_sha256": "8332e52c6675f4958619dbc532e82aabf7749910f0958729506097761ade6b16",
+      "attribution": "BlockSniper / EloPool deployment; exact source revision not attested",
+      "original_solve_excerpt": "logs/907231.log",
+      "original_solve_excerpt_sha256": "ee8dceea4398c2caf37084cedc26983a1a8cd839809bf55f6a389c76f0a0a427",
+      "proof_updated_at_utc": "2026-09-05T22:32:43Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 72140,
+        "source_line_end": 72190,
+        "source_sha256": "a98a5beeee887a3c54ca9a7f944c3ef199032272cca5c300c100947adfb553a2",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      }
     }
   ]
 }

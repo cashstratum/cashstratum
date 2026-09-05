@@ -1,6 +1,8 @@
 # 69 BCH mainnet blocks
 
-**Last updated / chain verification:** 2026-09-05T22:27:16Z
+**Proof collection updated:** 2026-09-05T22:32:43Z
+
+**Chain verification:** 2026-09-05; individual check timestamps appear below.
 
 **Block dates:** 2025-07-15T16:42:49Z through 2026-09-01T03:50:05Z.
 
@@ -15,7 +17,7 @@ newly branded CashStratum release was used for all 69 blocks.
 - Queried the public Blockchain.com Haskoin BCH API by height; required the stored hash to match and `mainchain` to be true.
 - Retrieved each first transaction and required a coinbase input and matching block height.
 - Recorded the coinbase transaction ID, script and recognizable project tag.
-- Recovered solve lines for **35 blocks** from local historical logs; redacted finder identities.
+- Recovered solve context for **35 blocks** from local historical logs; redacted finder identities.
 - **34 blocks have no local solve excerpt recovered in this collection.** Their on-chain identity and tag were verified independently of that gap.
 
 Dates below are UTC block-header timestamps, not local pool log times. Log timestamps retain
@@ -25,6 +27,18 @@ snapshot and are not continuously refreshed.
 A coinbase tag is self-declared and does not cryptographically attest a software build. Neither
 these tags nor the solve logs establish the exact source commit, hashrate, performance, or
 per-address payout mode for every historical block. No such claim is made here.
+
+## Context excerpts and correction history
+
+The context edition adds up to 20 source lines before and 30 after each confirmation. The
+candidate, submission, acceptance, work-template and tip/ZMQ events are retained when present.
+Miner identities and all messages outside a strict event allowlist are replaced with explicit
+redaction markers. Timestamps and line order are preserved; missing events are not invented.
+A nearby notification may refer to a later tip, not necessarily the solved block.
+
+The original one-line excerpts remain unchanged as `logs/<height>.log`. The index now links to
+`logs/<height>-context.log`; JSON records preserve checksums for both editions, the source-file
+checksum, source line range and proof-update time. Raw source logs remain private.
 
 ## Download and verify
 
@@ -71,38 +85,38 @@ per-address payout mode for every historical block. No such claim is made here.
 | [912602](https://www.blockchain.com/explorer/blocks/bch/912602) | 2025-08-21T10:36:39Z | EloPool.cloud | Not recovered | 2026-09-05T22:27:10Z |
 | [912567](https://www.blockchain.com/explorer/blocks/bch/912567) | 2025-08-21T04:56:04Z | EloPool.cloud | Not recovered | 2026-09-05T22:27:10Z |
 | [912378](https://www.blockchain.com/explorer/blocks/bch/912378) | 2025-08-19T21:25:47Z | EloPool.cloud | Not recovered | 2026-09-05T22:27:10Z |
-| [912116](https://www.blockchain.com/explorer/blocks/bch/912116) | 2025-08-18T01:23:17Z | EloPool.cloud | [Redacted log](logs/912116.log) | 2026-09-05T22:27:10Z |
-| [912035](https://www.blockchain.com/explorer/blocks/bch/912035) | 2025-08-17T11:38:53Z | EloPool.cloud | [Redacted log](logs/912035.log) | 2026-09-05T22:27:11Z |
-| [912009](https://www.blockchain.com/explorer/blocks/bch/912009) | 2025-08-17T07:22:41Z | EloPool.cloud | [Redacted log](logs/912009.log) | 2026-09-05T22:27:11Z |
-| [911920](https://www.blockchain.com/explorer/blocks/bch/911920) | 2025-08-16T15:29:57Z | EloPool.cloud | [Redacted log](logs/911920.log) | 2026-09-05T22:27:11Z |
-| [911903](https://www.blockchain.com/explorer/blocks/bch/911903) | 2025-08-16T13:18:47Z | EloPool.cloud | [Redacted log](logs/911903.log) | 2026-09-05T22:27:11Z |
-| [911683](https://www.blockchain.com/explorer/blocks/bch/911683) | 2025-08-14T23:39:09Z | EloPool.cloud | [Redacted log](logs/911683.log) | 2026-09-05T22:27:11Z |
-| [911569](https://www.blockchain.com/explorer/blocks/bch/911569) | 2025-08-14T03:52:09Z | EloPool.cloud | [Redacted log](logs/911569.log) | 2026-09-05T22:27:12Z |
-| [911549](https://www.blockchain.com/explorer/blocks/bch/911549) | 2025-08-14T01:54:14Z | EloPool.cloud | [Redacted log](logs/911549.log) | 2026-09-05T22:27:12Z |
-| [911502](https://www.blockchain.com/explorer/blocks/bch/911502) | 2025-08-13T17:50:32Z | EloPool.cloud | [Redacted log](logs/911502.log) | 2026-09-05T22:27:12Z |
-| [911458](https://www.blockchain.com/explorer/blocks/bch/911458) | 2025-08-13T09:28:10Z | EloPool.cloud | [Redacted log](logs/911458.log) | 2026-09-05T22:27:12Z |
-| [911379](https://www.blockchain.com/explorer/blocks/bch/911379) | 2025-08-12T19:25:34Z | EloPool.cloud | [Redacted log](logs/911379.log) | 2026-09-05T22:27:12Z |
-| [911319](https://www.blockchain.com/explorer/blocks/bch/911319) | 2025-08-12T12:04:33Z | EloPool.cloud | [Redacted log](logs/911319.log) | 2026-09-05T22:27:13Z |
-| [911228](https://www.blockchain.com/explorer/blocks/bch/911228) | 2025-08-11T21:37:48Z | EloPool.cloud | [Redacted log](logs/911228.log) | 2026-09-05T22:27:13Z |
-| [911053](https://www.blockchain.com/explorer/blocks/bch/911053) | 2025-08-10T17:45:42Z | EloPool.cloud | [Redacted log](logs/911053.log) | 2026-09-05T22:27:13Z |
-| [910620](https://www.blockchain.com/explorer/blocks/bch/910620) | 2025-08-07T16:16:38Z | EloPool.cloud | [Redacted log](logs/910620.log) | 2026-09-05T22:27:13Z |
-| [910527](https://www.blockchain.com/explorer/blocks/bch/910527) | 2025-08-07T01:02:24Z | EloPool.cloud | [Redacted log](logs/910527.log) | 2026-09-05T22:27:13Z |
-| [910381](https://www.blockchain.com/explorer/blocks/bch/910381) | 2025-08-06T01:36:21Z | EloPool.cloud | [Redacted log](logs/910381.log) | 2026-09-05T22:27:13Z |
-| [910380](https://www.blockchain.com/explorer/blocks/bch/910380) | 2025-08-06T01:35:21Z | EloPool.cloud | [Redacted log](logs/910380.log) | 2026-09-05T22:27:14Z |
-| [910200](https://www.blockchain.com/explorer/blocks/bch/910200) | 2025-08-04T18:36:27Z | EloPool.cloud | [Redacted log](logs/910200.log) | 2026-09-05T22:27:14Z |
-| [910003](https://www.blockchain.com/explorer/blocks/bch/910003) | 2025-08-03T12:54:27Z | EloPool.cloud | [Redacted log](logs/910003.log) | 2026-09-05T22:27:14Z |
-| [909933](https://www.blockchain.com/explorer/blocks/bch/909933) | 2025-08-03T00:47:04Z | EloPool.cloud | [Redacted log](logs/909933.log) | 2026-09-05T22:27:14Z |
-| [909930](https://www.blockchain.com/explorer/blocks/bch/909930) | 2025-08-02T23:54:20Z | EloPool.cloud | [Redacted log](logs/909930.log) | 2026-09-05T22:27:14Z |
-| [909890](https://www.blockchain.com/explorer/blocks/bch/909890) | 2025-08-02T18:12:32Z | EloPool.cloud | [Redacted log](logs/909890.log) | 2026-09-05T22:27:14Z |
-| [909866](https://www.blockchain.com/explorer/blocks/bch/909866) | 2025-08-02T12:59:17Z | EloPool.cloud | [Redacted log](logs/909866.log) | 2026-09-05T22:27:14Z |
-| [909802](https://www.blockchain.com/explorer/blocks/bch/909802) | 2025-08-02T02:57:20Z | EloPool.cloud | [Redacted log](logs/909802.log) | 2026-09-05T22:27:15Z |
-| [909720](https://www.blockchain.com/explorer/blocks/bch/909720) | 2025-08-01T12:04:27Z | EloPool.cloud | [Redacted log](logs/909720.log) | 2026-09-05T22:27:15Z |
-| [909701](https://www.blockchain.com/explorer/blocks/bch/909701) | 2025-08-01T08:55:07Z | EloPool.cloud | [Redacted log](logs/909701.log) | 2026-09-05T22:27:15Z |
-| [909669](https://www.blockchain.com/explorer/blocks/bch/909669) | 2025-08-01T04:11:42Z | EloPool.cloud | [Redacted log](logs/909669.log) | 2026-09-05T22:27:15Z |
-| [909494](https://www.blockchain.com/explorer/blocks/bch/909494) | 2025-07-30T22:30:45Z | EloPool.cloud | [Redacted log](logs/909494.log) | 2026-09-05T22:27:15Z |
-| [909310](https://www.blockchain.com/explorer/blocks/bch/909310) | 2025-07-29T16:39:56Z | EloPool.cloud | [Redacted log](logs/909310.log) | 2026-09-05T22:27:16Z |
-| [908385](https://www.blockchain.com/explorer/blocks/bch/908385) | 2025-07-23T13:05:56Z | EloPool.cloud | [Redacted log](logs/908385.log) | 2026-09-05T22:27:16Z |
-| [908222](https://www.blockchain.com/explorer/blocks/bch/908222) | 2025-07-22T10:16:53Z | EloPool.Cloud | [Redacted log](logs/908222.log) | 2026-09-05T22:27:16Z |
-| [907506](https://www.blockchain.com/explorer/blocks/bch/907506) | 2025-07-17T13:57:40Z | EloPool.Cloud | [Redacted log](logs/907506.log) | 2026-09-05T22:27:16Z |
-| [907353](https://www.blockchain.com/explorer/blocks/bch/907353) | 2025-07-16T12:09:54Z | EloPool.Cloud | [Redacted log](logs/907353.log) | 2026-09-05T22:27:16Z |
-| [907231](https://www.blockchain.com/explorer/blocks/bch/907231) | 2025-07-15T16:42:49Z | EloPool.Cloud | [Redacted log](logs/907231.log) | 2026-09-05T22:27:16Z |
+| [912116](https://www.blockchain.com/explorer/blocks/bch/912116) | 2025-08-18T01:23:17Z | EloPool.cloud | [Redacted log](logs/912116-context.log) | 2026-09-05T22:27:10Z |
+| [912035](https://www.blockchain.com/explorer/blocks/bch/912035) | 2025-08-17T11:38:53Z | EloPool.cloud | [Redacted log](logs/912035-context.log) | 2026-09-05T22:27:11Z |
+| [912009](https://www.blockchain.com/explorer/blocks/bch/912009) | 2025-08-17T07:22:41Z | EloPool.cloud | [Redacted log](logs/912009-context.log) | 2026-09-05T22:27:11Z |
+| [911920](https://www.blockchain.com/explorer/blocks/bch/911920) | 2025-08-16T15:29:57Z | EloPool.cloud | [Redacted log](logs/911920-context.log) | 2026-09-05T22:27:11Z |
+| [911903](https://www.blockchain.com/explorer/blocks/bch/911903) | 2025-08-16T13:18:47Z | EloPool.cloud | [Redacted log](logs/911903-context.log) | 2026-09-05T22:27:11Z |
+| [911683](https://www.blockchain.com/explorer/blocks/bch/911683) | 2025-08-14T23:39:09Z | EloPool.cloud | [Redacted log](logs/911683-context.log) | 2026-09-05T22:27:11Z |
+| [911569](https://www.blockchain.com/explorer/blocks/bch/911569) | 2025-08-14T03:52:09Z | EloPool.cloud | [Redacted log](logs/911569-context.log) | 2026-09-05T22:27:12Z |
+| [911549](https://www.blockchain.com/explorer/blocks/bch/911549) | 2025-08-14T01:54:14Z | EloPool.cloud | [Redacted log](logs/911549-context.log) | 2026-09-05T22:27:12Z |
+| [911502](https://www.blockchain.com/explorer/blocks/bch/911502) | 2025-08-13T17:50:32Z | EloPool.cloud | [Redacted log](logs/911502-context.log) | 2026-09-05T22:27:12Z |
+| [911458](https://www.blockchain.com/explorer/blocks/bch/911458) | 2025-08-13T09:28:10Z | EloPool.cloud | [Redacted log](logs/911458-context.log) | 2026-09-05T22:27:12Z |
+| [911379](https://www.blockchain.com/explorer/blocks/bch/911379) | 2025-08-12T19:25:34Z | EloPool.cloud | [Redacted log](logs/911379-context.log) | 2026-09-05T22:27:12Z |
+| [911319](https://www.blockchain.com/explorer/blocks/bch/911319) | 2025-08-12T12:04:33Z | EloPool.cloud | [Redacted log](logs/911319-context.log) | 2026-09-05T22:27:13Z |
+| [911228](https://www.blockchain.com/explorer/blocks/bch/911228) | 2025-08-11T21:37:48Z | EloPool.cloud | [Redacted log](logs/911228-context.log) | 2026-09-05T22:27:13Z |
+| [911053](https://www.blockchain.com/explorer/blocks/bch/911053) | 2025-08-10T17:45:42Z | EloPool.cloud | [Redacted log](logs/911053-context.log) | 2026-09-05T22:27:13Z |
+| [910620](https://www.blockchain.com/explorer/blocks/bch/910620) | 2025-08-07T16:16:38Z | EloPool.cloud | [Redacted log](logs/910620-context.log) | 2026-09-05T22:27:13Z |
+| [910527](https://www.blockchain.com/explorer/blocks/bch/910527) | 2025-08-07T01:02:24Z | EloPool.cloud | [Redacted log](logs/910527-context.log) | 2026-09-05T22:27:13Z |
+| [910381](https://www.blockchain.com/explorer/blocks/bch/910381) | 2025-08-06T01:36:21Z | EloPool.cloud | [Redacted log](logs/910381-context.log) | 2026-09-05T22:27:13Z |
+| [910380](https://www.blockchain.com/explorer/blocks/bch/910380) | 2025-08-06T01:35:21Z | EloPool.cloud | [Redacted log](logs/910380-context.log) | 2026-09-05T22:27:14Z |
+| [910200](https://www.blockchain.com/explorer/blocks/bch/910200) | 2025-08-04T18:36:27Z | EloPool.cloud | [Redacted log](logs/910200-context.log) | 2026-09-05T22:27:14Z |
+| [910003](https://www.blockchain.com/explorer/blocks/bch/910003) | 2025-08-03T12:54:27Z | EloPool.cloud | [Redacted log](logs/910003-context.log) | 2026-09-05T22:27:14Z |
+| [909933](https://www.blockchain.com/explorer/blocks/bch/909933) | 2025-08-03T00:47:04Z | EloPool.cloud | [Redacted log](logs/909933-context.log) | 2026-09-05T22:27:14Z |
+| [909930](https://www.blockchain.com/explorer/blocks/bch/909930) | 2025-08-02T23:54:20Z | EloPool.cloud | [Redacted log](logs/909930-context.log) | 2026-09-05T22:27:14Z |
+| [909890](https://www.blockchain.com/explorer/blocks/bch/909890) | 2025-08-02T18:12:32Z | EloPool.cloud | [Redacted log](logs/909890-context.log) | 2026-09-05T22:27:14Z |
+| [909866](https://www.blockchain.com/explorer/blocks/bch/909866) | 2025-08-02T12:59:17Z | EloPool.cloud | [Redacted log](logs/909866-context.log) | 2026-09-05T22:27:14Z |
+| [909802](https://www.blockchain.com/explorer/blocks/bch/909802) | 2025-08-02T02:57:20Z | EloPool.cloud | [Redacted log](logs/909802-context.log) | 2026-09-05T22:27:15Z |
+| [909720](https://www.blockchain.com/explorer/blocks/bch/909720) | 2025-08-01T12:04:27Z | EloPool.cloud | [Redacted log](logs/909720-context.log) | 2026-09-05T22:27:15Z |
+| [909701](https://www.blockchain.com/explorer/blocks/bch/909701) | 2025-08-01T08:55:07Z | EloPool.cloud | [Redacted log](logs/909701-context.log) | 2026-09-05T22:27:15Z |
+| [909669](https://www.blockchain.com/explorer/blocks/bch/909669) | 2025-08-01T04:11:42Z | EloPool.cloud | [Redacted log](logs/909669-context.log) | 2026-09-05T22:27:15Z |
+| [909494](https://www.blockchain.com/explorer/blocks/bch/909494) | 2025-07-30T22:30:45Z | EloPool.cloud | [Redacted log](logs/909494-context.log) | 2026-09-05T22:27:15Z |
+| [909310](https://www.blockchain.com/explorer/blocks/bch/909310) | 2025-07-29T16:39:56Z | EloPool.cloud | [Redacted log](logs/909310-context.log) | 2026-09-05T22:27:16Z |
+| [908385](https://www.blockchain.com/explorer/blocks/bch/908385) | 2025-07-23T13:05:56Z | EloPool.cloud | [Redacted log](logs/908385-context.log) | 2026-09-05T22:27:16Z |
+| [908222](https://www.blockchain.com/explorer/blocks/bch/908222) | 2025-07-22T10:16:53Z | EloPool.Cloud | [Redacted log](logs/908222-context.log) | 2026-09-05T22:27:16Z |
+| [907506](https://www.blockchain.com/explorer/blocks/bch/907506) | 2025-07-17T13:57:40Z | EloPool.Cloud | [Redacted log](logs/907506-context.log) | 2026-09-05T22:27:16Z |
+| [907353](https://www.blockchain.com/explorer/blocks/bch/907353) | 2025-07-16T12:09:54Z | EloPool.Cloud | [Redacted log](logs/907353-context.log) | 2026-09-05T22:27:16Z |
+| [907231](https://www.blockchain.com/explorer/blocks/bch/907231) | 2025-07-15T16:42:49Z | EloPool.Cloud | [Redacted log](logs/907231-context.log) | 2026-09-05T22:27:16Z |

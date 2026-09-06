@@ -1,0 +1,82 @@
+[Unit]
+# Log pruning service for ckpool's per-height sharelog directories.
+#
+# This service runs the clean-old-blocks.sh script to remove outdated
+# sharelog directories (000xxxx) and old rotated log files from the
+# ckpool log tree. It is triggered daily by ckpool-logprune.timer.
+#
+# ############################################################################
+# TEMPLATE -- the paths and the user below are one host's, NOT defaults.
+#
+# Every Environment=, WorkingDirectory=, ExecStart= and User= line here is
+# written for a box whose ckpool tree lives at /mnt/data4tb/bch/ckpool and
+# whose service account is `bch`. On any other host they are simply wrong,
+# and systemd will not tell you: a missing ExecStart fails the unit at its
+# first timer firing, hours after you enabled it and with nobody watching.
+# Edit all four before installing, and verify with:
+#
+#   systemctl cat ckpool-logprune.service   # paths you actually have?
+#   sudo systemctl start ckpool-logprune    # run it ONCE, by hand, first
+#   journalctl -u ckpool-logprune -n 50     # did it do what you expected?
+#
+# clean-old-blocks.sh takes --dry-run. Use it before the first real run.
+#
+# ############################################################################
+# NEVER `chmod +x` A SCRIPT TO FIX status=203/EXEC WITHOUT READING IT FIRST.
+#
+# 203/EXEC means systemd could not execute the path. On the RIGHT host, with
+# every path correct, that can still mean nothing worse than a missing +x bit
+# -- and the reflex fix is a one-character chmod. Before this repo shipped
+# clean-old-blocks.sh mode 0755 with the protection below, that single bit was
+# the only thing standing between a live solo pool and an age-only `rm -rf` of
+# its sharelog tree. A unit that has been failing harmlessly for weeks is not
+# evidence that arming it is harmless.
+#
+# Corollary: a journal showing no deletions is not proof the pruner is safe.
+# It may only be proof it never ran.
+#
+# ############################################################################
+# Solve protection is IN clean-old-blocks.sh -- keep it that way.
+#
+# On a solo pool the sharelog of a height you actually solved is the per-share
+# record behind a block you were paid for, and once `rm -rf` has taken it there
+# is no second copy anywhere. The script therefore builds a persistent,
+# append-only solve index before pruning, skips every height in it, and REFUSES
+# to delete anything if the index cannot be built.
+#
+# The index must stay persistent. ckpool.log has a bounded window -- ckpool does
+# not rotate it, and this unit prunes rotated copies -- so a solve from months
+# ago is no longer greppable anywhere. An index rebuilt from scratch each run
+# would silently shrink, and the first prune afterwards would take exactly the
+# directories the protection exists for.
+#
+# If you replace the script, keep both properties. The production BlockSniper
+# box runs an equivalent pair with the preserve step split into ExecStartPre=.
+#
+# Why User=bch?
+# The ckpool service creates $CKPOOL_DIR/logs with mode 0750, owned by
+# bch:bch. Non-root accounts other than bch cannot traverse it. Running
+# as root would work but leave cleanup.log (and any future artifacts)
+# root-owned inside bch's tree. bch is the only account that both has
+# access and preserves ownership semantics. Substitute YOUR pool's service
+# account -- the reasoning transfers, the name does not.
+
+Description=CKPool Log Pruning Service
+Documentation=https://github.com/skaisser/blocksniper-ckpool
+After=multi-user.target
+
+[Service]
+Type=oneshot
+User=bch
+Group=bch
+WorkingDirectory=/mnt/data4tb/bch/ckpool
+
+Environment=CKPOOL_DIR=/mnt/data4tb/bch/ckpool
+ExecStart=/mnt/data4tb/bch/ckpool-src/clean-old-blocks.sh
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ckpool-logprune
+
+# Since this runs as oneshot, there's no restart policy. The timer
+# handles scheduling.

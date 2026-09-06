@@ -1,0 +1,505 @@
+/*
+ * Copyright 2014-2018,2023,2026 Con Kolivas
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.  See COPYING for more details.
+ */
+
+#include "config.h"
+
+#include <string.h>
+
+#include "ckpool.h"
+#include "libckpool.h"
+#include "bitcoin.h"
+#include "stratifier.h"
+#include "yyjson.h"
+#include "cashaddr_simple.h"
+
+static char* understood_rules[] = {"segwit"};
+
+static bool check_required_rule(const char* rule)
+{
+	unsigned int i;
+
+	for (i = 0; i < sizeof(understood_rules) / sizeof(understood_rules[0]); i++) {
+		if (safecmp(understood_rules[i], rule) == 0)
+			return true;
+	}
+	return false;
+}
+
+/* Take a BCH address (cashaddr or legacy Base58Check) and classify it
+ * entirely locally via bch_classify_address() -- no RPC round trip. This
+ * guarantees validation can never disagree with address_to_txn()'s script
+ * construction, and keeps validation working even if bitcoind is
+ * momentarily unreachable at authorize time. cs is kept for signature
+ * compatibility with existing callers; it is unused on the classified
+ * path. BCH has no segwit, so *segwit always comes back false (the
+ * parameter itself is not removed here: its prototype lives in
+ * bitcoin.h/generator.h, outside this cleanup's file scope -- the
+ * always-false storage it feeds was removed from the callers instead). */
+bool validate_address(connsock_t *cs, const char *address, bool *script, bool *segwit)
+{
+	uint8_t hash160[20];
+	bch_addr_type_t type;
+
+	(void)cs;
+
+	if (unlikely(!address)) {
+		LOGWARNING("Null address passed to validate_address");
+		return false;
+	}
+
+	type = bch_classify_address(address, bch_get_cashaddr_prefix(), hash160);
+	switch (type) {
+	case BCH_ADDR_CASHADDR_P2PKH:
+	case BCH_ADDR_LEGACY_P2PKH:
+		*script = false;
+		*segwit = false;
+		LOGINFO("Valid BCH address %s (P2PKH%s)", address,
+			type == BCH_ADDR_CASHADDR_P2PKH ? ", CashAddr" : ", legacy");
+		return true;
+	case BCH_ADDR_CASHADDR_P2SH:
+	case BCH_ADDR_LEGACY_P2SH:
+		*script = true;
+		*segwit = false;
+		LOGINFO("Valid BCH address %s (P2SH%s)", address,
+			type == BCH_ADDR_CASHADDR_P2SH ? ", CashAddr" : ", legacy");
+		return true;
+	case BCH_ADDR_INVALID:
+	default:
+		/* DEBUG, matching upstream, not WARNING. `address` is the
+		 * unauthenticated username from mining.authorize, and this
+		 * runs on every authorize attempt: at WARNING an anonymous
+		 * client could loop subscribe+authorize to grow the log
+		 * without bound, and (before usernames were rejected for
+		 * control characters in parse_authorise) to forge arbitrary
+		 * log lines including a fake block-solve record. A rejected
+		 * address is a routine client error, not a pool event. */
+		LOGDEBUG("Invalid BCH address: %s", address);
+		return false;
+	}
+}
+
+yyjson_doc *validate_txn(connsock_t *cs, const char *txn)
+{
+	yyjson_doc *doc = NULL;
+	char *rpc_req;
+	int len;
+
+	if (unlikely(!txn || !strlen(txn))) {
+		LOGWARNING("Null transaction passed to validate_txn");
+		goto out;
+	}
+	len = strlen(txn) + 64;
+	rpc_req = ckalloc(len);
+	sprintf(rpc_req, "{\"method\": \"decoderawtransaction\", \"params\": [\"%s\"]}", txn);
+	doc = yyjson_rpc_call(cs, rpc_req);
+	dealloc(rpc_req);
+	if (!doc)
+		LOGDEBUG("%s:%s Failed to get valid json response to decoderawtransaction", cs->url, cs->port);
+out:
+	return doc;
+}
+
+/* BCH has no segwit. Asking a BCHN node for the "segwit" rule makes it reject
+ * the template request outright, so the rules array is omitted entirely. */
+static const char *gbt_req = "{\"method\": \"getblocktemplate\", \"params\": [{\"capabilities\": [\"coinbasetxn\", \"workid\", \"coinbase/append\"]}]}\n";
+
+/* Request getblocktemplate from bitcoind already connected with a connsock_t
+ * and then summarise the information to the most efficient set of data
+ * required to assemble a mining template, storing it in a gbtbase_t structure */
+bool gen_gbtbase(connsock_t *cs, gbtbase_t *gbt)
+{
+	yyjson_doc *doc = NULL;
+	yyjson_mut_doc *mut_doc;
+	yyjson_val *rules_array, *coinbase_aux, *res_val, *root;
+	yyjson_mut_val *mut_root;
+	const char *previousblockhash;
+	char hash_swap[32], tmp[32];
+	uint64_t coinbasevalue;
+	const char *target;
+	const char *flags;
+	const char *bits;
+	const char *rule;
+	int version;
+	int curtime;
+	int height;
+	int i;
+	bool ret = false;
+
+	doc = yyjson_rpc_call(cs, gbt_req);
+	if (!doc) {
+		LOGWARNING("%s:%s Failed to get valid json response to getblocktemplate", cs->url, cs->port);
+		return ret;
+	}
+	root = yyjson_doc_get_root(doc);
+	if (unlikely(!root)) {
+		LOGERR("Failed to get json root in response to getblocktemplate");
+		goto out;
+	}
+	res_val = yyjson_obj_get(root, "result");
+	if (!res_val) {
+		LOGWARNING("Failed to get result in json response to getblocktemplate");
+		goto out;
+	}
+
+	rules_array = yyjson_obj_get(res_val, "rules");
+	if (rules_array) {
+		int rule_count =  yyjson_arr_size(rules_array);
+
+		for (i = 0; i < rule_count; i++) {
+			rule = yyjson_get_str(yyjson_arr_get(rules_array, i));
+			if (rule && *rule++ == '!' && !check_required_rule(rule)) {
+				LOGERR("Required rule not understood: %s", rule);
+				goto out;
+			}
+		}
+	}
+
+	previousblockhash = yyjson_get_str(yyjson_obj_get(res_val, "previousblockhash"));
+	target = yyjson_get_str(yyjson_obj_get(res_val, "target"));
+	version = yyjson_get_num(yyjson_obj_get(res_val, "version"));
+	curtime = yyjson_get_num(yyjson_obj_get(res_val, "curtime"));
+	bits = yyjson_get_str(yyjson_obj_get(res_val, "bits"));
+	height = yyjson_get_num(yyjson_obj_get(res_val, "height"));
+	coinbasevalue = yyjson_get_num(yyjson_obj_get(res_val, "coinbasevalue"));
+	coinbase_aux = yyjson_obj_get(res_val, "coinbaseaux");
+	flags = yyjson_get_str(yyjson_obj_get(coinbase_aux, "flags"));
+	if (!flags)
+		flags = "";
+
+	if (unlikely(!previousblockhash || !target || !version || !curtime || !bits || !coinbase_aux)) {
+		LOGERR("JSON failed to decode GBT %s %s %d %d %s %s", previousblockhash, target, version, curtime, bits, flags);
+		goto out;
+	}
+
+	/* Store getblocktemplate for remainder of json components as is */
+	mut_doc = yyjson_mut_doc_new(&ckyyalc);
+	if (unlikely(!mut_doc)) {
+		LOGEMERG("Failed to allocate mut_doc");
+		exit(1);
+	}
+	mut_root = yyjson_val_mut_copy(mut_doc, res_val);
+	if (unlikely(!mut_root)) {
+		LOGEMERG("Failed to allocate mut_root");
+		exit(1);
+	}
+	yyjson_mut_doc_set_root(mut_doc, mut_root);
+
+	/* These are fixed 64 hex char values; reject a corrupt template rather
+	 * than derive work from a partially decoded hash or target. */
+	if (unlikely(!hex2bin(hash_swap, previousblockhash, 32))) {
+		LOGERR("Invalid previousblockhash %s in gbt", previousblockhash);
+		yyjson_mut_doc_free(mut_doc);
+		goto out;
+	}
+	swap_256(tmp, hash_swap);
+	__bin2hex(gbt->prevhash, tmp, 32);
+
+	if (unlikely(!hex2bin(hash_swap, target, 32))) {
+		LOGERR("Invalid target %s in gbt", target);
+		yyjson_mut_doc_free(mut_doc);
+		goto out;
+	}
+	strncpy(gbt->target, target, sizeof(gbt->target) - 1);
+	gbt->target[sizeof(gbt->target) - 1] = '\0';
+
+	bswap_256(tmp, hash_swap);
+	gbt->diff = diff_from_target((uchar *)tmp);
+	yyjson_mut_obj_add_real(mut_doc, mut_root, "diff", gbt->diff);
+
+	gbt->version = version;
+
+	gbt->curtime = curtime;
+
+	snprintf(gbt->ntime, 9, "%08x", curtime);
+	yyjson_mut_obj_add_str(mut_doc, mut_root, "ntime", gbt->ntime);
+	sscanf(gbt->ntime, "%x", &gbt->ntime32);
+
+	snprintf(gbt->bbversion, 9, "%08x", version);
+	yyjson_mut_obj_add_str(mut_doc, mut_root, "bbversion", gbt->bbversion);
+
+	snprintf(gbt->nbit, 9, "%s", bits);
+	yyjson_mut_obj_add_str(mut_doc, mut_root, "nbit", gbt->nbit);
+
+	gbt->coinbasevalue = coinbasevalue;
+
+	gbt->height = height;
+
+	/* The flags are optional non-consensus data appended to the coinbase
+	 * scriptsig and are decoded into fixed size buffers, so discard any
+	 * that are not valid hex of a length that fits rather than deriving
+	 * work from them. */
+	if (unlikely(*flags && (strlen(flags) > MAX_GBT_FLAGS_LEN * 2 || !validhex(flags)))) {
+		LOGERR("Invalid coinbaseaux flags %s in gbt, ignoring", flags);
+		flags = "";
+	}
+	gbt->flags = strdup(flags);
+
+	/* Create immutable json for faster access in gbt */
+	gbt->gbtdoc = yyjson_mut_doc_imut_copy(mut_doc, &ckyyalc);
+	gbt->gbtroot = yyjson_doc_get_root(gbt->gbtdoc);
+	yyjson_mut_doc_free(mut_doc);
+
+	ret = true;
+out:
+	yyjson_doc_free(doc);
+	return ret;
+}
+
+void clear_gbtbase(gbtbase_t *gbt)
+{
+	free(gbt->flags);
+	if (gbt->gbtdoc)
+		yyjson_doc_free(gbt->gbtdoc);
+	memset(gbt, 0, sizeof(gbtbase_t));
+}
+
+static const char *blockcount_req = "{\"method\": \"getblockcount\"}\n";
+
+/* Request getblockcount from bitcoind, returning the count or -1 if the call
+ * fails. */
+int get_blockcount(connsock_t *cs)
+{
+	yyjson_doc *doc;
+	yyjson_val *root, *res_val;
+	int ret = -1;
+
+	doc = yyjson_rpc_call(cs, blockcount_req);
+	if (!doc) {
+		LOGWARNING("%s:%s Failed to get valid json response to getblockcount", cs->url, cs->port);
+		return ret;
+	}
+	root = yyjson_doc_get_root(doc);
+	if (unlikely(!root)) {
+		LOGERR("Failed to get json root in response to getblockcount");
+		goto out;
+	}
+	res_val = yyjson_obj_get(root, "result");
+	if (!res_val) {
+		LOGWARNING("Failed to get result in json response to getblockcount");
+		goto out;
+	}
+	ret = yyjson_get_num(res_val);
+out:
+	yyjson_doc_free(doc);
+	return ret;
+}
+
+/* Request getblockhash from bitcoind for height, writing the value into *hash
+ * which should be at least 65 bytes long since the hash is 64 chars. */
+bool get_blockhash(connsock_t *cs, int height, char *hash)
+{
+	yyjson_doc *doc;
+	yyjson_val *root, *res_val;
+	const char *res_ret;
+	char rpc_req[128];
+	bool ret = false;
+
+	sprintf(rpc_req, "{\"method\": \"getblockhash\", \"params\": [%d]}\n", height);
+	doc = yyjson_rpc_call(cs, rpc_req);
+	if (!doc) {
+		LOGWARNING("%s:%s Failed to get valid json response to getblockhash", cs->url, cs->port);
+		return ret;
+	}
+	root = yyjson_doc_get_root(doc);
+	if (unlikely(!root)) {
+		LOGERR("Failed to get json root in response to getblockhash");
+		goto out;
+	}
+	res_val = yyjson_obj_get(root, "result");
+	if (!res_val) {
+		LOGWARNING("Failed to get result in json response to getblockhash");
+		goto out;
+	}
+	res_ret = yyjson_get_str(res_val);
+	if (!res_ret || !strlen(res_ret)) {
+		LOGWARNING("Got null string in result to getblockhash");
+		goto out;
+	}
+	/* Must be an exact length hash or the fixed copy below would leave the
+	 * destination unterminated and later reads would run off the end. */
+	if (unlikely(strlen(res_ret) != 64)) {
+		LOGWARNING("Got invalid length hash %s in result to getblockhash", res_ret);
+		goto out;
+	}
+	strcpy(hash, res_ret);
+	ret = true;
+out:
+	yyjson_doc_free(doc);
+	return ret;
+}
+
+static const char *bestblockhash_req = "{\"method\": \"getbestblockhash\"}\n";
+
+/* Request getbestblockhash from bitcoind. bitcoind 0.9+ only */
+bool get_bestblockhash(connsock_t *cs, char *hash)
+{
+	yyjson_doc *doc;
+	yyjson_val *root, *res_val;
+	const char *res_ret;
+	bool ret = false;
+
+	doc = yyjson_rpc_call(cs, bestblockhash_req);
+	if (!doc) {
+		LOGWARNING("%s:%s Failed to get valid json response to getbestblockhash", cs->url, cs->port);
+		return ret;
+	}
+	root = yyjson_doc_get_root(doc);
+	if (unlikely(!root)) {
+		LOGERR("Failed to get json root in response to getbestblockhash");
+		goto out;
+	}
+	res_val = yyjson_obj_get(root, "result");
+	if (!res_val) {
+		LOGWARNING("Failed to get result in json response to getbestblockhash");
+		goto out;
+	}
+	res_ret = yyjson_get_str(res_val);
+	if (!res_ret || !strlen(res_ret)) {
+		LOGWARNING("Got null string in result to getbestblockhash");
+		goto out;
+	}
+	/* Must be an exact length hash or the fixed copy below would leave the
+	 * destination unterminated and later reads would run off the end. */
+	if (unlikely(strlen(res_ret) != 64)) {
+		LOGWARNING("Got invalid length hash %s in result to getbestblockhash", res_ret);
+		goto out;
+	}
+	strcpy(hash, res_ret);
+	ret = true;
+out:
+	yyjson_doc_free(doc);
+	return ret;
+}
+
+bool submit_block(connsock_t *cs, const char *params)
+{
+	yyjson_doc *doc;
+	yyjson_val *root, *res_val;
+	int len, retries = 0;
+	const char *res_ret;
+	bool ret = false;
+	char *rpc_req;
+
+	len = strlen(params) + 64;
+retry:
+	rpc_req = ckalloc(len);
+	sprintf(rpc_req, "{\"method\": \"submitblock\", \"params\": [\"%s\"]}\n", params);
+	doc = yyjson_rpc_call(cs, rpc_req);
+	dealloc(rpc_req);
+	if (!doc) {
+		LOGWARNING("%s:%s Failed to get valid json response to submitblock", cs->url, cs->port);
+		if (++retries < 5)
+			goto retry;
+		return ret;
+	}
+	root = yyjson_doc_get_root(doc);
+	if (unlikely(!root)) {
+		LOGERR("Failed to get json root in response to submitblock");
+		if (++retries < 5) {
+			yyjson_doc_free(doc);
+			goto retry;
+		}
+		goto out;
+	}
+	res_val = yyjson_obj_get(root, "result");
+	if (!res_val) {
+		LOGWARNING("Failed to get result in json response to submitblock");
+		if (++retries < 5) {
+			yyjson_doc_free(doc);
+			goto retry;
+		}
+		goto out;
+	}
+	if (!yyjson_is_null(res_val)) {
+		res_ret = yyjson_get_str(res_val);
+		if (res_ret && strlen(res_ret)) {
+			LOGWARNING("SUBMIT BLOCK RETURNED: %s", res_ret);
+			/* Consider duplicate response as an accepted block */
+			if (safecmp(res_ret, "duplicate"))
+				goto out;
+		} else {
+			LOGWARNING("SUBMIT BLOCK GOT NO RESPONSE!");
+			goto out;
+		}
+	}
+	LOGWARNING("BLOCK ACCEPTED!");
+	ret = true;
+out:
+	yyjson_doc_free(doc);
+	return ret;
+}
+
+void precious_block(connsock_t *cs, const char *params)
+{
+	char *rpc_req;
+	int len;
+
+	if (unlikely(!cs->alive)) {
+		LOGDEBUG("Failed to submit_txn due to connsock dead");
+		return;
+	}
+
+	len = strlen(params) + 64;
+	rpc_req = ckalloc(len);
+	sprintf(rpc_req, "{\"method\": \"preciousblock\", \"params\": [\"%s\"]}\n", params);
+	yyjson_rpc_msg(cs, rpc_req);
+	dealloc(rpc_req);
+}
+
+void submit_txn(connsock_t *cs, const char *params)
+{
+	char *rpc_req;
+	int len;
+
+	if (unlikely(!cs->alive)) {
+		LOGDEBUG("Failed to submit_txn due to connsock dead");
+		return;
+	}
+
+	len = strlen(params) + 64;
+	rpc_req = ckalloc(len);
+	sprintf(rpc_req, "{\"method\": \"sendrawtransaction\", \"params\": [\"%s\"]}\n", params);
+	yyjson_rpc_msg(cs, rpc_req);
+	dealloc(rpc_req);
+}
+
+char *get_txn(connsock_t *cs, const char *hash)
+{
+	char *rpc_req, *ret = NULL;
+	yyjson_doc *doc;
+	yyjson_val *root, *res_val;
+
+	if (unlikely(!cs->alive)) {
+		LOGDEBUG("Failed to get_txn due to connsock dead");
+		goto out;
+	}
+
+	ASPRINTF(&rpc_req, "{\"method\": \"getrawtransaction\", \"params\": [\"%s\"]}\n", hash);
+	doc = yyjson_rpc_response(cs, rpc_req);
+	dealloc(rpc_req);
+	if (!doc) {
+		LOGDEBUG("%s:%s Failed to get valid json response to get_txn", cs->url, cs->port);
+		goto out;
+	}
+	root = yyjson_doc_get_root(doc);
+	if (unlikely(!root)) {
+		LOGERR("Failed to get json root in response to get_txn");
+		goto out_free;
+	}
+	res_val = yyjson_obj_get(root, "result");
+	if (res_val && !yyjson_is_null(res_val) && yyjson_is_str(res_val)) {
+		ret = strdup(yyjson_get_str(res_val));
+		LOGDEBUG("get_txn for hash %s got data %s", hash, ret);
+	} else
+		LOGDEBUG("get_txn did not retrieve data for hash %s", hash);
+out_free:
+	yyjson_doc_free(doc);
+out:
+	return ret;
+}

@@ -1,0 +1,187 @@
+# PR gate -- the check that runs on every pull request.
+#
+# Until 2026-09-05 this repo had NO pull-request CI at all: claude.yml fires on
+# comments and release-gate.yml only on `v*` tags or manual dispatch. An 8-PR
+# stack touching coinbase construction, share validation and the pre-auth parser
+# merged with zero automated verification behind it. This closes that.
+#
+# Deliberately split from release-gate.yml rather than merged into it, because
+# the two answer different questions on different hardware:
+#
+#   this file          every PR      build + unit + Go        ~3 min, GitHub-hosted
+#   release-gate.yml   release tags  + the regtest money gate  self-hosted (see below)
+#
+# WHY THE E2E IS NOT HERE. It was measured on a GitHub-hosted runner on
+# 2026-09-05: the step ran 28m20s and was killed by the 30-minute job timeout
+# (run 33988688848). The same script finishes in 4-6 minutes on beast. The e2e
+# mines real regtest blocks with a CPU miner, and a hosted runner has 2-4 cores
+# against beast's 36 -- it is starved, not broken. Putting it here would make
+# every PR wait half an hour and then fail. It runs on the self-hosted beast
+# runner instead; see the `e2e` job.
+
+name: PR gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+# A new push to a PR makes the in-flight run obsolete. Cancel it -- unlike the
+# release gate, where a cancelled run would lose the only record of a tag build.
+concurrency:
+  group: pr-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-unit:
+    name: Build, unit tests, API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the PR merge commit
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool pkg-config \
+            libssl-dev libzmq3-dev
+
+      - name: Build
+        run: |
+          ./autogen.sh
+          # --disable-sv2 keeps this deterministic: Stratum V2 is Bitcoin-only
+          # and would otherwise switch on or off depending on whether the runner
+          # has libsodium and a populated src/secp256k1. Matches
+          # release-gate.yml and build-on-beast.sh.
+          ./configure --disable-sv2
+          make -j"$(nproc)"
+
+      - name: Unit tests (sha256, cashaddr, addrclassify, cbfinal)
+        run: make -C test check
+
+      - name: Show unit test log on failure
+        if: failure()
+        run: |
+          for f in test/test-suite.log test/*.log; do
+            [ -f "$f" ] && { echo "===== $f ====="; cat "$f"; }
+          done || true
+
+      # api/ is a separate Go module that `make check` does not reach. The
+      # release gate was green for months while it was entirely untested.
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+          cache: false
+
+      - name: API unit tests
+        run: go test -mod=vendor ./...
+        working-directory: api
+
+  e2e:
+    name: Regtest money gate (beast)
+    # Self-hosted runner on beast: 36 cores and a synced BCH node, where this
+    # completes in minutes rather than timing out.
+    #
+    # CAUTION: if no runner carrying ALL of these labels is online, this job
+    # does NOT skip -- it QUEUES, for up to 24 hours, and `timeout-minutes`
+    # does not help because that clock only starts once a job is picked up.
+    # Every PR would sit with a permanently pending check. So this job and the
+    # beast runner are a package: if the runner is ever decommissioned, delete
+    # this job in the same change.
+    runs-on: [self-hosted, beast]
+    # Don't spend beast cycles discovering a broken build that the 2-minute
+    # hosted job already found. Costs nothing on a green PR (the hosted job
+    # finishes long before the e2e would).
+    needs: build-and-unit
+    timeout-minutes: 25
+    # Draft PRs skip the expensive job; marking ready re-triggers it.
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Check out the PR merge commit
+        uses: actions/checkout@v4
+        with:
+          # actions/checkout defaults to persist-credentials: true, which writes
+          # the job's GITHUB_TOKEN into .git/config. On a GitHub-hosted runner
+          # that is harmless -- the machine is destroyed after the job. This
+          # runner is long-lived and its _work directory survives between jobs,
+          # so the token would sit on beast's disk, readable by anything running
+          # as ghrunner, for the remainder of its validity. Nothing here pushes,
+          # so there is no reason to keep it.
+          persist-credentials: false
+
+      - name: Build
+        run: |
+          ./autogen.sh
+          ./configure --disable-sv2
+          make -j"$(nproc)"
+
+      - name: Unit tests
+        run: make -C test check
+
+      - name: Regtest end-to-end money gate
+        run: |
+          set -euo pipefail
+          # A non-interactive runner shell has no profile, so BCHN is not on
+          # PATH -- without this the script exits 2 on "missing prerequisites",
+          # which reads like a pass if the exit code is not checked.
+          #
+          # /opt/bchn, NOT ~/bchn: the runner executes as the unprivileged
+          # `ghrunner` user, and the operator's own BCHN lives under
+          # /home/skaisser, which is mode 0750 and therefore not even
+          # traversable by ghrunner. /opt/bchn is a world-readable copy of the
+          # same v29.1.0 build.
+          export PATH="/opt/bchn/bin:$PATH"
+          command -v bitcoind >/dev/null || { echo "::error::bitcoind not found on the runner"; exit 1; }
+          ./testing/regtest-e2e.sh
+          # exit 0 = all assertions passed
+          # exit 1 = an assertion FAILed
+          # exit 2 = missing prerequisites (a gate failure here)
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          rm -rf /tmp/pr-gate-logs && mkdir -p /tmp/pr-gate-logs
+          for d in "${TMPDIR:-/tmp}"/ckpool-e2e.*; do
+            [ -d "$d" ] || continue
+            cp -r "$d"/logs /tmp/pr-gate-logs/ 2>/dev/null || true
+            cp "$d"/*.conf /tmp/pr-gate-logs/ 2>/dev/null || true
+            cp "$d"/minerd-*.log /tmp/pr-gate-logs/ 2>/dev/null || true
+            cp "$d"/bitcoind.stdout.log /tmp/pr-gate-logs/ 2>/dev/null || true
+          done
+          cp test/*.log /tmp/pr-gate-logs/ 2>/dev/null || true
+          # Tar it. ckpool names per-user stat files after the miner's address,
+          # so the tree contains paths like logs/users/bchreg:qppt... , and
+          # upload-artifact REFUSES any path containing a colon (it rejects
+          # characters NTFS cannot represent). Uploading the directory directly
+          # fails the step with "The path for one of the files in artifact is
+          # not valid", which turns a useful failure into two failures and
+          # loses the logs you actually wanted. A single tarball has no such
+          # path inside the artifact.
+          tar -czf /tmp/pr-gate-logs.tar.gz -C /tmp pr-gate-logs
+          ls -l /tmp/pr-gate-logs.tar.gz
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-gate-logs-${{ github.sha }}
+          path: /tmp/pr-gate-logs.tar.gz
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # testing/minerd's command line contains neither the workdir nor
+      # "ckpool-e2e", so a teardown keyed on either leaves miners running. They
+      # reconnect to the NEXT run's pool on the fixed port 13333 and solve its
+      # blocks paying their own address -- which surfaces as a payout assertion
+      # failure and looks exactly like a real payout bug. The bracket stops
+      # pgrep/pkill matching this very command line.
+      - name: Sweep stray miners
+        if: always()
+        run: pkill -f "[m]inerd" 2>/dev/null || true

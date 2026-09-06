@@ -1,0 +1,4 @@
+AM_CPPFLAGS = -D_GNU_SOURCE
+ACLOCAL_AMFLAGS = -I m4
+SUBDIRS = src test
+EXTRA_DIST = cashstratum.conf ckpool.conf ckproxy.conf README.md README-SOLOMINING.md

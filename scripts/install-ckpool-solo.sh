@@ -1,1 +1,0 @@
-install-cashstratum-solo.sh

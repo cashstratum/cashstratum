@@ -1,76 +1,40 @@
+# Build output
 *.o
-*.bin
-*.la
+*.a
 *.lo
-
-autom4te.cache
-.deps
-
+*.la
+*.so
+*.so.*
+.deps/
+.libs/
 Makefile
 Makefile.in
-INSTALL
 aclocal.m4
-configure
-depcomp
-missing
-install-sh
-stamp-h1
-compile
+autom4te.cache/
+config.h
+config.h.in
 config.log
 config.status
-config.guess
-config.sub
-
-*~
-
-ext_deps
-config.h.in
-config.h
-
-mkinstalldirs
-
-*.swp
+configure
+libtool
+stamp-h1
+m4/
+src/cashstratum
 src/ckpool
 src/ckpmsg
-ltmain.sh
-
-*.m4
-
-.libs/
-
-libtool
-
-# macOS
-.DS_Store
-
-
-# Go log API build output -- binaries are built on the build host and copied
-# to the pool server, never committed (see api/README.md). There is no CI
-# workflow for api/; verification runs on the build host.
-api/ckpool-api
-api/ckpool-api-linux-amd64
-api/ckpool-api-linux-arm64
-# `go build ./...` (no -o) names the binary after the module, not the unit.
-api/ckpoolapi
-.trash/
-
-# Production log snapshots pulled for local analysis. Never committed: a single
-# snapshot is ~12 MB of append-only churn that would live in history forever,
-# and a log is only safe to commit until the day someone enables debug logging.
-# The folder's own README.md carries the provenance, the pull recipe and the
-# credential scan that must be re-run before any snapshot is shared -- it is
-# ignored along with the logs, so that knowledge lives on disk only.
-production-logs/
-
-# Build artifacts that were previously committed by mistake. The
-# pre-rebase tree carried src/libckpool.a, src/notifier, test/sha256, the
-# root test-driver and src/sha256_code_release/*.A in git; they are outputs of
-# `make`, differ per build host, and broke nothing but review. Never re-add.
-test-driver
-src/libckpool.a
 src/notifier
-src/sha256_code_release/*.A
-test/sha256
-test/cashaddr
-test/addrclassify
-*.a
+src/*.d
+
+# Local runtime
+*.conf
+!*.conf.example
+logs/
+*.log
+core
+core.*
+vgcore.*
+
+# OS / editor noise
+.DS_Store
+*.swp
+*~

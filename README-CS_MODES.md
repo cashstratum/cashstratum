@@ -1,0 +1,196 @@
+# CashStratum modes
+
+This document describes the engine's modes. The supported BCH installer uses solo
+mode over Stratum V1; other upstream modes require separate validation for your chain.
+See [Installing CashStratum](docs/installation.md).
+
+Source builds produce `src/ckpool` and preserve upstream runtime defaults. CashStratum
+installations pass explicit names: `-n cashstratum`, or `-n csproxy` for the proxy.
+Use `-n csnode`, `-n csredirector` or `-n cspassthrough` when selecting the corresponding
+example configuration. Helpers must receive the same `-n` value as the daemon.
+
+## Default mode
+
+When run without any parameters, cashstratum operates as a pool, combining all
+hashrate to mine blocks to the same bitcoin address. The address must be
+specified in the configuration file with the btcaddress, and 100% of the block
+reward is mined to that address, minus any specified by the donation field. All
+usernames are valid and are collated for statistics but have no influence on the
+block reward. If no serverurl is specified, cashstratum binds to all network
+interfaces on port 3333. If a serverurl entry is specified with a port number
+over 4000, that port acts as a high diff port, with a minimum difficulty of
+1 million. A local bitcoin node is mandatory. If no name is specified with the
+`-n` parameter, the upstream file `ckpool.conf` is read for the configuration.
+
+Mandatory config fields:
+
+- At least one `"btcd"` entry with `"url"`, `"auth"`, and `"pass"`.
+- `"btcaddress"`
+
+## Solo mode
+
+When run with the `-B` or `--btcsolo` parameter, cashstratum operates as a per-username
+pool, combining all hashrate from users connected with the same username. To
+guarantee hashing is directed towards the user, usernames must be a valid
+bitcoin address. 100% of the block reward is mined to the address of the
+username that solves the block, minus any specified by the donation field. Other
+config parameters are as per default mode.
+
+Mandatory config fields:
+
+- At least one `"btcd"` entry with `"url"`, `"auth"`, and `"pass"`.
+
+## Proxy mode
+
+When run with the `-p` or `--proxy` parameter, csproxy operates as a proxy to an
+upstream pool, combining all hashrate and submitting it as hashes to the
+upstream pool(s) specified in the `"proxy"` field as the user specified in the
+`"auth"` subfield. The proxy fields are taken in order as a series of failover
+pools to connect to in order as specified in the configuration file. All
+usernames are valid and are collated for local statistics but have no influence
+on the username used upstream. The proxy maintains a local difficulty equal to
+or lower than the upsteam pool. If no serverurl is specified, csproxy binds to
+all network interfaces on port 3334. No special configuration is required at the
+upstream pool, but it is highly recommended the pool have a large nonce2length
+(such as 8 which is the default on cashstratum.) Other config parameters are as per
+default mode. If no name is specified with the `-n` parameter, the file
+`ckproxy.conf` is read for the configuration.
+
+Mandatory config fields:
+
+- At least one `"proxy"` entry with `"url"`, `"auth"`, and `"pass"`.
+
+## Userproxy mode
+
+When run with the `-u` or `--userproxy` parameter, csproxy operates as a per-user
+proxy to an upstream pool, combining hashrate per-user and submitting it as
+hashes to the upstream pool(s) specified in the `"proxy"` field as the username
+connected, or as specified in the proxy `"auth"` subfield if that username is
+invalid. As per the proxy mode, the proxy fields are taken in order as a series
+of failover pools to connect to in order as specified in the configuration file.
+All usernames are presumed to be valid and are collated for local statistics,
+and their hashes are contributed to the upstream pool according to their
+username. If their username is invalid with the upstream pool, their hashes are
+contributed according to that specified in the proxy `"auth"` subfield. Other
+config parameters are as per proxy mode.
+
+Mandatory config fields:
+
+- At least one `"proxy"` entry with `"url"`, `"auth"`, and `"pass"`.
+
+## Passthrough mode
+
+When run with the `-P` or `--passthrough` parameter, cspassthrough operates as a
+transparent per-user passthrough to an upstream pool. It connects to the pool
+specified in the `"proxy"` `"url"` subfield using the `"auth"` and `"pass"`
+subparameters, but simply passes through all data to/from any users connected.
+It collates data from all incoming connections and sends them all to the
+upstream pool over the one upstream connection. No user or hash management of
+any kind is performed; it is all handled by the upstream pool. The purpose of
+this mode is to provide access to a pool not available to the user from their
+local networking due to being geoblocked, or firewalled off, or the pool being
+on an isolated subnet. It also decreases the number of open sockets the pool
+must maintain. If no serverurl is specified, cspassthrough binds to all network
+interfaces on port 3334. If no name is specified with the `-n` parameter, the
+file `ckpassthrough.conf` is read for the configuration.
+
+Mandatory config fields:
+
+- At least one `"proxy"` entry with `"url"`, `"auth"`, and `"pass"`.
+
+Mandatory upstream pool config fields:
+
+- At least one `"passthroughserver"` entry, and the `"proxy"` `"url"` above must
+  point at it. Upstream cashstratum instances only accept passthrough connections on
+  bindings listed there.
+
+## Redirector mode
+
+When run with the `-R` or `--redirector` parameter, csredirector operates in the same
+manner as passthrough mode, but also monitors share results coming from the
+upstream pool. Once it detects a valid share result, it then attempts to
+redirect that user to mine directly to the pool specified in the
+`"redirecturl"` fields in a round-robin fashion using the reconnect function.
+Note that if the mining client is cgminer based, it will refuse to reconnect to
+the upstream proxy unless it has the same subdomain name - eg if csredirector is
+on east.cashstratum.com, it will only reconnect to `*.cashstratum.com` to prevent hashrate
+hijacking. Additionally many newer stratum clients do not respect the reconnect
+field at all. If the client refuses to reconnect directly to the upstream proxy,
+csredirector continues to act as a passthrough. Config is as per passthrough
+mode. If no name is specified with the `-n` parameter, the file
+`ckredirector.conf` is read for the configuration.
+
+Mandatory config fields:
+
+- At least one `"proxy"` entry with `"url"`, `"auth"`, and `"pass"`.
+- At least one `"redirecturl"` entry.
+
+Mandatory upstream pool config fields:
+
+- At least one `"passthroughserver"` entry, matching the `"proxy"` `"url"` above.
+
+---
+
+**BELOW MODES ARE CURRENTLY UNMAINTAINED AND LIKELY NON-FUNCTIONAL**
+
+---
+
+## Node mode
+
+When run with the `-N` or `--node` parameter, csnode operates as a sub-pool of an
+upstream master pool or pools specified in the `"proxy"` fields. The upstream
+pool must be a cashstratum instance running in default mode (solo mode is currently
+unsupported), with a corresponding `"nodeserver"` entry. A local bitcoin node is
+mandatory. All user management is done by the upstream pool. The csnode instance
+will store a local log only of users connected to it. Csnode will attempt to
+keep its local bitcoin node informed of the transactions being mined at the
+master pool. If a block is solved by a user connected to csnode, it will attempt
+to submit it to its local bitcoin node in addition to the upstream pool to speed
+up propagation of the block. If the upstream pool solves a block separate from
+the csnode instance, the csnode instance will also attempt to submit the block
+locally. If the local bitcoin node is missing transactions in a solved block
+(unlikely), it will be unable to submit the block locally, but this does not
+prevent the upstream pool from submitting it. The purpose of csnode mode is to
+have geographically remote pools of one master pool for faster block submission.
+It is highly recommended to increase rmem_max and wmem_max in `sysctl.conf` as
+large packets will be sent between csnode and an upstream pool. Config is as per
+default mode. If no name is specified with the `-n` parameter, the file
+`cknode.conf` is read for the configuration.
+
+Mandatory config fields:
+
+- At least one `"btcd"` entry with `"url"`, `"auth"`, and `"pass"`.
+- At least one `"proxy"` entry with `"url"` matching the upstream nodeserver,
+  `"auth"`, and `"pass"`.
+
+Mandatory upstream pool config fields:
+
+- At least one `"nodeserver"` entry.
+
+## Trusted mode
+
+When run with the `-t` or `--trusted` node parameter, cashstratum operates as a
+sub-pool of an upstream master pool specified in the `"upstream"` field. The
+upstream pool must be a cashstratum instance with a corresponding `"trusted"` entry.
+A local bitcoin node is mandatory. All user management is done by the upstream
+pool. The trusted instance will store a local log only of users connected to it.
+All share management is handled by the local trusted cashstratum instance, and only a
+record of accepted/rejected shares is submitted to the upstream pool. As this is
+done in clear text without verification, the connection between the two must be
+suitably isolated from outside connections to prevent fake share accounting
+being accepted by the upstream pool. Only locally solved blocks are submitted by
+a trusted node. The purpose of trusted mode is to isolate the main accounting
+pool from outwardly facing ip addresses, or for friendly centrally collating
+record keeping. Config is as per default mode. If no name is specified with the
+`-n` parameter, the upstream file `ckpool.conf` is read for the configuration.
+
+Mandatory config fields for remote (trusted) server:
+
+- At least one `"btcd"` entry with `"url"`, `"auth"`, and `"pass"`.
+- At least one `"upstream"` entry with `"url"` matching the upstream server.
+
+Mandatory upstream pool config fields:
+
+- At least one `"btcd"` entry with `"url"`, `"auth"`, and `"pass"`.
+- At least one `"trusted"` array entry for IP:port to bind to and listen for
+  remote servers.

@@ -26,6 +26,7 @@ Every endpoint requires a bearer token, **except `/ping`**:
 ```
 Authorization: Bearer $CASHSTRATUM_API_KEY
 ```
+*(With `$CKPOOL_API_KEY` supported for backwards compatibility).*
 
 A missing or wrong key returns **`401`** with the plain-text body `Unauthorized`. Error bodies
 are plain text, not JSON — do not blindly decode a non-2xx response as JSON.
@@ -43,11 +44,11 @@ as the stratum port already is.
 Every endpoint is throttled **per client IP**, counted in a **fixed 60-second window** that opens
 on that IP's first request and resets exactly 60 s later — not a rolling average.
 
-| Bucket | Endpoints | Default | Environment variable |
+| Bucket | Endpoints | Default | Environment variable (Primary / Fallback) |
 |---|---|---|---|
-| Default | everything except `/shares` and `/ping` | 20 req / 60 s | `CASHSTRATUM_RATE_LIMIT` |
-| Shares | `/shares` only | 60 req / 60 s | `CASHSTRATUM_SHARES_RATE_LIMIT` |
-| Ping | `/ping` only, unauthenticated | 60 req / 60 s | `CASHSTRATUM_PING_RATE_LIMIT` |
+| Default | everything except `/shares` and `/ping` | 20 req / 60 s | `CASHSTRATUM_RATE_LIMIT` (`CKPOOL_RATE_LIMIT`) |
+| Shares | `/shares` only | 60 req / 60 s | `CASHSTRATUM_SHARES_RATE_LIMIT` (`CKPOOL_SHARES_RATE_LIMIT`) |
+| Ping | `/ping` only, unauthenticated | 60 req / 60 s | `CASHSTRATUM_PING_RATE_LIMIT` (`CKPOOL_PING_RATE_LIMIT`) |
 
 The three buckets are independent: spending the `/shares` budget does not affect `/find-block` or
 `/ping`. On authenticated routes the budget is charged **after** authentication, so a bad key
@@ -578,20 +579,21 @@ assumes a trailing letter will mis-read it.
 
 ## Configuration
 
-Environment only. There is no configuration file.
+Environment only. There is no configuration file. Primary environment variables use
+the `CASHSTRATUM_*` prefix, with `CKPOOL_*` supported for backwards compatibility.
 
 | Variable | Default | Notes |
 |---|---|---|
-| `CASHSTRATUM_API_KEY` | — | **required**; the server aborts without it |
-| `CASHSTRATUM_LOG_PATH` | `~/cashstratum/logs/cashstratum.log` | must match the pool's `logdir` |
-| `CASHSTRATUM_USER_LOGS_PATH` | `~/cashstratum/logs/users` | ditto |
-| `CASHSTRATUM_API_PORT` | `8888` | |
-| `CASHSTRATUM_CASHADDR_PREFIX` | `bitcoincash` | CashAddr network prefix (no trailing `:`) used by `/coinbase`'s probe; a regtest/testnet rig sets `bchreg` / `bchtest` |
-| `CASHSTRATUM_CONF_PATH` | `<logdir>/../cashstratum.conf`, then `<logdir>/cashstratum.conf` | the pool's own configuration, read once at startup for the node RPC endpoint |
-| `CASHSTRATUM_RATE_LIMIT` | `20` | per-IP budget for all endpoints except `/shares` and `/ping`, per 60 s window |
-| `CASHSTRATUM_SHARES_RATE_LIMIT` | `60` | per-IP budget for `/shares` only |
-| `CASHSTRATUM_PING_RATE_LIMIT` | `60` | per-IP budget for `/ping` only |
-| `DAYS_TO_KEEP` | `60` | sharelog retention in days, used by the pruning timer |
+| `CASHSTRATUM_API_KEY` | — | **required**; the server aborts without it (fallback: `CKPOOL_API_KEY`) |
+| `CASHSTRATUM_LOG_PATH` | `~/cashstratum/logs/cashstratum.log` | must match the pool's `logdir` (fallback: `CKPOOL_LOG_PATH` / `~/ckpool/logs/ckpool.log`) |
+| `CASHSTRATUM_USER_LOGS_PATH` | `~/cashstratum/logs/users` | ditto (fallback: `CKPOOL_USER_LOGS_PATH` / `~/ckpool/logs/users`) |
+| `CASHSTRATUM_API_PORT` | `8888` | (fallback: `CKPOOL_API_PORT`) |
+| `CASHSTRATUM_CASHADDR_PREFIX` | `bitcoincash` | CashAddr network prefix (no trailing `:`) used by `/coinbase`'s probe; a regtest/testnet rig sets `bchreg` / `bchtest` (fallback: `CKPOOL_CASHADDR_PREFIX`) |
+| `CASHSTRATUM_CONF_PATH` | `<logdir>/../cashstratum.conf`, then `<logdir>/cashstratum.conf` | the pool's own configuration, read once at startup for the node RPC endpoint (fallback: `CKPOOL_CONF_PATH` / `ckpool.conf`) |
+| `CASHSTRATUM_RATE_LIMIT` | `20` | per-IP budget for all endpoints except `/shares` and `/ping`, per 60 s window (fallback: `CKPOOL_RATE_LIMIT`) |
+| `CASHSTRATUM_SHARES_RATE_LIMIT` | `60` | per-IP budget for `/shares` only (fallback: `CKPOOL_SHARES_RATE_LIMIT`) |
+| `CASHSTRATUM_PING_RATE_LIMIT` | `60` | per-IP budget for `/ping` only (fallback: `CKPOOL_PING_RATE_LIMIT`) |
+| `DAYS_TO_KEEP` | `60` | sharelog retention in days, used by the pruning timer (`cashstratum-logprune.timer`) |
 
 ### Node RPC credentials come from the pool's own configuration
 
@@ -660,10 +662,13 @@ ssh pool-host 'sha256sum /tmp/cashstratum-api'   # must match before proceeding
 
 ## Install
 
+From the checkout root after building `api/cashstratum-api-linux-amd64`, adapt the
+paths and service account below. Preserve existing secret files on upgrades.
+
 ```bash
 # 1. Binary
 sudo install -d -m 0755 /opt/cashstratum-api
-sudo install -m 0755 cashstratum-api-linux-amd64 /opt/cashstratum-api/cashstratum-api
+sudo install -m 0755 api/cashstratum-api-linux-amd64 /opt/cashstratum-api/cashstratum-api
 
 # 2. Key, root-only
 sudo install -d -m 0755 /etc/cashstratum-api
@@ -679,10 +684,11 @@ CASHSTRATUM_API_PORT=8888
 EOF
 
 # 4. Unit — edit User=, WorkingDirectory= and ExecStart= first
-sudo cp cashstratum-api.service /etc/systemd/system/
+sudo cp api/cashstratum-api.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now cashstratum-api
 ```
+
 
 Keep the previous binary as a dated backup so a rollback is a `mv` and a restart, never a rebuild.
 Restarting the API does **not** touch the mining engine: miners stay connected and no shares are
@@ -710,40 +716,38 @@ authenticated route.
 
 ## Sharelog retention
 
-The engine creates a new per-block sharelog directory on every new workbase and leaves old ones in
-place indefinitely. A systemd timer runs a pruning script daily to remove directories older than
-`DAYS_TO_KEEP` (default 60 days). The window is sized so `/shares` cursors resume comfortably
-within a normal poll interval.
+`clean-old-blocks.sh` prunes aged height directories only after a verified historical
+solve index is present. No automatic scan can recover solve records whose logs have
+already disappeared. Review a complete historical index before initializing protection.
+Keep the old timer disabled throughout migration and back up the index and log tree.
+
+The seed contains one eight-digit lowercase hexadecimal height per line, for example
+`000ebd93`. An empty seed explicitly declares that the pool has **never** solved a block;
+it must not be used as a shortcut for missing history. Import an existing legacy index
+only after checking its completeness against your historical evidence.
+
+Run as the account that owns the pool files, using the actual deployed script and paths:
 
 ```bash
-sudo install -m 0644 cashstratum-logprune.timer /etc/systemd/system/
-sudo install -m 0644 cashstratum-logprune.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now cashstratum-logprune.timer
+CASHSTRATUM_DIR=/opt/cashstratum bash /opt/cashstratum/clean-old-blocks.sh \
+    --seed-index /path/to/verified-heights.idx
+CASHSTRATUM_DIR=/opt/cashstratum bash /opt/cashstratum/clean-old-blocks.sh --dry-run
 ```
 
-The shipped units are **templates carrying one host's paths and user**. Edit `User=`, `Group=`,
-`WorkingDirectory=`, `Environment=` and `ExecStart=`, then run the service **once by hand** and
-read the journal before trusting the timer. A bad `ExecStart` fails at the first firing, hours
-later, with nobody watching. The script accepts `--dry-run` to preview deletions.
+Seeding merges the verified baseline and all current/rotated `cashstratum.log*` and
+`ckpool.log*` records, writes a verification marker and exits **without pruning**.
+Normal runs refuse missing, empty or unverified legacy indexes, missing logs, invalid
+entries and read/decompression failures. Plain and gzip logs are supported. The index
+only gains heights; it is never rebuilt from current logs alone. `--dry-run` does not
+modify the index or logs. `DAYS_TO_KEEP` defaults to 60; `ROTATED_LOG_DAYS` defaults to 30.
 
-**Solve protection.** The pruning script builds a persistent, append-only index of solved heights
-before it prunes anything, skips every height in it, and **refuses to delete at all** if the index
-cannot be built. The sharelog of a height you solved is the per-share record behind a block you
-were paid for, and it has no second copy.
-
-The index is persistent by design: the main log has a bounded window, so a solve from months ago
-is no longer greppable anywhere. An index rebuilt from scratch each run would silently shrink, and
-the next prune would take exactly the directories the protection exists for.
-
-**Verify protection on the deployed copy, not the one in your checkout** — and note that *how* you
-verify depends on history:
-
-- *On a pool with at least one solve*, the dry run is real evidence. Protection is live only if
-  the output names the solved height (`PROTECTED (solved): 000ebfa9`).
-- *On a pool that has never solved*, **the dry run proves nothing** — a protected script and an
-  unprotected one produce identical output when there is no solve to protect. Confirm the deployed
-  file's provenance instead. A check that could not have failed is not evidence.
+Before enabling `api/cashstratum-logprune.timer`, edit its service's `User`, `Group`,
+`WorkingDirectory`, `CASHSTRATUM_DIR` and `ExecStart`. Compare pre/post height and
+sharelog-directory sets; no historical entry may disappear. Run the configured service
+once and review its journal after the dry-run passes. The timer uses `Persistent=true`,
+so enabling it may immediately trigger a missed run. Confirm the deployed script matches
+the reviewed version. Production hosts using a different pruner need their own migration;
+installing this repository's script does not patch an external retention service.
 
 ---
 
@@ -756,15 +760,17 @@ the engine records: submission, confirmation and rejection. It sends a heartbeat
 minutes to prove liveness.
 
 It is a **latency layer, not a source of truth**: if a webhook is lost or delayed, your own
-periodic polling remains the safety net.
+periodic polling remains the safety net. Managed by `cashstratum-notifier.service`.
 
 ```bash
-cd api && go build -mod=vendor -o notifier ./notifier
+cd api && go build -mod=vendor -o cashstratum-notifier ./notifier
 ```
 
-It reads its configuration from a single root-only env file (mode `0600`): the webhook URL, a
-32-byte shared secret used to sign deliveries (`openssl rand -hex 32`), and the paths to the pool
-configuration and log. It **defaults to dry-run** — it will not POST anywhere until you explicitly
+It reads its configuration from a single root-only env file `/etc/cashstratum-notifier/cashstratum-notifier.env`
+(mode `0600`): the webhook URL (`CASHSTRATUM_NOTIFY_URL`, fallback `BLOCKSNIPER_NOTIFY_URL`), a
+32-byte shared secret used to sign deliveries (`CASHSTRATUM_NOTIFY_SECRET`, fallback `BLOCKSNIPER_NOTIFY_SECRET`),
+and the paths to the pool configuration and log (`CASHSTRATUM_CONF_PATH`, `CASHSTRATUM_LOG_PATH`).
+It **defaults to dry-run** (`NOTIFY_DRY_RUN=true`) — it will not POST anywhere until you explicitly
 disable that.
 
 ---

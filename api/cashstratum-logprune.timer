@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily CashStratum Log Pruning Timer
+Documentation=https://github.com/cashstratum/cashstratum
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=cashstratum-logprune.service
+
+[Install]
+WantedBy=timers.target

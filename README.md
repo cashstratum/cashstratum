@@ -23,16 +23,20 @@ Direct miner payouts · Native CashAddr · Per-address round statistics · Opera
 
 ## Release status
 
-**The first CashStratum source release is being prepared. This repository currently contains
-project documentation, not an installable mining engine.**
+**CashStratum 1.2.0** is the first public release (2026-09-13). This tree contains the C
+mining engine, Go operator services, installers, unit tests and the regtest money gate. The
+reference production deployment runs a build from this same source line; CHANGELOG.md records
+what has and has not been deployed. Tagged releases are listed under
+[Releases](https://github.com/cashstratum/cashstratum/releases); see [CHANGELOG.md](CHANGELOG.md)
+for what each one carries.
 
-CashStratum grows out of the BCH fork previously published as [skaisser/ckpool](https://github.com/skaisser/ckpool).
-That remains the existing public source while the next release is integrated, tested and
-rebranded. Features described below cover the development line intended for CashStratum;
-consult the release notes of the version you actually deploy.
+Start with [Installing CashStratum](docs/installation.md) for Linux prerequisites,
+building this checkout, a staged installation and configuring an existing BCHN node.
+Use an explicit release tag when installing from the public repository. The installers
+serve BCH over Stratum V1; they do not provision Bitcoin Core or automatically enable SV2.
 
-Watch **Releases** on this repository for the first tagged source release. It will include the
-engine, build instructions, tests and operator documentation. No release date is promised.
+CashStratum descends from [CKPool](https://bitbucket.org/ckolivas/ckpool/) and the
+BCH fork previously published as [skaisser/ckpool](https://github.com/skaisser/ckpool).
 
 ## Built for BCH operators
 
@@ -59,8 +63,7 @@ miner finds an accepted block, the reward goes directly to that address, less th
 operator fee. Coinbase rewards remain subject to network maturity rules.
 
 This avoids an operator-managed withdrawal balance for that solo payout. It does not imply a
-PPS guarantee or a shared-reward accounting system. Username fallback and address-rejection
-rules will be documented with the released configuration.
+PPS guarantee or a shared-reward accounting system. See the [configuration guide](README-CASHSTRATUM.md#-configuration) for address handling.
 
 ## C engine, Go API, shell tooling
 
@@ -73,9 +76,9 @@ unauthenticated and separately rate-limited. The full endpoint reference, config
 deployment procedure — including network boundaries and TLS — are documented in
 **[docs/operator-api.md](docs/operator-api.md)** and summarized below.
 
-The first release will document CashStratum binary, configuration, service and log names,
-including migration from existing CKPool-based installations. Do not rename files in a running
-installation without updating their consumers.
+The installer uses `cashstratum`, `cashstratum.conf`, `cashstratum.service` and
+`cashstratum.log`. Source builds retain `src/ckpool`; pass `-n cashstratum` explicitly
+when launching it. See the [installation guide](docs/installation.md) before migrating an existing pool.
 
 ## Operator API
 
@@ -83,8 +86,9 @@ A read-only HTTP API over the pool's own logs and status files, shipped as a sin
 binary. It lets a dashboard, a monitoring system or a pool website read pool state without shell
 access to the mining host.
 
-It is **read-only by design**: it never writes to the pool, never touches the engine's control
-sockets, and cannot change pool state. The HTTP server is Go standard library only, and its one
+It exposes no administrative mutation endpoints. The `/coinbase` endpoint opens a
+short-lived Stratum probe connection, which can appear in the engine's worker statistics;
+the API filters its probe worker from `/user-file`. The HTTP server is Go standard library only, and its one
 dependency (used by the optional block notifier) is vendored, so it builds with no network access.
 
 | Endpoint | Purpose |
@@ -132,21 +136,9 @@ service refuses to start without it; `CASHSTRATUM_LOG_PATH`, `CASHSTRATUM_USER_L
 credentials are **not** configured here: they are read at startup from the pool's own
 configuration file, so they cannot drift from the node the pool is already using.
 
-**Install**, once the release binary is in hand:
-
-```bash
-sudo install -d -m 0755 /opt/cashstratum-api
-sudo install -m 0755 cashstratum-api-linux-amd64 /opt/cashstratum-api/cashstratum-api
-
-sudo install -d -m 0755 /etc/cashstratum-api
-printf 'CASHSTRATUM_API_KEY=%s\n' "$(openssl rand -hex 32)" \
-    | sudo tee /etc/cashstratum-api/cashstratum-api.env >/dev/null
-sudo chmod 0600 /etc/cashstratum-api/cashstratum-api.env
-
-sudo cp cashstratum-api.service /etc/systemd/system/   # edit User= and ExecStart= first
-sudo systemctl daemon-reload
-sudo systemctl enable --now cashstratum-api
-```
+Build the API from this checkout with `cd api && go build -mod=vendor -o cashstratum-api .`.
+Use the [operator deployment guide](docs/operator-api.md#install) for service templates,
+explicit log/configuration paths and secret-file permissions.
 
 Two things reliably go wrong: **run it as the account that runs the pool** (the engine creates its
 log directory mode `0750`, so any other account gets permission denied on every endpoint while

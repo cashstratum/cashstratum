@@ -1,0 +1,1226 @@
+<div align="center">
+
+<img src=".github/assets/cashstratum-logo-dark.png" alt="CashStratum — Bitcoin Cash (BCH) solo mining pool and stratum server software, built on CKPool" width="640">
+
+# CashStratum — BCH Mining Pool & Stratum Server
+
+### Open-source **Bitcoin Cash (BCH) mining pool** and **Stratum server** software
+
+**A Bitcoin Cash solo mining engine built upon CKPool** — native CashAddr, per-address on-chain
+payouts, a configurable operator fee, sub-100 ms multi-node failover, and out-of-the-box
+NiceHash / MiningRigRentals compatibility.
+
+[![Bitcoin Cash](https://img.shields.io/badge/BITCOIN%20CASH-BCH-0AC18E?style=for-the-badge&logo=bitcoincash&logoColor=white&labelColor=030711)](https://bitcoincash.org)
+[![Stratum Server](https://img.shields.io/badge/STRATUM-V1%20SERVER-07D1FA?style=for-the-badge&labelColor=030711)](#%EF%B8%8F-architecture)
+[![Mainnet Blocks](https://img.shields.io/badge/MAINNET%20BLOCKS-69%2B-0281F5?style=for-the-badge&labelColor=030711)](docs/proofs/)
+[![Built in C](https://img.shields.io/badge/BUILT%20IN-C-5EE7FF?style=for-the-badge&logo=c&logoColor=white&labelColor=030711)](src/)
+[![License GPLv3](https://img.shields.io/badge/LICENSE-GPL%20v3-9FEEFF?style=for-the-badge&labelColor=030711)](COPYING)
+
+**Historical deployment evidence: [BlockSniper / EloPool block proofs](docs/proofs/).**
+
+</div>
+
+---
+
+## Installation and deployment
+
+Use [Installing CashStratum](docs/installation.md) for the supported source-install path.
+CashStratum is the software; the historical BlockSniper / EloPool deployment is evidence
+of its lineage, not a required upstream service or a claim about this checkout's deployment.
+Configure miners with your own pool hostname and BCH payout address.
+
+## 🧭 Why This Fork Instead of Stock CKPool?
+
+If you are searching for **CKPool for Bitcoin Cash**, **BCH pool software**, or a **BCH stratum
+server** you can actually put real money behind — this is it. Upstream CKPool is excellent
+Bitcoin software, but it is *Bitcoin* software: it does not understand CashAddr, it has no
+operator fee mechanism, its node failover takes seconds, and rental services trip over its
+difficulty handling.
+
+CashStratum is a **BCH-focused fork** that fixes all four, and has **69 blocks
+found on BCH mainnet** to show for it.
+
+| You want to… | Stock CKPool | **CashStratum** |
+|---|---|---|
+| Let miners use a `bitcoincash:q…` address as their username | ❌ Rejected | ✅ Native CashAddr, all prefixes |
+| Pay every miner **on-chain, directly, in the block they found** | ❌ | ✅ Per-address dual-output coinbase |
+| Take a pool fee without hacking the source | ❌ Donation code only | ✅ `poolfee`, 0–50%, configurable |
+| Survive a node restart without dropping miners | ⚠️ 4+ seconds | ✅ **<100 ms**, sync-aware |
+| Accept NiceHash / MiningRigRentals hashrate | ⚠️ Manual, fragile | ✅ Auto-detected by useragent |
+| Brand your own coinbase tag | ❌ Hardcoded `ckpool` | ✅ `btcsig`, up to 38 bytes |
+
+**Keywords:** bitcoin cash mining pool software · BCH stratum server · ckpool fork · solo mining
+BCH · CashAddr pool · bitcoin cash solo pool · ASIC mining pool · Bitaxe BCH.
+
+---
+
+## 📖 Table of Contents
+
+| Getting Started | Operating the Pool | Reference |
+|---|---|---|
+| [Why This Fork](#-why-this-fork-instead-of-stock-ckpool) | [Running the Pool](#-running-the-pool) | [What's Different from CKPool](#-whats-different-from-original-ckpool) |
+| [Mine to Your Own Address](#-mine-directly-to-your-own-bch-address) | [Multi-Node Configuration](#multi-node-configuration-highly-recommended-for-production) | [Key Features](#-key-features) |
+| [Requirements](#-requirements) | [Solo Mode Cutover](#-deploying-solo-mode-cutover) | [Architecture](#%EF%B8%8F-architecture) |
+| [Installation](#%EF%B8%8F-installation) | [Monitoring](#monitor-operations) | [API Commands](#-api-commands) |
+| [Configuration](#%EF%B8%8F-configuration) | [Troubleshooting](#-troubleshooting) | [Roadmap — Go API](#-roadmap--the-go-log-api) |
+| [BCH Node Setup](#-bch-node-setup) | [Testing](#-testing) | [Changelog](#-changelog) |
+| [NiceHash & MRR Setup](#-nicehash--miningrigrentals-setup) | [Support the Project](#-support-the-project) | [Contributing](#-contributing) |
+
+---
+
+## 🎯 Mine Directly to Your Own BCH Address
+
+**Solo Mode (-B):** The pool now supports mining directly to your personal BCH address. Each miner is paid on-chain automatically when they find a block, receiving their share minus the pool operator fee.
+
+### How It Works
+
+Simply use your **BCH address as your mining username**:
+
+```bash
+# CashAddr format (with prefix) - recommended
+./cgminer -o stratum+tcp://pool:3333 -u bitcoincash:qr95sy3j9xwd2ap32xkykttr4cvcu7as4y0qverfuy -p x
+
+# CashAddr format (without prefix)
+./cgminer -o stratum+tcp://pool:3333 -u qr95sy3j9xwd2ap32xkykttr4cvcu7as4y0qverfuy -p x
+
+# Legacy Base58 format
+./cgminer -o stratum+tcp://pool:3333 -u 1A1z7agoat8Bt8ZVUUxkKvWAWgHtdNi3nn -p x
+
+# Multi-worker mode (add `.workername` or `_workername` suffix)
+./cgminer -o stratum+tcp://pool:3333 -u bitcoincash:qr95sy3j9xwd2ap32xkykttr4cvcu7as4y0qverfuy.rig01 -p x
+```
+
+### Payment Distribution
+
+When you find a block:
+- **98%** goes to your on-chain address automatically
+- **2%** (configurable 0–50%) goes to the pool operator as fee
+
+The pool creates a dual-output coinbase transaction splitting the block reward. All outputs sum to the full block reward; if the fee would be dust (<546 sats), the fee output is omitted.
+
+### Smart Fallback & Typo Protection
+
+- **Non-address username** (e.g., `rig01`, `miner1`): You mine for the pool's own address (`bchaddress` config) but keep all rewards
+- **Invalid address** (bad checksum/wrong network): You're **rejected immediately** with the message "Invalid BCH address (bad checksum or wrong network) - check your username for typos" — this protects you from accidentally donating a block to a mistyped address
+
+### Network Support
+
+The pool detects your network from the BCH node's `getblockchaininfo` and picks the matching
+CashAddr prefix. **Detection keys off the exact chain name the node reports, and BCHN shortens
+most of them — the reported name is usually *not* the command-line flag.** Measured against a
+live BCHN v29.1.0 node by starting each chain and reading `getblockchaininfo`:
+
+| Node flag | `getblockchaininfo` reports | Address prefix |
+|---|---|---|
+| *(none — mainnet)* | `main` | `bitcoincash:` |
+| `-testnet` (testnet3) | `test` | `bchtest:` |
+| `-testnet4` | **`test4`** | `bchtest:` |
+| `-scalenet` | **`scale`** | `bchtest:` |
+| `-chipnet` | **`chip`** | `bchtest:` |
+| `-regtest` | `regtest` | `bchreg:` |
+
+Only `test` and `regtest` happen to match their flag. If you add support for a new chain, confirm
+its token against a live node — do not assume it matches the flag.
+
+**Symptom of an unrecognised chain.** The pool logs
+`Unknown chain '<name>' from getblockchaininfo`, silently falls back to the `bitcoincash` prefix,
+then rejects every address for that network. What you actually see is a stream of
+`Invalid BCH address` lines followed by **`CRITICAL: No bitcoinds active!`** — on a node that is
+perfectly healthy and reachable. If you hit that error, check for the `Unknown chain` line above
+it before investigating connectivity.
+
+## 🚀 What's Different from Original CKPool?
+
+CashStratum adds BCH-specific behavior to its CKPool foundation:
+
+| Feature | Original CKPool | CashStratum |
+|---------|----------------|----------|
+| **CashAddr Support** | ❌ None | ✅ Native implementation |
+| **Pool Fee System** | ❌ Donation only | ✅ Configurable dual-output |
+| **Node Failover** | ❌ Slow (40+ failures) | ✅ **Instant (<100ms)** |
+| **Sync-Aware Failover** | ❌ No | ✅ **Stays on backup during sync** |
+| **Difficulty Management** | Basic vardiff | 3 methods: Password, Useragent, Pattern |
+| **Password Difficulty** | ❌ Not supported | ✅ `-p d=X` or `-p diff=X` |
+| **Rental Detection** | ❌ Manual config | ✅ Auto-detect via useragent |
+| **NiceHash Support** | ❌ Issues | ✅ Full compatibility |
+| **MiningRigRentals** | ❌ Issues | ✅ Full compatibility |
+| **Share Validation** | Rejects below target | Only rejects below mindiff |
+| **BCH Optimizations** | ❌ BTC focused | ✅ BCH specific |
+| **Coinbase Message** | Hardcoded "ckpool" | Fully configurable |
+| **ZMQ Support** | Limited | Multi-node redundancy |
+
+## Historical block evidence
+
+The [proof index](docs/proofs/) records 69 BCH mainnet blocks from the project's
+CKPool-derived lineage, with explorer links and available sanitized solve excerpts.
+This historical evidence does not establish that the current checkout is deployed or
+that every configuration has been validated on mainnet.
+
+## 🚀 Key Features
+
+### Core CKPool Features
+- **Ultra-low overhead** massively scalable multi-process, multi-threaded architecture
+- **Multiple deployment modes**: Pool, Solo, Proxy, Passthrough, Node
+- **Seamless restarts** with socket handover for zero-downtime upgrades
+- **ASICBoost support** for improved mining efficiency
+- **Advanced vardiff** algorithm with stable high-difficulty handling
+
+### CashStratum enhancements
+
+#### 1. **Pool Operator Fee System** ✅ NEW!
+  - Automatic fee distribution in coinbase transaction
+  - Dual-output coinbase splitting (miner + pool operator)
+  - Configurable percentage (0.0% - 100.0%)
+  - **Testnet Verified**: Blocks 1677558 (1% fee), 1677572 (2% fee)
+  - Clean implementation without donation code
+  - [Full Documentation](POOL_FEE.md)
+
+#### 2. **Native CashAddr Support** ✅
+  - Full Bitcoin Cash address format support
+  - Zero external dependencies (pure C implementation)
+  - Supports all BCH prefixes:
+    - `bitcoincash:` (mainnet)
+    - `bchtest:` (testnet)
+    - `bchreg:` (regtest)
+  - Backwards compatible with legacy Base58 addresses
+  - **Production Proven**: Successfully mining on mainnet and testnet
+
+#### 3. **Advanced Multi-Difficulty Management** ✅
+
+**Three Methods of Difficulty Control (Priority Order):**
+
+##### a) **Password-Based Difficulty** (Highest Priority) ✅ TESTED
+  - Set difficulty via password field: `-p d=500000` or `-p diff=1000000`
+  - **Both formats supported**: `d=` (short) and `diff=` (long)
+  - Overrides ALL other difficulty settings
+  - Applied immediately upon authorization
+  - Perfect for individual miner control
+  - **Testnet verified**: Successfully tested with `d=41245` on Bitaxe
+  - Examples:
+    ```bash
+    # Short format (tested & working)
+    ./bfgminer -o stratum+tcp://pool:3333 -u wallet.worker -p d=500000
+
+    # Long format (also supported)
+    ./cgminer -o stratum+tcp://pool:3333 -u wallet.worker -p diff=1000000
+    ```
+
+##### b) **Useragent-Based Detection** (Auto-Detection) 🆕
+  - **Automatically detects rental services** from mining.subscribe
+  - No special configuration needed by miners!
+  - Applied immediately during connection
+  - Supported services:
+    - **NiceHash**: Detects `"NiceHashMiner"` in useragent → 500k diff
+    - **MiningRigRentals**: Detects `"MiningRigRentals"` → 1M diff
+  - Works exactly like AsicSteer and other modern pools
+
+##### c) **Worker Name Pattern Matching** (Config-Based)
+  - Configure patterns in `mindiff_overrides`:
+    ```json
+    "mindiff_overrides": {
+        "nicehash": 500000,      // Matches: wallet.nicehash_rig1
+        "MiningRigRentals": 1000000,  // Matches: wallet.MiningRigRentals_xyz
+        "bitaxe": 100,           // Matches: wallet.bitaxe_home
+        "high": 2000000          // Matches: wallet.high_performance
+    }
+    ```
+  - Case-insensitive substring matching
+  - Applied during worker authorization
+  - Useful for custom miner groups
+  
+  ⚠️ **Important for Solo Mode:** To avoid substring-matching BCH addresses in usernames, keep keys ≥3 characters AND avoid letters b, i, o (hexadecimal-like). Examples:
+    - ✅ Good: `"nicehash"` (8 chars), `"high"` (4 chars), `"test123"` (7 chars)
+    - ❌ Avoid: `"hi"` (2 chars), `"rig"` (contains `i`), `"old"` (contains `o`)
+
+#### 4. **Enterprise-Grade Multi-Node Redundancy** ✅
+  - **Instant failover** - Switches to backup on first RPC failure (~100ms)
+  - **Intelligent node selection** - Prefers primary, automatically fails back when recovered
+  - **Sync-aware** - Stays on backup while primary node is syncing/loading
+  - **Zero mining downtime** - Continuous operation during node maintenance
+  - **Multi-node ZMQ** - Receives block notifications from all nodes
+  - **Production proven** - Handles node restarts gracefully
+
+  **Failover Performance:**
+  - Old behavior: 40+ failed attempts before failover (4+ seconds)
+  - **New behavior: 1 failed attempt, instant failover** (<100ms)
+  - Automatic recovery detection every 5 seconds
+  - Seamless failback when primary node is ready
+
+#### 5. **Fully Configurable Coinbase** ✅
+  - Complete control via `btcsig` parameter
+  - No hardcoded "ckpool" text
+  - Pool operators have full branding flexibility
+  - Supports up to 38 bytes of custom text
+
+#### 6. **Bitcoin Cash Optimizations**
+  - SegWit code completely removed
+  - Optimized for ASIC miners (default 500k+ difficulty)
+  - BCH-specific block validation
+  - Proper ASERT DAA handling
+
+## 📋 Requirements
+
+- **Operating System**: Ubuntu 18.04+ or Debian 10+
+- **Dependencies**: 
+  - Build tools: `build-essential autoconf automake libtool`
+  - Libraries: `libssl-dev libzmq3-dev` (JSON is vendored in-tree as yyjson since the
+    upstream 1.2.0 rebase; no libjansson is needed to build)
+- **Bitcoin Cash Node**: One or more BCH full nodes with RPC and ZMQ enabled
+
+## 🛠️ Installation
+
+[Installing CashStratum](docs/installation.md) is the authoritative guide for dependencies,
+source selection, BCHN prerequisites, staging and systemd activation. Use `--source-dir`
+to build this pre-release checkout; public-repository installs require an explicit release tag.
+
+For a development build on Linux after installing those prerequisites:
+
+```bash
+./autogen.sh
+./configure
+make -j2
+./src/ckpool -n cashstratum -c /path/to/cashstratum.conf -L -B
+```
+
+The source binary and C identifiers retain upstream names. Installed aliases do not change
+the upstream runtime defaults: always pass `-n cashstratum` for CashStratum pool paths,
+and `-n csproxy` for a proxy. Helpers use the same name, for example `ckpmsg -n cashstratum`.
+Configure a synced BCHN node and valid payout addresses before starting the pool.
+
+## ⚙️ Configuration
+
+### Pool Operator Fee Configuration
+
+```json
+{
+    "bchaddress": "bitcoincash:qqqupxkkrjew738czfzpz5e33sej6wm9zqdquq0aze",  // Miner receives 98%
+    "pooladdress": "bitcoincash:qregedwmg8tr2ymnp8j6f0tesuj4r9lqnqjfmlvj6w", // Pool receives 2%
+
+    "poolfee": 2.0  // 2% pool fee (configurable 0-50, must include decimal)
+}
+```
+
+**Note:** The config key `btcaddress` is deprecated. Use `bchaddress` (same functionality, BCH-specific naming).
+
+This creates a dual-output coinbase transaction automatically splitting the block reward. See [Pool Fee Details](POOL_FEE.md) for the complete mechanics (rounding, dust handling, verification).
+
+### Coinbase Message (btcsig)
+
+The `btcsig` parameter controls the **entire** coinbase message that appears in mined blocks. There is no hardcoded text - whatever you set in `btcsig` is exactly what will appear in the blockchain.
+
+**Examples:**
+- `"btcsig": "MyPool.com"` → Coinbase shows: `MyPool.com`
+- `"btcsig": "PoolName/[Solo]"` → Coinbase shows: `PoolName/[Solo]`
+- `"btcsig": "/[Solo]"` → Coinbase shows: `/[Solo]`
+- `"btcsig": ""` → No coinbase message
+
+> [!IMPORTANT]
+> **`btcsig` is hard-capped at 38 bytes and is silently truncated above it.** Over-length values
+> are cut at startup with only a `LOGWARNING` — the pool does not refuse to start, so a config
+> that looks right can be live and wrong. `strlen()` counts **bytes**, so one multi-byte
+> character (an em dash, an accent, an emoji) costs 2–4 of the 38 and can be cut mid-character,
+> putting invalid UTF-8 on-chain permanently. **Keep it ASCII and count bytes, not characters.**
+>
+> Note the 100-byte consensus limit on the whole coinbase scriptSig is *not* the binding one —
+> CashStratum's own 38-byte cap bites first. Sizing a signature against 100 will get it truncated.
+
+**What the coinbase message actually looks like on-chain.** `btcsig` is the last field of the
+coinbase scriptSig, and roughly 28 bytes of protocol data come *before* it: the BIP34 block
+height (consensus — it must be first), a `coinbaseaux` flags push, a timestamp, a nonce
+randomiser, and the extranonces that make each miner's work unique. Block explorers render those
+bytes as ASCII, so the message reads as garbage followed by your text:
+
+```
+<protocol bytes> CashStratum
+```
+
+That prefix is protocol, not a misconfiguration, and it cannot be removed. Every CashStratum block
+looks like this.
+
+### Difficulty Configuration Examples
+
+#### For Rental Services (NiceHash, MiningRigRentals)
+
+```json
+"mindiff_overrides": {
+    "nicehash": 500000,           // Auto-detected via useragent OR worker name
+    "NiceHash": 500000,           // Alternative capitalization
+    "MiningRigRentals": 1000000,  // Auto-detected via useragent OR worker name
+    "miningrigrentals": 1000000   // Alternative capitalization
+}
+```
+
+**Note**: Rental services are **automatically detected** via useragent. The mindiff_overrides values are used as the difficulty to apply when detected.
+
+#### For Custom Worker Groups
+
+```json
+"mindiff_overrides": {
+    "bitaxe": 100,               // Low-power miners
+    "s19": 1000000,              // Antminer S19 rigs
+    "high": 5000000,             // High-performance farms
+    "stratum-proxy": 10000       // Proxy connections
+}
+```
+
+#### Password-Based Difficulty (Per Connection)
+
+```bash
+# Set specific difficulty via password
+./cgminer -o stratum+tcp://pool:3333 -u BCH_ADDRESS.worker -p d=500000
+
+# Or using long format
+./bfgminer -o stratum+tcp://pool:3333 -u BCH_ADDRESS.worker -p diff=1000000
+
+# Combine with other password options
+./cgminer -o stratum+tcp://pool:3333 -u BCH_ADDRESS.worker -p d=500000,stats
+```
+
+### Complete Production Configuration
+
+```json
+{
+    "btcd": [{
+        "url": "127.0.0.1:8332",
+        "auth": "rpcuser",
+        "pass": "rpcpassword",
+        "notify": true,
+        "zmqnotify": "tcp://127.0.0.1:28333"
+    }],
+    "bchaddress": "bitcoincash:qqqupxkkrjew738czfzpz5e33sej6wm9zqdquq0aze",  // Main mining address (solo mode fallback)
+    "pooladdress": "bitcoincash:qregedwmg8tr2ymnp8j6f0tesuj4r9lqnqjfmlvj6w",  // Pool fee address
+    "poolfee": 2.0,                           // 2% pool fee (configurable 0-50)
+    "btcsig": "YourPool.com",                // Your pool branding
+    "blockpoll": 50,
+    "update_interval": 15,
+    "serverurl": ["0.0.0.0:3333"],
+    "mindiff": 500000,                        // ASIC optimized
+    "startdiff": 500000,
+    "maxdiff": 1000000,
+    "mindiff_overrides": {                    // Per-pattern difficulty
+        "nicehash": 500000,
+        "MiningRigRentals": 1000000
+    }
+}
+```
+
+### Multi-Node Configuration (Highly Recommended for Production)
+
+The example below configures two independent BCHN endpoints. Replace the illustrative
+addresses and credentials with your own nodes. Verify failover, recovery and ZMQ delivery
+under load in your environment before relying on them for availability.
+
+```json
+{
+    "btcd": [
+        {
+            "url": "192.0.2.10:8332",      // Primary node
+            "auth": "rpcuser",
+            "pass": "rpcpassword",
+            "notify": true,
+            "zmqnotify": "tcp://192.0.2.10:28333"
+        },
+        {
+            "url": "192.0.2.11:8332",      // Backup node
+            "auth": "rpcuser",
+            "pass": "rpcpassword",
+            "notify": true,
+            "zmqnotify": "tcp://192.0.2.11:28333"
+        }
+    ],
+    "bchaddress": "bitcoincash:qqqupxkkrjew738czfzpz5e33sej6wm9zqdquq0aze",
+    "pooladdress": "bitcoincash:qregedwmg8tr2ymnp8j6f0tesuj4r9lqnqjfmlvj6w",
+    "poolfee": 2.0,
+    "btcsig": "CashStratum",
+    "mindiff": 500000,
+    "startdiff": 500000,
+    "maxdiff": 1000000,
+    "asicboost": true,
+    "version_mask": "1fffe000"
+}
+```
+
+**Node Priority:**
+- First node in array = Primary (always preferred when available)
+- Subsequent nodes = Backup (used during primary failure/maintenance)
+- Pool automatically fails back to primary when it recovers
+
+**Example Failover Behavior:**
+
+```log
+# Startup - Both nodes detected
+[18:24:02.087] Connected to bitcoind: 192.0.2.10:8332
+[18:24:02.088] Server alive: 192.0.2.10:8332
+[18:24:02.090] Server alive: 192.0.2.11:8332
+
+# Primary node goes down - Instant failover (1 failure, <100ms)
+[18:25:27.454] Unable to connect socket to 192.0.2.10:8332
+[18:25:27.454] Failed to get best block hash from 192.0.2.10:8332
+[18:25:27.454] Failed over to bitcoind: 192.0.2.11:8332  ← INSTANT
+
+# Mining continues on backup without interruption
+[18:25:32.151] Stored local workbase with 24 transactions
+
+# Primary comes back but still syncing - Pool stays on backup
+[18:26:07.112] "Loading block index..." (node not ready yet)
+[18:26:07.112] 192.0.2.10:8332 Failed to get valid json response
+
+# Primary fully synced - Automatic failback (5 seconds later)
+[18:26:12.114] Server alive: 192.0.2.10:8332
+[18:26:12.115] Failed over to bitcoind: 192.0.2.10:8332  ← Back to primary
+
+# Continues mining on primary
+[18:26:32.453] Stored local workbase with 29 transactions
+```
+
+**Key Behaviors:**
+- ✅ **Single failure triggers failover** (not 40+ like before)
+- ✅ **Stays on backup during primary sync** (sync-aware)
+- ✅ **Automatic failback when ready** (intelligent recovery)
+- ✅ **Zero share loss** during failover
+- ✅ **Miners never disconnected** (seamless transition)
+
+## 🎯 NiceHash & MiningRigRentals Setup
+
+### ✅ Production Tested & Verified
+- ✅ **Password-based difficulty**: Tested & working in production
+- ✅ **Useragent detection**: Tested & working with NiceHash
+- ✅ **Pattern matching**: Tested & working in production
+
+> [!IMPORTANT]
+> **Keep your stratum port below 4000.** Any port above 4000 is silently treated
+> as a "highdiff" port (`src/connector.c`): every client on it is handed
+> `highdiff` — **1,000,000 by default** — which overrides `startdiff`,
+> `mindiff` and your `mindiff_overrides` entirely. Rented hashrate then submits
+> far too few shares, the buyer's hashrate estimate goes ragged, and you see red
+> deltas and apparent drops with nothing wrong in the logs. The default 3333 is
+> fine; 3334 is fine; 8888 is not.
+>
+> Also consider setting **`maxdiff`** to a real ceiling instead of the shipped
+> `0` (unlimited). With no cap, vardiff can climb until the share rate is too
+> sparse for a rental service to measure your hashrate steadily.
+
+### For Pool Operators
+
+Just add to your config:
+```json
+{
+    "mindiff_overrides": {
+        "nicehash": 500000,
+        "NiceHash": 500000,
+        "MiningRigRentals": 1000000,
+        "miningrigrentals": 1000000
+    }
+}
+```
+
+**That's it!** The pool will automatically detect and apply correct difficulty.
+
+### For Solo Miners
+
+All miners connect the same way using their **own BCH address as the username**. Blocks are mined directly to the miner's address:
+
+```bash
+# Basic setup (uses default difficulty)
+./cgminer -o stratum+tcp://POOL_IP:3333 -u bitcoincash:qr95sy3j9xwd2ap32xkykttr4cvcu7as4y0qverfuy -p x
+
+# Set custom difficulty via password
+./cgminer -o stratum+tcp://POOL_IP:3333 -u bitcoincash:qr95sy3j9xwd2ap32xkykttr4cvcu7as4y0qverfuy -p d=500000
+
+# Multi-worker setup
+./cgminer -o stratum+tcp://POOL_IP:3333 -u bitcoincash:qr95sy3j9xwd2ap32xkykttr4cvcu7as4y0qverfuy.rig01 -p x
+```
+
+**When you find a block:**
+- 98% auto-pays to your address on-chain
+- 2% (configurable) pays to the pool operator fee address
+- Payment is automatic and non-custodial
+
+### For Rental Services (NiceHash, MiningRigRentals)
+
+If renting hashrate to this pool:
+
+1. Add pool: `stratum+tcp://POOL_IP:3333`
+2. Use your **BCH address** as the username (same as solo miners)
+3. **Auto-detection:** Pool automatically detects NiceHash/MRR from useragent and applies appropriate difficulty
+   - NiceHash: 500k difficulty
+   - MiningRigRentals: 1M difficulty
+4. You can override with password: `-p d=1000000`
+5. **Note:** Ensure pool's `maxdiff` is 0 or > rental service difficulty
+
+## 🚦 BCH Node Setup
+
+### Enable ZMQ in bitcoin.conf
+
+```ini
+# RPC Settings
+rpcuser=yourusername
+rpcpassword=yourpassword
+rpcallowip=192.0.2.0/24
+rpcbind=0.0.0.0
+
+# ZMQ Settings (Required for fast block detection)
+zmqpubhashblock=tcp://0.0.0.0:28333
+
+# Mining Optimizations
+maxmempool=2000
+dbcache=4096
+```
+
+### Firewall Configuration
+
+```bash
+# On BCH nodes - allow ZMQ connections
+sudo ufw allow 28333/tcp comment 'ZMQ block notifications'
+sudo ufw allow from POOL_SERVER_IP to any port 8332 comment 'BCH RPC'
+
+# On pool server - allow miner connections
+sudo ufw allow 3333/tcp comment 'Stratum mining port'
+```
+
+## 🏃 Running the Pool
+
+### Option 1: Systemd Service (Recommended for Production)
+
+After running `post-install.sh`, manage the pool as a system service:
+
+```bash
+# Start the pool
+sudo systemctl start cashstratum
+
+# Stop the pool
+sudo systemctl stop cashstratum
+
+# Restart the pool
+sudo systemctl restart cashstratum
+
+# Check status
+sudo systemctl status cashstratum
+
+# View live logs
+sudo journalctl -u cashstratum -f
+
+# Enable auto-start on boot
+sudo systemctl enable cashstratum
+
+# Disable auto-start
+sudo systemctl disable cashstratum
+```
+
+**Testnet Service:**
+```bash
+# Same commands but replace 'cashstratum' with 'cashstratum-testnet'
+sudo systemctl start cashstratum-testnet
+sudo journalctl -u cashstratum-testnet -f
+```
+
+### Option 2: Manual Scripts (Testing/Development)
+
+```bash
+# Start the pool
+cd ~/cashstratum
+./start-cashstratum.sh
+
+# Stop the pool
+./stop-cashstratum.sh
+
+# View logs
+tail -f ~/cashstratum/logs/cashstratum.log
+```
+
+## 🚀 Deploying Solo Mode Cutover
+
+To activate solo mode mining where each miner is paid directly on-chain:
+
+### 1. Update Configuration
+
+```bash
+# Edit your cashstratum.conf
+nano ~/cashstratum/cashstratum.conf
+```
+
+Set these keys:
+- `"bchaddress"` - fallback address for non-address usernames (miners should use their own BCH address as username)
+- `"pooladdress"` - your pool operator fee address (receives the configured poolfee %)
+- `"poolfee"` - fee percentage (e.g., 2.0 for 2%; configurable 0–50)
+
+### 2. Enable Solo Mode Flag
+
+Add `-B` flag to your pool start command. For systemd service:
+
+```bash
+# Edit the service file
+sudo nano /etc/systemd/system/cashstratum.service
+```
+
+Update the `ExecStart` line to include `-B`:
+```
+ExecStart=/home/user/cashstratum/cashstratum -n cashstratum -c /home/user/cashstratum/cashstratum.conf -L -B
+```
+
+### 3. Restart the Pool
+
+```bash
+# Reload systemd and restart
+sudo systemctl daemon-reload
+sudo systemctl restart cashstratum
+
+# Verify it's running
+sudo systemctl status cashstratum
+```
+
+### 4. Miner Migration (Optional)
+
+Existing miners with plain usernames (e.g., `rig01`) continue mining:
+- They automatically mine for your `bchaddress` pool fallback
+- No action needed until they want individual payouts
+
+Miners can opt-in to solo mode by using their **own BCH address as username**:
+```bash
+./cgminer -o stratum+tcp://pool:3333 -u bitcoincash:qr95sy3j9xwd2ap32xkykttr4cvcu7as4y0qverfuy -p x
+```
+
+### Monitor Operations
+
+```bash
+# Pool statistics
+printf 'stats\n' | ./ckpmsg -s /tmp -n cashstratum -N stratifier
+
+# User information
+printf 'users\n' | ./ckpmsg -s /tmp -n cashstratum -N stratifier
+
+# Worker details
+printf 'workers\n' | ./ckpmsg -s /tmp -n cashstratum -N stratifier
+
+# View logs (systemd)
+sudo journalctl -u cashstratum -f --lines=100
+
+# View logs (manual)
+tail -f ~/cashstratum/logs/cashstratum.log
+```
+
+## 🧪 Testing
+
+Two layers of tests ship with the pool. Run both before you point real hashrate at a build.
+
+### Unit Tests
+
+Built and run by the standard autotools target:
+
+```bash
+./autogen.sh && ./configure && make
+make check
+```
+
+| Test | Covers |
+|---|---|
+| `test/sha256` | SHA-256 primitives used by block hashing |
+| `test/cashaddr` | CashAddr encode/decode, checksum, prefix and case handling |
+| `test/addrclassify` | Address classification across mainnet / testnet / regtest, legacy Base58 and CashAddr |
+| `test/cbfinal` | Coinbase **finality** — the `nSequence` / `nLockTime` decision table, the height-vs-timestamp locktime threshold, malformed buffers, and three scriptSig lengths that move the `nSequence` offset |
+| `api/` (Go) | `cd api && go test ./...` — the log API, including that `/shares` surfaces `version_mask` and that a sharelog line written *before* that field existed still parses |
+
+### End-to-End Money Gate (regtest)
+
+`testing/regtest-e2e.sh` is the test that actually proves your build pays the right
+addresses. It spins up a throwaway `bitcoind -regtest` node, builds and starts
+`src/ckpool -B` against it, drives the bundled CPU miner plus raw stratum probes through
+every auth and payout scenario, and asserts each resulting coinbase against the expected
+split.
+
+```bash
+./testing/regtest-e2e.sh
+# exit 0 = every assertion passed
+# exit 1 = an assertion FAILed
+# exit 2 = missing prerequisites (nothing was started)
+```
+
+| Scenario | What it proves |
+|---|---|
+| 1 | Prefixed CashAddr username pays that address, fee split applied |
+| 2 | Bare (prefixless) CashAddr username resolves and pays identically |
+| 3 | Legacy Base58 address username pays that address |
+| 4 | Non-address username falls back to the pool's own `bchaddress` |
+| 5 | Typo'd CashAddr is rejected with the explicit error, no work served |
+| 5b | Typo'd **legacy** address is rejected, never silently redirected to the pool |
+| 6 | UPPERCASE bare CashAddr normalizes to the same user account |
+| 7 | Multiple workers under one address aggregate to a single payout |
+| 8 | A block by one miner resets only that miner's round; a bystander's round survives |
+| 9 | Prefixed and bare spellings of the **same** address are one user account |
+| 10 | The coinbase scriptSig is consensus-shaped: BIP34 height first, ≤ 100 bytes, `btcsig` byte-exact and last |
+
+> [!NOTE]
+> The pool canonicalises CashAddr usernames to the canonical form
+> `<chain prefix>:<lowercase payload>` before creating user accounts, where
+> `<chain prefix>` is the pool's network prefix (detected at startup:
+> `bitcoincash` for mainnet, `bchtest` for testnet4, `bchreg` for regtest).
+> This means bare, prefixed, and mixed-case spellings of the same address
+> resolve to one user account. Legacy Base58 addresses are left untouched —
+> they are case-significant and prefix-less. Worker names retain the spelling
+> the miner typed; only the user key is canonicalised.
+
+> [!IMPORTANT]
+> The e2e script must run on **Linux**. `src/ckpool` links against `<sys/epoll.h>` so it
+> does not build on macOS/BSD, and the bundled `testing/minerd` is a Linux ELF binary.
+> Run it on the pool server, not on your laptop.
+
+### What has actually been proven, and on which chain
+
+Verified on a live BCHN v29.1.0 rig, September 2026. Recorded because "we tested it" is not
+useful without saying *where* and *what that chain can prove*:
+
+| | regtest | testnet4 | mainnet |
+|---|---|---|---|
+| Chain detection + CashAddr prefix | ✅ | ✅ | ✅ |
+| Address accepted, coinbase built | ✅ | ✅ | ✅ |
+| Template served to a miner | ✅ | ✅ | ✅ |
+| Shares accepted and validated | ✅ | ✅ | ✅ |
+| **Block found and `submitblock` accepted** | ✅ | ❌ not yet | ✅ (block 966569) |
+| …that block carried the **current** `btcsig` | ✅ | — | ❌ not yet — no block since it changed |
+| Coinbase outputs and the fee split | ✅ | — | ✅ |
+
+- **regtest is what proves the block path.** Difficulty is trivial, so a CPU miner solves in
+  seconds and `submitblock` actually executes. A block mined there with a production-shaped
+  config came back `BLOCK ACCEPTED!` with two outputs, the operator fee exactly 2.0000%, the
+  BIP34 height as the first scriptSig push, and the signature byte-exact and last.
+- **testnet4 block submission is NOT proven, and this is not a defect.** BCH testnet has a
+  20-minute rule — after 1200 s with no block, the next may be mined at minimum difficulty — so a
+  CPU miner has a theoretical shot. Measured over 24 consecutive testnet4 blocks, **5 of 24
+  intervals (21%) opened such a window**, so opportunity is not the constraint. Two other things
+  are:
+
+  1. **Every window is taken within 1–11 seconds.** Those intervals land at 1201–1211 s against a
+     rule that opens at exactly 1200 s — someone farms them systematically.
+  2. **`update_interval` decides whether you are even present.** CashStratum refreshes its block
+     template on that cadence (default 30 s), and `blockpoll` does not help — it polls for a new
+     *block*, not for a template whose difficulty dropped under an unchanged tip. In one observed
+     window CashStratum logged `Network diff set to 1.0` **two seconds after** the winning block was
+     already mined, and the window was gone 7 seconds later.
+
+  Add the arithmetic — a difficulty-1 block needs ~2³² hashes, so ~134 s at 32 MH/s or ~14 s even
+  across 36 threads, against a ~2 s competitor — and chasing testnet4 windows is a poor use of
+  time. **Use regtest to prove the block path.** Do not read the gap as a failure, and do not
+  claim testnet4 submission works until a block exists.
+- **mainnet has solved a real block with this software** — 966569, on 2026-09-01: two outputs,
+  3.06291893 BCH to the miner's own address taken from their stratum username, 0.06250854 BCH to
+  the operator address, exactly 2.0000%. That is the strongest proof the pool has, and it is real
+  money on the real chain.
+
+  That historical block carries the `BlockSniper.ai/[Solo]` coinbase tag. It does not
+  establish that this checkout or the CashStratum-branded tag has been deployed.
+  See the [dated proof index](docs/proofs/) for the evidence boundaries.
+
+> [!TIP]
+> Verifying a testnet4 block on a public explorer is harder than it looks: most explorers
+> advertising "Bitcoin Cash testnet" serve **testnet3**, a different chain with different blocks
+> at the same heights. Check the genesis hash before trusting one —
+> testnet4's is `000000001dd410c49a788668ce26751718cc797474d3152a5fc073dd44fd9f7b`. Your own node
+> is the authority: `bitcoin-cli -testnet4 getblockhash <height>`.
+
+### Reaching code paths production never executes
+
+Some of the most expensive failures live in branches that a healthy pool never takes: a
+defensive fallback, a node outage, a coinbase shape we do not emit. `make check` and the e2e
+both come back green **without ever running them**, so a green run is not evidence about them.
+These are the techniques used to exercise them anyway. They are recorded because the technique
+is reusable; the specific findings are in the PRs.
+
+| Technique | Used for | How |
+|---|---|---|
+| **Unit vectors over a pure predicate** | Coinbase finality | The predicate (`src/coinbase_final.c`) takes no locks, allocates nothing and touches no globals, so `test/cbfinal` can drive every `nSequence`/`nLockTime` combination directly. Production only ever emits one of them. |
+| **AddressSanitizer against the *unfixed* code** | Out-of-bounds reads | Build the old file plus the new test under `-fsanitize=address`. A test that only passes after a fix proves nothing about a memory error — ASAN on the unfixed build is what shows the read was real. |
+| **A temporary `getenv()` hook** | Defensive fallbacks | Force the unreachable branch from the environment, run the full e2e against it, read the sharelog, then remove the hook. Do it on the **old** build too: the interesting result is usually how the old code *mislabelled* the failure. |
+| **Killing a dependency mid-run** | Node outage / failover | Start the e2e, `bitcoin-cli stop` its regtest node partway through, and stream cashstratum's own logfile out before the harness deletes its workdir. Log **cadence** is the signal — a thread that stops logging on schedule is a thread that is blocked. |
+
+> [!IMPORTANT]
+> **CashStratum writes to its own logfile, not to the harness's stdout.** Grepping the e2e's output for
+> a cashstratum log line returns zero matches whether or not the line fired, which reads exactly like a
+> passing check. `regtest-e2e.sh` deletes its workdir on success, so capture the log while the run
+> is live:
+> ```bash
+> TMPDIR=/tmp/keep ./testing/regtest-e2e.sh > /tmp/e2e.log 2>&1 &
+> until LOGF=$(ls /tmp/keep/cashstratum-e2e.*/logs/e2e.log /tmp/keep/ckpool-e2e.*/logs/e2e.log 2>/dev/null); do sleep 1; done
+> tail -n +1 -F "$LOGF" > /tmp/cashstratum-captured.log &
+> ```
+
+> [!WARNING]
+> **The e2e binds a fixed stratum port (13333), and a stray miner will corrupt its results.**
+> `testing/minerd`'s command line contains neither the workdir path nor `ckpool-e2e`, so a
+> teardown that `pkill`s on either pattern leaves miners running. They reconnect to the *next*
+> run's pool and solve its blocks **paying their own address** — which surfaces as scenario 1/2
+> failing `vout[0] pays the expected miner address`, i.e. it looks precisely like a payout bug.
+> Always `pkill -f minerd` as well, and confirm the port is free before believing a payout failure:
+> ```bash
+> pgrep -af minerd ; ss -tlnp | grep 13333
+> ```
+> **`pgrep -f` matches the full command line, including your own.** Run that check inside a
+> wrapper — an `ssh host '...'` string, a `bash -c`, a watcher loop — and the wrapper's own
+> command line contains `minerd`, so `pgrep` matches itself and reports a miner that is not
+> there. The same shape hangs a watcher forever: `until ! pgrep -f regtest-e2e.sh; do ...`
+> never exits, because the loop *is* a process whose command line contains `regtest-e2e.sh`.
+> Bracket the first character to exclude the matcher (`pgrep -af "[m]inerd"`), and read the raw
+> PIDs before believing a count.
+
+### Continuous Integration
+
+`.github/workflows/release-gate.yml` runs the whole gate — build, `make check`, and the
+full regtest money gate — on GitHub Actions.
+
+It fires **only on release tags** (`v*`) and on manual dispatch, never on pushes to
+`master` or `homolog`, so ordinary merges stay fast and the expensive end-to-end run
+happens exactly when it matters: before a release is published.
+
+**No external BCH node is needed.** regtest is a self-contained private chain that
+generates its own blocks, so the workflow downloads a pinned Bitcoin Cash Node binary
+and runs the real money path against a throwaway node inside the runner. On failure it
+preserves the cashstratum log and configs as a downloadable artifact.
+
+To run it by hand against a different node version, use **Actions → Release gate → Run
+workflow** and set the `bchn_version` input.
+
+## 🔧 Troubleshooting
+
+### ZMQ Connection Issues
+
+1. **Check if ZMQ is enabled on BCH node:**
+   ```bash
+   bitcoin-cli getzmqnotifications
+   ```
+
+2. **Test ZMQ connectivity:**
+   ```bash
+   ./test-zmq-connection.sh
+   ```
+
+3. **Verify firewall rules:**
+   ```bash
+   sudo ufw status | grep 28333
+   ```
+
+### Performance Tuning
+
+```bash
+# Fix buffer size warnings
+sudo ./tune-system.sh
+
+# Increase system limits
+ulimit -n 1048576
+```
+
+## 📊 API Commands
+
+CashStratum uses Unix sockets for administration. For read-only HTTP access suitable for dashboards, see the [Go log API](#-roadmap--the-go-log-api) under [`api/`](api/).
+
+```bash
+# Pool statistics
+printf 'stats\n' | ./ckpmsg -s /tmp -n cashstratum -N stratifier
+
+# User information
+printf 'users\n' | ./ckpmsg -s /tmp -n cashstratum -N stratifier
+
+# Worker details
+printf 'workers\n' | ./ckpmsg -s /tmp -n cashstratum -N stratifier
+
+# Change log level
+printf 'loglevel=7\n' | ./ckpmsg -s /tmp -n cashstratum -N pool
+```
+
+## 🏗️ Architecture
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  BCH Node 1 │     │  BCH Node 2 │     │  BCH Node N │
+│  RPC:8332   │     │  RPC:8332   │     │  RPC:8332   │
+│  ZMQ:28333  │     │  ZMQ:28333  │     │  ZMQ:28333  │
+└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
+       │                   │                   │
+       └───────────────────┴───────────────────┘
+                           │
+                    ┌──────┴──────┐
+                    │ CashStratum │
+                    │  Generator  │ ← Block Templates
+                    │  Stratifier │ ← Share Validation
+                    │  Connector  │ ← Client Connections
+                    └──────┬──────┘
+                           │
+                    ┌──────┴──────┐
+                    │  Port 3333  │
+                    └──────┬──────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         │                 │                 │
+    ┌────┴────┐      ┌────┴────┐      ┌────┴────┐
+    │ ASIC 1  │      │ ASIC 2  │      │ ASIC N  │
+    └─────────┘      └─────────┘      └─────────┘
+```
+
+## 📊 Testnet Achievements (September 2025)
+
+### Successfully Mined Blocks
+- **Block 1677517**: First CashAddr block
+- **Block 1677523**: Confirmed CashAddr working
+- **Block 1677558**: 1% pool fee distribution verified
+- **Block 1677572**: 2% pool fee distribution verified
+- **10+ additional blocks**: Continuous stable operation
+
+### Verified Features
+- ✅ CashAddr format (`bchtest:` addresses)
+- ✅ Pool fee splitting (dual-output coinbase)
+- ✅ Custom coinbase messages
+- ✅ Password-based difficulty (`-p d=41245` tested with Bitaxe)
+- ✅ Low difficulty for Bitaxe miners
+- ✅ Stable operation over extended periods
+
+## 📜 Changelog
+
+Full history lives in [ChangeLog](ChangeLog). Most recent release below.
+
+### v1.2.0 — 2026-08-26 · Per-Address Solo Mining
+
+The headline change: in solo mode (`-B`) every miner is now paid **directly to their own
+BCH address**, on-chain, in the coinbase of the block they found. Your username *is* your
+payout address.
+
+**Per-Address Solo Payouts**
+- ✨ Mine to your own address by using it as your stratum username — CashAddr (prefixed or
+  bare), UPPERCASE CashAddr, or legacy Base58 all resolve to the same account
+- ✨ Dual-output coinbase splits the reward between the finder and the pool operator
+- ✨ Multi-worker support — `<address>.rig01` / `<address>_rig01` aggregate under one payout
+- ✨ New `bchaddress` config key names the pool's own payout address
+- 🔧 Operator fee configurable 0–50% via `poolfee`, defaulting to 2%
+
+**Payout Safety**
+- 🔒 Fee percentage clamped, coinbase size bounded, and dust fee outputs (<546 sats)
+  omitted so every output sums cleanly to the full block reward
+- 🔒 Unified local address classifier shared by the validation and script-building paths,
+  so an address can never validate one way and pay another
+- 🔒 Strict CashAddr verification — checksum, prefix and case are all enforced
+- ✨ **Smart fallback**: a genuinely non-address username mines to the pool's `bchaddress`
+- ✨ **Typo protection**: an address-shaped username that fails validation is rejected
+  outright with "Invalid BCH address (bad checksum or wrong network) — check your username
+  for typos", instead of silently donating your block to the pool
+- 🐛 Typo'd **testnet/regtest legacy** addresses are now caught by that same guard — the
+  shape check was mainnet-only, so they previously fell through to pool fallback. The
+  non-mainnet leading characters are gated on the detected network, so mainnet worker
+  names beginning with `m`, `n` or `2` still authorise normally
+
+**Reliability**
+- 🐛 An invalid address no longer marks bitcoind dead during `checkaddr`
+- 🐛 Rental-detected clients skip `mindiff_overrides` pattern matching
+- 🐛 Ported upstream diff-window, burst vardiff and stats crash fixes
+
+**BCH-Only Cleanup**
+- 🔥 Stripped the BTC donation path and remaining segwit leftovers
+
+**Testing**
+- 🧪 New `testing/regtest-e2e.sh` end-to-end money gate — eight scenarios asserting real
+  coinbase outputs on a throwaway regtest node
+- 🧪 New `test/addrclassify` unit test covering address classification across all networks
+
+---
+
+## Go operator API
+
+> **Installed by `install-cashstratum.sh`.** The installer builds the binary, generates a 32-byte
+> API key at `~/cashstratum/api/cashstratum-api.env` (mode 0600), and `post-install.sh` adds the systemd
+> unit and a firewall rule **scoped to one address** — the key is the only authentication and
+> HTTP sends it in cleartext, so the port must never face the internet. Interfaces may still
+> move ahead of a tagged release.
+
+CashStratum's own administration interface is a **Unix domain socket** driven by `ckpmsg`. That is the
+right design for control commands, and the wrong one for a dashboard: it needs shell access on
+the pool host, it is not concurrent, and anything that wants pool state ends up shelling out or
+tailing logs by hand. The Python service that filled that gap did not hold up either.
+
+The Go operator API provides a **single static Go binary** that exposes CashStratum's log tree over
+authenticated, read-only HTTP:
+
+| Property | How |
+|---|---|
+| **Millisecond responses** | Responses are cached 60 s in-process; a hit never touches the disk |
+| **Thousands of concurrent readers** | Goroutine-per-request, no interpreter, no GIL, no worker pool to size |
+| **Vendored, hermetic build** | One direct dependency (`zmq4`, for the notifier), fully vendored — `go build -mod=vendor` needs no network, and it stays one static binary to `scp` |
+| **Safe by default** | Bearer-token auth, a per-IP rate limit (20 req/60 s; 60 for `/shares`) that advertises itself via `X-RateLimit-*` and `Retry-After`, and it is **read-only** — it never touches the control sockets |
+| **Ships with the parser it needs** | It decodes coinbase layout defined in `src/stratifier.c`, so it lives in this repo and changes in the same commit |
+
+```http
+GET /health                    liveness, log presence and size
+GET /stats                     parsed pool stats — hashrate, workers, users
+GET /tail?lines=N              tail the main log (capped at 1000)
+GET /grep?pattern=             search the main log
+GET /find-block?height=N       locate a solved block with context
+GET /user-log?user=&lines=N    tail one miner's log
+GET /user-file?user=           one miner's full status file
+GET /coinbase?user=NAME        decode the coinbase this miner is working on
+GET /shares?since=&user=       poll new sharelog records with a resumable cursor
+GET /metrics                   service-level counters
+```
+
+Reach it once installed:
+
+```bash
+KEY=$(sudo sed -n 's/^CASHSTRATUM_API_KEY=//p' ~/cashstratum/api/cashstratum-api.env)
+curl -H "Authorization: Bearer $KEY" http://127.0.0.1:8888/stats
+```
+
+### Block results and finder hashrate by height
+
+`GET /find-block?height=N` is the one call that answers *"who found block N, and how much
+hashrate were they pointing at us when they found it?"* — the numbers a pool front-end renders
+as **Mining Power** on a block card.
+
+When `block_solve()` in [`src/stratifier.c`](src/stratifier.c) confirms a block it emits a
+**contiguous burst of `LOGWARNING` lines**, and `/find-block` returns that burst verbatim
+(`±5` lines of context around the solve):
+
+```bash
+curl -sH "Authorization: Bearer $KEY" \
+     "http://127.0.0.1:8888/find-block?height=966569"
+```
+
+```json
+{
+  "found": true,
+  "height": "966569",
+  "timestamp": 1788251130,
+  "lines": [
+    "[2026-09-01 03:49:02.009] Possible block solve diff 8344498995119.452148 !",
+    "[2026-09-01 03:49:02.009] Submitting block data!",
+    "[2026-09-01 03:49:02.012] BLOCK ACCEPTED!",
+    "[2026-09-01 03:49:02.013] ZMQ block hash 00000000000000000021bb358e667507707cafec440d095ff5fc44f6609c4f3f from endpoint 0",
+    "[2026-09-01 03:49:02.224] Solved and confirmed block 966569 by bitcoincash:qzxq…4u.nh",
+    "[2026-09-01 03:49:02.224] User bitcoincash:qzxq…4u:{\"hashrate1m\": \"443T\", \"hashrate5m\": \"992T\", \"hashrate1hr\": \"8.47P\", \"hashrate1d\": \"9.09P\", \"hashrate7d\": \"3.24P\", \"shares\": 565974752369, \"authorised\": 1787906856}",
+    "[2026-09-01 03:49:02.224] Worker bitcoincash:qzxq…4u.nh:{\"hashrate1m\": \"443T\", \"hashrate5m\": \"992T\", \"hashrate1hr\": \"8.47P\", \"hashrate1d\": \"9.09P\", \"hashrate7d\": \"3.24P\"}",
+    "[2026-09-01 03:49:02.224] Block solved after 565977752369 shares at 128.0% diff"
+  ]
+}
+```
+
+Everything a block row needs is in those lines:
+
+| Field on the block card | Line to parse | Note |
+|---|---|---|
+| **Block hash** | `ZMQ block hash <hex> from endpoint N` | emitted by the node's ZMQ notification, not by the solve itself |
+| **Found by** (payout identity) | `Solved and confirmed block <h> by <workername>` | `<workername>` is the raw stratum auth string |
+| **Worker** (rig label) | same line | the segment after the **first** `.` or `_` — `bitcoincash:qzxq….nh` → `nh` |
+| **Mining power** — the account | `User <username>:{…}` | pool-wide across all of that address's rigs |
+| **Mining power** — the rig | `Worker <workername>:{…}` | just the rig that submitted the winning share |
+| **Round shares / luck** | `Block solved after <shares> shares at <pct>% diff` | `<pct>` is the luck figure (`128.0%` above) |
+| **Share difficulty** | `Possible block solve diff <d> !` | the winning share's difficulty |
+| **Solve time** | the `[YYYY-MM-DD HH:MM:SS.mmm]` prefix | pool-host local time |
+
+Both stats objects carry the same five windows, formatted by CashStratum's `suffix_string()` as a
+number plus a decimal (1000-based) SI suffix — `K` `M` `G` `T` `P` `E`, three significant
+digits — so **`"443T"` means 443 TH/s** and `"8.47P"` means 8.47 PH/s. Below 1000 H/s there is
+**no suffix**: an idle rig logs a bare `"0"`. Parse suffix → multiplier rather than
+string-matching:
+
+```
+hashrate1m  hashrate5m  hashrate1hr  hashrate1d  hashrate7d
+```
+
+The `User` object additionally carries `shares` (lifetime accepted share difficulty) and
+`authorised` (Unix timestamp of first auth). Field definitions: `user_stats()` and
+`worker_stats()` in [`src/stratifier.c`](src/stratifier.c).
+
+> **The values are a snapshot, not a lookup.** They are the decaying-average hashrates *at the
+> instant the block was confirmed* — that is exactly what a "mining power when found" column
+> wants, and it is why they cannot be reconstructed later from `/user-file`, which only ever
+> reports *now*.
+
+> **Fetch promptly and persist.** `/find-block` greps the **live** `cashstratum.log`; it is not a
+> block database. CashStratum ships no log rotation, so how far back a height stays resolvable is
+> just how long that file has been growing. The durable pattern is: react to the block, call
+> `/find-block` once, store the parsed row in your own database. Found responses are cached
+> in-process forever, so re-asking for the same height is free.
+
+Pair it with the [block notifier](api/NOTIFIER.md), which tails the same log and pushes a
+`pool.block` event (`solve_id`, `height`, `workername`, `username`, `worker`) the moment
+CashStratum confirms a solve — that event is the trigger, `/find-block` is the detail fetch.
+
+Full documentation: [`api/README.md`](api/README.md) · [`api/COINBASE_API.md`](api/COINBASE_API.md)
+
+---
+
+## 🤝 Contributing
+
+This software writes coinbase outputs — it decides where block rewards go. Every extra pair of
+eyes on the payout path makes it safer for everyone, so bug reports, regression cases, production
+logs and pull requests are genuinely welcome.
+
+1. Fork the repository and create a feature branch off `homolog`
+2. Test thoroughly — `make check` for units, `./testing/regtest-e2e.sh` for the money path,
+   then testnet before mainnet
+3. Submit a pull request describing **what you observed**, not just what you changed
+
+**Especially valuable contributions:**
+
+| What | Why it helps |
+|---|---|
+| Payout-path bug reports | Every real-world edge case found is money someone doesn't lose |
+| Regression test cases | A failing scenario added to `testing/regtest-e2e.sh` is worth more than a description of the bug |
+| Production logs | Failover behaviour, vardiff under real ASICs, and rental-service quirks are hard to reproduce synthetically |
+| Miner/hardware compatibility reports | Which ASICs, firmware and rental services work (or don't) with which settings |
+
+> **Running a pool with real money on it?** Validate end-to-end on **regtest or testnet** first —
+> `testing/regtest-e2e.sh` exercises the full money path (coinbase splits, fee outputs, address
+> classification, typo rejection) and is the fastest way to prove your build pays the addresses
+> you expect.
+
+---
+
+## 💰 Support the Project
+
+This fork is free, GPLv3, and developed in the open. If it earned you a block — or saved you from
+losing one — a donation keeps the lights on and the development going.
+
+| Coin | Address |
+|---|---|
+| 🪙 **Bitcoin Cash (BCH)** | `bitcoincash:qq6avlec5l7769jhk5mk7rnsgz49wcx2kgxaklp9e8` |
+| ₿ **Bitcoin (BTC)** | `bc1q8ukjnlykdpzry9j72lf7ekmpnf2umna6jyxqhn` |
+| 🔷 **Ethereum (ETH)** | `0x79eb82Ee97Ce9D02534f7927F64C5BdC4F396301` |
+| ☀️ **Solana (SOL)** | `CcnuMRpNapWboQYEGw3KKfC3Eum5JWosZeC9ktGr2oyQ` |
+| 🐕 **Dogecoin (DOGE)** | `DNU41AwyLba2rCzmjjr8SoYuzhjWkWTHpB` |
+
+Starring the repo and reporting what you find are worth just as much. 🙏
+
+---
+
+## 📝 License
+
+GNU General Public License v3. See [COPYING](COPYING) for details.
+
+## 🙏 Credits
+
+- **Original CKPool** — Con Kolivas and the CKPool team, for the base architecture
+- **BlockSniper.ai development** (published as *EloPool.cloud* until 2026)
+  - Native CashAddr implementation (2025)
+  - Pool operator fee system (2025)
+  - Multi-difficulty management (2025)
+  - Per-address solo mining (2026)
+  - Go log API (2026)
+  - BCH-specific optimisations
+- **Contributors** — everyone who has reported a bug, sent a log, or opened a PR. Thank you.
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/cashstratum/cashstratum/issues) — bug reports and findings welcome
+- **Pool**: [blocksniper.ai](https://blocksniper.ai) — the reference pool running this software
+- **Website**: [cashstratum.com](https://cashstratum.com)
+- **Pool fee details**: [POOL_FEE.md](POOL_FEE.md)
+- **Solo mining notes**: [README-SOLOMINING.md](README-SOLOMINING.md)
+- **Go log API**: [api/README.md](api/README.md)
+- **CashStratum control interface**: [CASHSTRATUM_API_GUIDE.md](CASHSTRATUM_API_GUIDE.md)
+
+---
+
+<div align="center">
+
+<img src=".github/assets/cashstratum-logo-dark.png" alt="CashStratum logo" width="90">
+
+**CashStratum** — open-source Bitcoin Cash mining pool and stratum server software.
+Native CashAddr · per-address solo payouts · operator tooling.
+
+[cashstratum.com](https://cashstratum.com) · [Report an issue](https://github.com/cashstratum/cashstratum/issues) · GPLv3
+
+</div>

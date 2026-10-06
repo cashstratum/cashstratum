@@ -1,4 +1,4 @@
-AC_INIT([cashstratum],[1.2.0],[https://github.com/cashstratum/cashstratum])
+AC_INIT([cashstratum],[1.2.1],[https://github.com/cashstratum/cashstratum])
 
 dnl Must come before anything that expands AC_PROG_CC/AC_PROG_CXX, which is as
 dnl early as AC_USE_SYSTEM_EXTENSIONS below. Autoconf fills in a bare "-g -O2"

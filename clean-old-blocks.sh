@@ -7,7 +7,41 @@
 # Log scans cannot reconstruct solves whose logs have already disappeared.
 set -uo pipefail
 
-CASHSTRATUM_DIR="${CASHSTRATUM_DIR:-${CKPOOL_DIR:-$HOME/cashstratum}}"
+# Resolve this script's own directory, following symlinks, so a shortcut such as
+# ~/monitor.sh pointing into the install dir still resolves to the install dir.
+# shellcheck disable=SC1007  # "CDPATH= cd" is a deliberate env prefix, not an assignment
+_cs_script_dir() {
+    local src="${BASH_SOURCE[0]}" dir hops=0
+    while [ -L "$src" ] && [ "$hops" -lt 40 ]; do
+        dir="$(CDPATH= cd -- "$(dirname -- "$src")" && pwd)"
+        src="$(readlink -- "$src")"
+        case "$src" in
+            /*) ;;
+            *) src="$dir/$src" ;;
+        esac
+        hops=$((hops + 1))
+    done
+    CDPATH= cd -- "$(dirname -- "$src")" && pwd
+}
+SCRIPT_DIR="$(_cs_script_dir)"
+# Resolve the install dir by finding one that actually holds a log, so the script
+# works from /opt, from a $HOME copy, and for root as well as the service user.
+_cs_resolve_dir() {
+    local d
+    for d in "$@"; do
+        [ -n "$d" ] || continue
+        if [ -f "$d/logs/cashstratum.log" ] || [ -f "$d/logs/ckpool.log" ]; then
+            printf '%s\n' "$d"
+            return 0
+        fi
+    done
+    return 1
+}
+CASHSTRATUM_DIR="${CASHSTRATUM_DIR:-${CKPOOL_DIR:-}}"
+if [ -z "$CASHSTRATUM_DIR" ]; then
+    CASHSTRATUM_DIR="$(_cs_resolve_dir "$SCRIPT_DIR" "${HOME:-}/cashstratum" "${HOME:-}/ckpool" /opt/cashstratum)" \
+        || CASHSTRATUM_DIR="${HOME:-}/cashstratum"
+fi
 CASHSTRATUM_LOG_DIR="$CASHSTRATUM_DIR/logs"
 DAYS_TO_KEEP="${DAYS_TO_KEEP:-60}"
 ROTATED_LOG_DAYS="${ROTATED_LOG_DAYS:-30}"

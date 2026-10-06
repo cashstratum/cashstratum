@@ -18,6 +18,7 @@
 #include "ckpool.h"
 #include "libckpool.h"
 #include "generator.h"
+#include "merkle.h"
 #include "stratifier.h"
 #include "bitcoin.h"
 #include "uthash.h"
@@ -45,7 +46,7 @@ struct notify_instance {
 	char *coinbase2;
 	int coinb1len;
 	int merkles;
-	char merklehash[16][68];
+	char merklehash[GENWORK_MAX_MERKLE_DEPTH][68];
 	char nbit[12];
 	char ntime[12];
 	char bbversion[12];
@@ -254,26 +255,26 @@ typedef struct generator_data gdata_t;
  * matching CashAddr network prefix, storing it in ckpool.cashaddr_prefix and
  * propagating it to the address classifier (bch_set_cashaddr_prefix())
  * used by validate_address()/address_to_txn(). Runs once, at the first
- * successful connect; defaults to "bitcoincash" with a warning if the RPC
- * fails or returns an unrecognised chain. */
-static void detect_cashaddr_prefix(connsock_t *cs)
+ * successful connect. A failed or unrecognised response leaves the prefix
+ * unset so server selection retries before validating payout addresses. */
+static bool detect_cashaddr_prefix(connsock_t *cs)
 {
 	static const char *chaininfo_req = "{\"method\": \"getblockchaininfo\"}\n";
-	const char *prefix = "bitcoincash";
+	const char *prefix = NULL;
 	const char *chain = NULL;
 	yyjson_val *root, *res_val;
 	yyjson_doc *doc;
 
 	doc = yyjson_rpc_call(cs, chaininfo_req);
 	if (!doc) {
-		LOGWARNING("Failed to get getblockchaininfo response, defaulting cashaddr prefix to %s", prefix);
-		goto out;
+		LOGWARNING("Failed to get getblockchaininfo response; retrying before selecting a CashAddr network");
+		return false;
 	}
 	root = yyjson_doc_get_root(doc);
 	res_val = root ? yyjson_obj_get(root, "result") : NULL;
 	chain = res_val ? yyjson_get_str(yyjson_obj_get(res_val, "chain")) : NULL;
 	if (!chain) {
-		LOGWARNING("Failed to parse chain from getblockchaininfo, defaulting cashaddr prefix to %s", prefix);
+		LOGWARNING("Failed to parse chain from getblockchaininfo; refusing an unknown CashAddr network");
 		goto out_free;
 	}
 
@@ -306,15 +307,16 @@ static void detect_cashaddr_prefix(connsock_t *cs)
 	else if (!strcmp(chain, "regtest"))
 		prefix = "bchreg";
 	else
-		LOGWARNING("Unknown chain '%s' from getblockchaininfo, defaulting cashaddr prefix to %s",
-			   chain, prefix);
+		LOGWARNING("Unknown chain '%s' from getblockchaininfo; refusing an unknown CashAddr network", chain);
 out_free:
 	yyjson_doc_free(doc);
-out:
+	if (!prefix)
+		return false;
 	dealloc(ckpool.cashaddr_prefix);
 	ckpool.cashaddr_prefix = strdup(prefix);
 	bch_set_cashaddr_prefix(ckpool.cashaddr_prefix);
 	LOGNOTICE("Using CashAddr network prefix: %s", ckpool.cashaddr_prefix);
+	return true;
 }
 
 /* Use a temporary fd when testing server_alive to avoid races on cs->fd */
@@ -364,8 +366,8 @@ static bool server_alive(server_instance_t *si, bool pinging)
 		goto out;
 	}
 	clear_gbtbase(&gbt);
-	if (unlikely(!ckpool.cashaddr_prefix))
-		detect_cashaddr_prefix(cs);
+	if (unlikely(!ckpool.cashaddr_prefix) && !detect_cashaddr_prefix(cs))
+		goto out;
 	/* btcsolo mode without a bchaddress is a fatal startup error (enforced
 	 * in ckpool.c), so there is no BTC-donation-address fallback to adopt
 	 * here on a BCH-only pool -- upstream's donaddress/tndonaddress/
@@ -1054,7 +1056,7 @@ out:
 	return gbt;
 }
 
-int generator_getbest(char *hash)
+static int generator_getbest_internal(char *hash, bool force_poll)
 {
 	gdata_t *gdata = ckpool.gdata;
 	int ret = GETBEST_FAILED;
@@ -1066,7 +1068,7 @@ int generator_getbest(char *hash)
 		LOGWARNING("No live current server in generator_getbest");
 		goto out;
 	}
-	if (si->notify) {
+	if (si->notify && !force_poll) {
 		ret = GETBEST_NOTIFY;
 		goto out;
 	}
@@ -1082,6 +1084,16 @@ int generator_getbest(char *hash)
 	ret = GETBEST_SUCCESS;
 out:
 	return ret;
+}
+
+int generator_getbest(char *hash)
+{
+	return generator_getbest_internal(hash, false);
+}
+
+int generator_pollbest(char *hash)
+{
+	return generator_getbest_internal(hash, true);
 }
 
 /* Is there a bitcoind we can ask anything of right now? Used to tell an
@@ -1178,8 +1190,8 @@ static bool parse_notify(proxy_instance_t *proxi, yyjson_val *val)
 
 	merkles = yyjson_arr_size(arr);
 	/* merklehash is a fixed size array so reject rather than overflow it */
-	if (unlikely(merkles > 16)) {
-		LOGWARNING("Proxy %d:%d received notify with %d merkles, exceeding max of 16",
+	if (unlikely(merkles > GENWORK_MAX_MERKLE_DEPTH)) {
+		LOGWARNING("Proxy %d:%d received notify with %d merkles, exceeding max of 32",
 			   proxi->id, proxi->subid, merkles);
 		goto out;
 	}
@@ -3458,8 +3470,8 @@ static void sv2_proxy_send_job(proxy_instance_t *proxi, struct sv2_proxy_job *jo
 		job->nbits = sp->nbits;
 	}
 	/* Defense in depth: same fixed-array limit as parse_notify / SV1. */
-	if (unlikely(job->merkle_count > 16)) {
-		LOGWARNING("SV2 proxy %d job %u has %u merkles, exceeding max of 16 — not notifying",
+	if (unlikely(job->merkle_count > GENWORK_MAX_MERKLE_DEPTH)) {
+		LOGWARNING("SV2 proxy %d job %u has %u merkles, exceeding max of 32 — not notifying",
 			   proxi->id, job->job_id, job->merkle_count);
 		return;
 	}
@@ -3801,12 +3813,12 @@ static void sv2_proxy_handle_frame(proxy_instance_t *proxi, const uint8_t *frame
 		if (!sv2_decode_new_extended_mining_job(pay, pl, &j))
 			break;
 		/*
-		 * notify_instance_t.merklehash is fixed at 16 entries (SV1
-		 * parity). Codec allows up to SV2_MAX_MERKLE_PATH (32); reject
+		 * notify_instance_t.merklehash and the codec permit 32 entries;
+		 * reject deeper paths
 		 * rather than overflow when translating to send_notify.
 		 */
-		if (unlikely(j.merkle_count > 16)) {
-			LOGWARNING("SV2 proxy %d job %u has %u merkles, exceeding max of 16 — dropped",
+		if (unlikely(j.merkle_count > GENWORK_MAX_MERKLE_DEPTH)) {
+			LOGWARNING("SV2 proxy %d job %u has %u merkles, exceeding max of 32 — dropped",
 				   proxi->id, j.job_id, j.merkle_count);
 			sv2_new_extended_mining_job_free(&j);
 			break;
@@ -4449,6 +4461,14 @@ static void *proxy_recruit(void *arg)
 
 retry:
 	recruit = false;
+	/* A disabled parent must not grow new subproxies: the stratifier
+	 * would bind fresh clients to them and the disable never lands. */
+	if (parent->disabled) {
+		mutex_lock(&parent->proxy_lock);
+		parent->recruit = 0;
+		mutex_unlock(&parent->proxy_lock);
+		return NULL;
+	}
 	proxy = create_subproxy(gdata, parent, parent->url, parent->baseurl);
 	alive = proxy_alive(proxy, &proxy->cs, false);
 	if (!alive) {
@@ -4475,6 +4495,8 @@ static void recruit_subproxies(proxy_instance_t *proxi, const int recruits)
 	bool recruit = false;
 	pthread_t pth;
 
+	if (proxi->disabled)
+		return;
 	mutex_lock(&proxi->proxy_lock);
 	if (!proxi->recruit)
 		recruit = true;
@@ -5256,8 +5278,26 @@ static void parse_ableproxy(gdata_t *gdata, const int sockd, const char *buf, bo
 		LOGNOTICE("%sabling proxy %d:%s", disable ? "Dis" : "En", id, proxy->url);
 	}
 	if (disable) {
+		proxy_instance_t *subproxy, *tmp;
+
 		/* Set disabled bool here in case this is a parent proxy */
 		proxy->disabled = true;
+		/* Disabling only the parent leaves its live subproxies serving
+		 * clients, and the stratifier keeps recruiting more of them, so
+		 * the active proxy never changes. Take every subproxy down
+		 * before the parent; disable_subproxy re-resolves under the
+		 * lock, so a concurrent hangup recycles each one only once. */
+		do {
+			subproxy = NULL;
+			mutex_lock(&proxy->proxy_lock);
+			HASH_ITER(sh, proxy->subproxies, subproxy, tmp) {
+				if (!parent_proxy(subproxy))
+					break;
+			}
+			mutex_unlock(&proxy->proxy_lock);
+			if (subproxy)
+				disable_subproxy(gdata, proxy, subproxy);
+		} while (subproxy);
 		disable_subproxy(gdata, proxy, proxy);
 	} else
 		reconnect_proxy(proxy);

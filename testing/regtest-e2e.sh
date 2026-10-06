@@ -76,6 +76,15 @@ P2P_PORT=18544
 # this port usable for regtest; do not remove it without also moving
 # STRATUM_PORT below 4000.
 STRATUM_PORT=13333
+# The difficulty-policy scenarios (11-14, see below) need real
+# mindiff/startdiff/maxdiff/mindiff_overrides behaviour, so unlike
+# STRATUM_PORT above this one is deliberately kept <= 4000 to stay OUT of
+# the highdiff-port auto-override described in the comment above --
+# picking another >4000 port here would just reproduce that same trap
+# (either every clamp assertion silently observes ckp->highdiff instead of
+# the configured values, or a second "highdiff: 1" pin would be needed and
+# would defeat the point of testing highdiff-free policy).
+DIFFPOLICY_STRATUM_PORT=3336
 WALLET_NAME="e2e"
 RPC_USER="e2euser"
 RPC_PASS="e2epass"
@@ -83,6 +92,7 @@ RPC_PASS="e2epass"
 WORKDIR=""
 BITCOIND_PID=""
 CKPOOL_PID=""
+DIFFPOOL_PID=""
 MINERD_PIDS=()
 
 TESTS_RUN=0
@@ -134,6 +144,10 @@ cleanup() {
 		kill "$CKPOOL_PID" >/dev/null 2>&1 || true
 		wait "$CKPOOL_PID" 2>/dev/null || true
 	fi
+	if [[ -n "$DIFFPOOL_PID" ]] && kill -0 "$DIFFPOOL_PID" >/dev/null 2>&1; then
+		kill "$DIFFPOOL_PID" >/dev/null 2>&1 || true
+		wait "$DIFFPOOL_PID" 2>/dev/null || true
+	fi
 	if [[ -n "$BITCOIND_PID" ]] && kill -0 "$BITCOIND_PID" >/dev/null 2>&1; then
 		bch_cli stop >/dev/null 2>&1 || kill "$BITCOIND_PID" >/dev/null 2>&1 || true
 		wait "$BITCOIND_PID" 2>/dev/null || true
@@ -141,6 +155,7 @@ cleanup() {
 	if [[ $rc -ne 0 && -n "$WORKDIR" && -d "$WORKDIR" ]]; then
 		warn "run failed -- preserving workdir for inspection: $WORKDIR"
 		[[ -f "$WORKDIR/logs/e2e.log" ]] && { warn "last 40 lines of ckpool log:"; tail -40 "$WORKDIR/logs/e2e.log" >&2 || true; }
+		[[ -f "$WORKDIR/logs-diff/e2e-diff.log" ]] && { warn "last 40 lines of difficulty-policy pool log:"; tail -40 "$WORKDIR/logs-diff/e2e-diff.log" >&2 || true; }
 	elif [[ -n "$WORKDIR" && -d "$WORKDIR" ]]; then
 		rm -rf "$WORKDIR"
 	fi
@@ -177,6 +192,7 @@ prereq_check() {
 	command -v bitcoind >/dev/null 2>&1 || missing+=("bitcoind (BCHN) not found in PATH")
 	command -v bitcoin-cli >/dev/null 2>&1 || missing+=("bitcoin-cli (BCHN) not found in PATH")
 	command -v jq >/dev/null 2>&1 || missing+=("jq not found in PATH")
+	command -v python3 >/dev/null 2>&1 || missing+=("python3 not found in PATH -- needed by testing/stratum_diffprobe.py (scenarios 11-14)")
 	[[ -x "$CKPOOL_BIN" ]] || missing+=("$CKPOOL_BIN not built -- run make in $REPO_ROOT first")
 	[[ -x "$CKPMSG_BIN" ]] || missing+=("$CKPMSG_BIN not built -- run make in $REPO_ROOT first")
 	[[ -x "$MINERD_BIN" ]] || missing+=("$MINERD_BIN missing or not executable")
@@ -347,6 +363,70 @@ start_ckpool() {
 		exit 2
 	fi
 	log "ckpool stratum listening on 127.0.0.1:$STRATUM_PORT"
+}
+
+# ---------------------------------------------------------------------------
+# Second ckpool instance for the difficulty-policy scenarios (11-14) below.
+# Deliberately isolated from write_ckpool_conf/start_ckpool and the shared
+# conf above: those stay byte-identical so scenarios 1-10's baseline -- in
+# particular scenario 8's hashrate-sensitive guard -- is never perturbed.
+# This instance shares the SAME regtest bitcoind (no
+# reason to spin up a second node just to read difficulty behaviour) but
+# gets its own port, sockdir, logdir and process name so its log/sharelog
+# output never interleaves with the first instance's.
+# ---------------------------------------------------------------------------
+write_diffpolicy_conf() {
+	DIFFCONF="$WORKDIR/ckpool-diff.conf"
+	DIFFSOCKDIR="$WORKDIR/sock-diff/"
+	DIFFLOGDIR="$WORKDIR/logs-diff"
+	mkdir -p "$DIFFSOCKDIR"
+
+	jq -n \
+		--arg url "127.0.0.1:$RPC_PORT" \
+		--arg auth "$RPC_USER" \
+		--arg pass "$RPC_PASS" \
+		--arg bchaddress "$POOL_ADDR" \
+		--arg pooladdress "$FEE_ADDR" \
+		--arg serverurl "127.0.0.1:$DIFFPOLICY_STRATUM_PORT" \
+		--arg logdir "$DIFFLOGDIR" \
+		'{
+			btcd: [ { url: $url, auth: $auth, pass: $pass, notify: true } ],
+			bchaddress: $bchaddress,
+			pooladdress: $pooladdress,
+			poolfee: 2.0,
+			btcsig: "/regtest-e2e-diff/",
+			blockpoll: 100,
+			donation: 0,
+			nonce1length: 4,
+			nonce2length: 8,
+			update_interval: 30,
+			serverurl: [ $serverurl ],
+			mindiff: 2,
+			startdiff: 8,
+			maxdiff: 4096,
+			mindiff_overrides: {
+				mrr: 1000000,
+				s9: 1,
+				nicehash: 500000,
+				miningrigrentals: 1000000
+			},
+			logdir: $logdir
+		}' >"$DIFFCONF"
+
+	log "wrote $DIFFCONF (mindiff 2 / startdiff 8 / maxdiff 4096, overrides mrr/s9/nicehash/miningrigrentals)"
+}
+
+start_diffpolicy_pool() {
+	log "starting difficulty-policy ckpool -B ..."
+	"$CKPOOL_BIN" -B -c "$DIFFCONF" -s "$DIFFSOCKDIR" -n e2e-diff -l 7 -L \
+		>"$WORKDIR/ckpool-diff.stdout.log" 2>&1 &
+	DIFFPOOL_PID=$!
+
+	if ! wait_for_tcp 127.0.0.1 "$DIFFPOLICY_STRATUM_PORT" 60; then
+		echo "regtest-e2e.sh: difficulty-policy ckpool stratum port $DIFFPOLICY_STRATUM_PORT never came up (see $WORKDIR/ckpool-diff.stdout.log and $DIFFLOGDIR/e2e-diff.log)" >&2
+		exit 2
+	fi
+	log "difficulty-policy ckpool stratum listening on 127.0.0.1:$DIFFPOLICY_STRATUM_PORT"
 }
 
 # ---------------------------------------------------------------------------
@@ -1085,6 +1165,264 @@ scenario_10_coinbase_scriptsig() {
 }
 
 # ---------------------------------------------------------------------------
+# Difficulty-policy scenarios (11-14): the accept predicate, the password
+# difficulty parser, the mindiff_overrides worker-segment match, and
+# mining.suggest_difficulty. All four run against the SEPARATE ckpool
+# instance started by start_diffpolicy_pool() (mindiff 2 / startdiff 8 /
+# maxdiff 4096, overrides mrr/s9/nicehash/miningrigrentals), via
+# testing/stratum_diffprobe.py rather than minerd: a random nonce is
+# already below any assigned difficulty >= 1, so no hashing is needed to
+# submit a share that proves a reject, and minerd only ever submits shares
+# that meet the difficulty it was told.
+# ---------------------------------------------------------------------------
+
+# diffprobe [ARGS...] -> raw JSON from stratum_diffprobe.py against the
+# difficulty-policy pool. See testing/stratum_diffprobe.py --help for ARGS.
+diffprobe() {
+	python3 "$SCRIPT_DIR/stratum_diffprobe.py" --host 127.0.0.1 --port "$DIFFPOLICY_STRATUM_PORT" "$@"
+}
+
+# diffpool_user_shares USER -> that user's cumulative "shares" count from
+# <DIFFLOGDIR>/users/USER, or 0 if the file doesn't exist yet (statsupdate
+# writes it on its own ~30s cadence -- see write_diffpolicy_conf's
+# update_interval -- so a file never appearing at all is an equally valid
+# way for "no share was ever credited" to hold true).
+diffpool_user_shares() {
+	local user="$1"
+	local file="$DIFFLOGDIR/users/$user"
+	[[ -f "$file" ]] || { printf '0'; return 0; }
+	jq -r '.shares // 0' "$file" 2>/dev/null || printf '0'
+}
+
+# diffpool_sharelog_record WORKERNAME -> the LAST .sharelog record matching
+# WORKERNAME across every <height>/<idstring>.sharelog file under
+# DIFFLOGDIR (there is normally only one, this run never advances the
+# chain), or "{}" if none exists yet.
+diffpool_sharelog_record() {
+	local workername="$1" rec="{}" f m
+	for f in "$DIFFLOGDIR"/*/*.sharelog; do
+		[[ -f "$f" ]] || continue
+		m=$(jq -c --arg w "$workername" 'select(.workername == $w)' "$f" 2>/dev/null | tail -n1)
+		[[ -n "$m" ]] && rec="$m"
+	done
+	printf '%s' "$rec"
+}
+
+# find_diffpolicy_test_address KEY -> a fresh regtest address whose BARE
+# payload (no "bchreg:" prefix) contains KEY, or nothing (return 1) if none
+# turns up within the bound. bchreg: cashaddrs draw from the base32 charset
+# "qpzry9x8gf2tvdw0s3jn54khce6mua7l" (no b/i/o/1), so a short lowercase key
+# drawn from that alphabet (e.g. "s9") occurs in a real but modest fraction
+# of freshly generated addresses. Callers must skip-with-log on failure
+# rather than fabricate an address.
+find_diffpolicy_test_address() {
+	local key="$1" tries=0 addr bare
+	while [[ $tries -lt 150 ]]; do
+		addr=$(bch_wallet getnewaddress "diffprobe-search-$tries")
+		bare="${addr#*:}"
+		if [[ "$bare" == *"$key"* ]]; then
+			printf '%s' "$addr"
+			return 0
+		fi
+		tries=$((tries + 1))
+	done
+	return 1
+}
+
+scenario_11_reject_below_diff() {
+	log "=== Scenario 11: a share below the assigned difficulty is rejected, not credited ==="
+	local addr; addr=$(bch_wallet getnewaddress "scenario11")
+	local worker="${addr}.w1"
+	local probe_json
+	probe_json=$(diffprobe --user "$worker" --password x --submit)
+	log "scenario11: raw probe JSON: $probe_json"
+
+	local result_ok error_text error_code
+	result_ok=$(printf '%s' "$probe_json" | jq -r '.submit_reply.result')
+	error_text=$(printf '%s' "$probe_json" | jq -r \
+		'.submit_reply.error as $e | if ($e | type) == "array" then ($e[1] // "") else ($e // "") end')
+	# Numeric error code 23 (SE_HIGH_DIFF) confirmed on the wire against a
+	# live pool run: a rejected submit replies
+	# {"result": null, "error": [23, "Above target", null]}. result is
+	# always null here, never false, so the lenient "!= true" check below
+	# stays as-is.
+	error_code=$(printf '%s' "$probe_json" | jq -r \
+		'.submit_reply.error as $e | if ($e | type) == "array" then ($e[0] // "null") else "null" end')
+	log "scenario11: observed wire error code: $error_code"
+
+	check "scenario11: submit reply result is not a success (observed: ${result_ok:-<none>})" \
+		"$([[ "$result_ok" != "true" ]] && echo true || echo false)"
+	check "scenario11: submit reply error carries 'Above target' (observed: '$error_text')" \
+		"$(printf '%s' "$error_text" | grep -qi "Above target" && echo true || echo false)"
+	check "scenario11: submit reply error code is 23/SE_HIGH_DIFF (observed: $error_code)" \
+		"$([[ "$error_code" == "23" ]] && echo true || echo false)"
+
+	sleep 1
+	local shares; shares=$(diffpool_user_shares "$addr")
+	check "scenario11: logs/users/$addr shares stayed at 0 after the rejected submit (observed: ${shares:-0})" \
+		"$([[ "${shares:-0}" == "0" ]] && echo true || echo false)"
+
+	local logtext=""
+	[[ -f "$DIFFLOGDIR/e2e-diff.log" ]] && logtext=$(cat "$DIFFLOGDIR/e2e-diff.log")
+	check "scenario11: difficulty-policy pool log has a 'Rejected client ... high diff' line" \
+		"$(printf '%s' "$logtext" | grep -qi "Rejected client .* high diff" && echo true || echo false)"
+	check "scenario11: difficulty-policy pool log has NO 'Accepted client' line (nothing was ever credited)" \
+		"$(printf '%s' "$logtext" | grep -q "Accepted client" && echo false || echo true)"
+
+	local rec res_field errn_field
+	rec=$(diffpool_sharelog_record "$worker")
+	log "scenario11: sharelog record: $rec"
+	res_field=$(printf '%s' "$rec" | jq -r 'if has("result") then (.result|tostring) else "null" end')
+	errn_field=$(printf '%s' "$rec" | jq -r '.errn // "null"')
+	check "scenario11: sharelog record has result:false (observed: $res_field)" \
+		"$([[ "$res_field" == "false" ]] && echo true || echo false)"
+	check "scenario11: sharelog record has errn:5 (SE_HIGH_DIFF, observed: $errn_field)" \
+		"$([[ "$errn_field" == "5" ]] && echo true || echo false)"
+	check "scenario11: sharelog record has sdiff < diff" \
+		"$(printf '%s' "$rec" | jq -e '(.sdiff // 1e18) < (.diff // -1)' >/dev/null 2>&1 && echo true || echo false)"
+}
+
+scenario_12_password_diff_table() {
+	log "=== Scenario 12: password difficulty parser table ==="
+	local rows=(
+		"x|8|bare password, no diff token -> startdiff"
+		"d=64|64|d= token"
+		"diff=64|64|diff= token"
+		"x,d=64|64|d= after a comma"
+		"x;d=64|64|d= after a semicolon"
+		"x d=64|64|d= after a space"
+		"worker_id=64|8|unanchored 'd=' inside worker_id= must not fire"
+		"pwd=64|8|unanchored 'd=' inside pwd= must not fire"
+		"notdiff=64|8|unanchored diff= must not fire"
+		"diff=64junk|8|partial numeric token must not fire"
+		"d=999999999999999999999999|8|overflow must not fire"
+		"d=0|8|d=0 is not >0, falls back to startdiff"
+		"d=-5|8|negative d= is not >0, falls back to startdiff"
+		"d=999999999|4096|clamped to maxdiff"
+		"d=1|2|clamped to mindiff"
+	)
+	local i=0 row password expected desc user probe_json observed
+	for row in "${rows[@]}"; do
+		i=$((i + 1))
+		IFS='|' read -r password expected desc <<<"$row"
+		user="diffprobe-p$i"
+		probe_json=$(diffprobe --user "$user" --password "$password")
+		observed=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth // "null"')
+		log "scenario12 row $i ($desc): password='$password' expected=$expected observed=$observed raw=$probe_json"
+		check "scenario12 row $i: $desc (password '$password' -> $expected, observed $observed)" \
+			"$([[ "$observed" == "$expected" ]] && echo true || echo false)"
+	done
+
+	# Rental requests are clamped at subscribe time, before password policy.
+	# Both password requests must remain inside the global maxdiff.
+	local rental_rows=(
+		"d=1|4096|nicehash d=1 retains the bounded rental floor"
+		"d=500001|4096|nicehash high request obeys maxdiff"
+	)
+	i=0
+	for row in "${rental_rows[@]}"; do
+		i=$((i + 1))
+		IFS='|' read -r password expected desc <<<"$row"
+		user="diffprobe-nh$i"
+		probe_json=$(diffprobe --user "$user" --password "$password" --useragent "NiceHashMiner/1.0")
+		observed=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth // "null"')
+		log "scenario12 nicehash row $i ($desc): password='$password' expected=$expected observed=$observed raw=$probe_json"
+		check "scenario12 nicehash row $i: $desc (observed $observed)" \
+			"$([[ "$observed" == "$expected" ]] && echo true || echo false)"
+	done
+}
+
+scenario_13_override_lookup() {
+	log "=== Scenario 13: mindiff_overrides worker-segment match ==="
+	local addr_mrr addr_s9 addr_rig1 addr_bare
+	addr_mrr=$(bch_wallet getnewaddress "scenario13-mrr")
+	addr_s9=$(bch_wallet getnewaddress "scenario13-s9")
+	addr_rig1=$(bch_wallet getnewaddress "scenario13-rig1")
+	addr_bare=$(bch_wallet getnewaddress "scenario13-bare")
+
+	local rows=(
+		"${addr_mrr}.mrr|4096|override 'mrr' (raw 1000000) clamped DOWN to maxdiff"
+		"${addr_s9}.s9|2|override 's9' (raw 1) clamped UP to mindiff"
+		"${addr_rig1}.rig1|8|'rig1' is not a configured key -> startdiff, no match"
+		"${addr_bare}|8|no '.'/'_' separator at all -> override loop skipped entirely -> startdiff"
+	)
+	local row worker expected desc probe_json observed
+	for row in "${rows[@]}"; do
+		IFS='|' read -r worker expected desc <<<"$row"
+		probe_json=$(diffprobe --user "$worker" --password x)
+		observed=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth // "null"')
+		log "scenario13 ($desc): worker='$worker' expected=$expected observed=$observed raw=$probe_json"
+		check "scenario13: $desc (worker '$worker' -> $expected, observed $observed)" \
+			"$([[ "$observed" == "$expected" ]] && echo true || echo false)"
+	done
+
+	local addr_key
+	if addr_key=$(find_diffpolicy_test_address "s9"); then
+		worker="${addr_key}.w1"
+		probe_json=$(diffprobe --user "$worker" --password x)
+		observed=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth // "null"')
+		log "scenario13 (address text contains 's9', worker suffix '.w1' does not): address=$addr_key observed=$observed raw=$probe_json"
+		check "scenario13: an address whose TEXT contains a configured key is never matched, only the worker segment is (address '$addr_key' -> 8, observed $observed)" \
+			"$([[ "$observed" == "8" ]] && echo true || echo false)"
+	else
+		log "scenario13: SKIPPED the 'address text contains an override key' check -- no generated regtest address contained 's9' within the search bound (not fabricating one)"
+	fi
+
+	# Rental client: useragent detection at subscribe time sets the floor
+	# and skips the whole workername-override loop outright
+	# (stratifier.c:6770), even though ".s9" would otherwise match.
+	worker="${addr_s9}.s9"
+	probe_json=$(diffprobe --user "$worker" --password x --useragent "NiceHashMiner/1.0")
+	observed=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth // "null"')
+	log "scenario13 (NiceHash rental skips the override loop): worker='$worker' observed=$observed raw=$probe_json"
+	check "scenario13: NiceHash bounded rental floor wins over a matching override key; the loop was skipped (worker '$worker' -> 4096, observed $observed)" \
+		"$([[ "$observed" == "4096" ]] && echo true || echo false)"
+}
+
+scenario_14_suggest_difficulty() {
+	log "=== Scenario 14: mining.suggest_difficulty obeys operator bounds ==="
+	local user1="diffprobe-s14-huge"
+	local probe_json
+	probe_json=$(diffprobe --user "$user1" --password x --suggest 1000000000 --submit)
+	log "scenario14 (huge suggest): raw probe JSON: $probe_json"
+
+	local suggested result_ok error_text error_code
+	suggested=$(printf '%s' "$probe_json" | jq -r '.suggest_reply_difficulty // "null"')
+	result_ok=$(printf '%s' "$probe_json" | jq -r '.submit_reply.result')
+	error_text=$(printf '%s' "$probe_json" | jq -r \
+		'.submit_reply.error as $e | if ($e | type) == "array" then ($e[1] // "") else ($e // "") end')
+	# Numeric error code 23 (SE_HIGH_DIFF) confirmed on the wire against a
+	# live pool run: a rejected submit replies
+	# {"result": null, "error": [23, "Above target", null]}. result is
+	# always null here, never false, so the lenient "!= true" check below
+	# stays as-is.
+	error_code=$(printf '%s' "$probe_json" | jq -r \
+		'.submit_reply.error as $e | if ($e | type) == "array" then ($e[0] // "null") else "null" end')
+	log "scenario14: observed wire error code: $error_code"
+
+	check "scenario14: suggest_difficulty(1000000000) clamps to maxdiff (observed: $suggested)" \
+		"$([[ "$suggested" == "4096" ]] && echo true || echo false)"
+	check "scenario14: a random-nonce submit at that pinned difficulty is still rejected 'Above target' (observed: '$error_text')" \
+		"$(printf '%s' "$error_text" | grep -qi "Above target" && echo true || echo false)"
+	check "scenario14: submit reply is not a success (observed result: ${result_ok:-<none>})" \
+		"$([[ "$result_ok" != "true" ]] && echo true || echo false)"
+	check "scenario14: submit reply error code is 23/SE_HIGH_DIFF (observed: $error_code)" \
+		"$([[ "$error_code" == "23" ]] && echo true || echo false)"
+
+	sleep 1
+	local shares; shares=$(diffpool_user_shares "$user1")
+	check "scenario14: logs/users/$user1 shares stayed at 0 after the rejected submit (observed: ${shares:-0})" \
+		"$([[ "${shares:-0}" == "0" ]] && echo true || echo false)"
+
+	local user2="diffprobe-s14-zero"
+	probe_json=$(diffprobe --user "$user2" --password x --suggest 0)
+	log "scenario14 (suggest 0, fresh connection): raw probe JSON: $probe_json"
+	suggested=$(printf '%s' "$probe_json" | jq -r '.suggest_reply_difficulty // "null"')
+	check "scenario14: suggest_difficulty(0) clamps to the pool mindiff on a fresh connection (observed: $suggested)" \
+		"$([[ "$suggested" == "2" ]] && echo true || echo false)"
+}
+
+# ---------------------------------------------------------------------------
 main() {
 	prereq_check
 	WORKDIR=$(mktemp -d "${TMPDIR:-/tmp}/ckpool-e2e.XXXXXX")
@@ -1106,6 +1444,14 @@ main() {
 	scenario_8_per_user_round_independence
 	scenario_9_prefixed_and_bare_same_user
 	scenario_10_coinbase_scriptsig
+
+	write_diffpolicy_conf
+	start_diffpolicy_pool
+
+	scenario_11_reject_below_diff
+	scenario_12_password_diff_table
+	scenario_13_override_lookup
+	scenario_14_suggest_difficulty
 
 	echo
 	echo "===================================================================="

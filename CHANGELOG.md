@@ -7,6 +7,65 @@ says so rather than implying one.
 
 ---
 
+## 1.2.1 — 2026-10-06
+
+Security hardening of share accounting, difficulty handling, client framing and large BCH
+templates, plus two operator fixes. Details and the finding-by-finding disposition are in
+[`docs/security-hardening.md`](docs/security-hardening.md).
+
+### Security
+
+- **Difficulty requests honour configured bounds.** `mining.suggest_difficulty` and rental
+  defaults could exceed `maxdiff`; password parsing accepted partial numbers and an embedded
+  `diff=`. Requests are now clamped to the configured range and password tokens must be complete
+  numbers.
+- **Rejected and repeated shares no longer inflate rate estimates.** Rejected SV2 submissions and
+  repeated stale SV1 submissions could feed hashrate accounting. Eligible rate credit is now
+  separated from rejection handling and upstream forwarding; block detection and accepted
+  latency-grace work are unchanged.
+- **Share logs are append-only.** Writing by filename truncated the file despite an open append
+  stream. Writes go through the append stream and write/close failures are checked.
+- **Malformed client frames are rejected.** Parsing past a newline could accept a malformed
+  frame or dispatch one request twice. The connector now parses exactly one complete frame,
+  handles EOF, and keeps its buffer on resize failure.
+- **Proxy merkle branches are validated.** Hexadecimal encoding is checked and branches share
+  the common capacity.
+- **Empty payout scripts are refused** at startup and when registering an address-based remote
+  user, instead of producing work that pays nothing.
+
+### Fixed
+
+- **Large BCH templates keep every transaction.** A 65,535-transaction cap silently dropped the
+  rest of a template. Merkle construction is now heap-backed with 32-level branches across the
+  template and proxy paths, and malformed templates are rejected instead of replaced with empty
+  work. `test/merklebranch` checks reconstructed branches against independently computed trees
+  at 65,535, 65,536 and 300,000 transactions.
+- **Chain detection fails closed.** An RPC failure or unknown chain used to select mainnet
+  silently; the pool now retries until it identifies a supported chain.
+- **Block notifications recover on their own.** Notification mode gains a five-second RPC
+  tip-polling backstop, bounded ZMQ polling and failed-socket recovery.
+- **`disableproxy` on a parent proxy takes its subproxies down.** Previously only the parent
+  socket closed: subproxies kept serving and the stratifier kept recruiting more, so the active
+  proxy never moved. A disabled parent now drops its subproxies and stops recruiting. Verified
+  with two upstreams: `disableproxy {"id":0}` switched the active proxy to 1 in the same second
+  and the served coinbase changed; `enableproxy {"id":0}` switched back.
+- **Monitor and cleanup scripts find the install directory.** `monitor.sh`,
+  `clean-old-blocks.sh` and the monitor written by `post-install.sh` guessed the directory from
+  `$HOME`, which failed for installs under `/opt/cashstratum` or when run as another user. They
+  now resolve from the script's own location (following symlinks) and pick the first candidate
+  that holds a pool log. `CASHSTRATUM_DIR` and `CKPOOL_DIR` still take precedence.
+  `post-install.sh` installs the home-directory shortcut as a symlink instead of a copy.
+
+### Tests
+
+- New regressions under `testing/` for connector framing, difficulty policy, network-prefix
+  selection, notification recovery, remote payout registration and share accounting, plus
+  `stratum_diffprobe.py`.
+- BCH regtest gate: 89/89 assertions, including real payout blocks and difficulty
+  rejection/clamping. All C unit tests pass on a clean Ubuntu build with SV2 enabled.
+
+---
+
 ## 1.2.0 — 2026-09-13
 
 First public CashStratum release. The version follows the upstream ckpool 1.2.0 rebase this tree

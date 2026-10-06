@@ -1,10 +1,11 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)
 LDADD = $(top_builddir)/src/libckpool.a
 
-check_PROGRAMS = sha256 cashaddr addrclassify cbfinal
-TESTS = sha256 cashaddr addrclassify cbfinal
+check_PROGRAMS = sha256 cashaddr addrclassify cbfinal merklebranch
+TESTS = sha256 cashaddr addrclassify cbfinal merklebranch
 
 sha256_SOURCES = sha256.c
+merklebranch_SOURCES = merklebranch.c
 
 # BCH address unit tests (fork-local): CashAddr decode/checksum vectors and
 # the local cashaddr+legacy classifier that feeds address_to_txn().

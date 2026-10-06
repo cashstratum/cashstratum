@@ -10,6 +10,8 @@
 #ifndef STRATIFIER_H
 #define STRATIFIER_H
 
+#include "merkle.h"
+
 /* Generic structure for both workbase in stratifier and gbtbase in generator */
 struct genwork {
 	/* Hash table data */
@@ -53,8 +55,8 @@ struct genwork {
 	char witnessdata[80]; //null-terminated ascii
 	bool insert_witness;
 	int merkles;
-	char merklehash[16][68];
-	char merklebin[16][32];
+	char merklehash[GENWORK_MAX_MERKLE_DEPTH][68];
+	char merklebin[GENWORK_MAX_MERKLE_DEPTH][32];
 	yyjson_mut_doc *yymerkle_doc;
 
 	/* Template variables, lengths are binary lengths! */

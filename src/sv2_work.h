@@ -8,6 +8,7 @@
 #define SV2_WORK_H
 
 #include "config.h"
+#include "merkle.h"
 
 #ifdef HAVE_SV2
 
@@ -27,7 +28,7 @@ struct sv2_work_snap {
 	int coinb2len;
 	int enonce1varlen;
 	int enonce2varlen;
-	unsigned char merklebin[16][32];
+	unsigned char merklebin[GENWORK_MAX_MERKLE_DEPTH][32];
 	int merkles;
 };
 

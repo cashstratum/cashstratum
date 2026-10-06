@@ -787,7 +787,7 @@ static bool parse_client_msg_sv2(cdata_t *cdata, client_instance_t *client)
 
 	ret = read(client->fd, rdbuf, sizeof(rdbuf));
 	if (ret < 1) {
-		if (likely(errno == EAGAIN || errno == EWOULDBLOCK || !ret))
+		if (ret < 0 && likely(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
 			return true;
 		LOGINFO("SV2 client id %"PRId64" fd %d disconnected - recv fail ret %d errno %d",
 			client->id, client->fd, ret, errno);
@@ -948,16 +948,17 @@ retry:
 				client->id, client->fd);
 			return false;
 		}
-		client->buf = realloc(client->buf, round_up_page(client->bufofs + MAX_MSGSIZE + 1));
-		if (unlikely(!client->buf)) {
+		char *newbuf = realloc(client->buf, round_up_page(client->bufofs + MAX_MSGSIZE + 1));
+		if (unlikely(!newbuf)) {
 			LOGERR("Client id %"PRId64" failed to grow remote recv buffer", client->id);
 			return false;
 		}
+		client->buf = newbuf;
 	}
 	/* This read call is non-blocking since the socket is set to O_NOBLOCK */
 	ret = read(client->fd, client->buf + client->bufofs, MAX_MSGSIZE);
 	if (ret < 1) {
-		if (likely(errno == EAGAIN || errno == EWOULDBLOCK || !ret))
+		if (ret < 0 && likely(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
 			return true;
 		LOGINFO("Client id %"PRId64" fd %d disconnected - recv fail with bufofs %lu ret %d errno %d %s",
 			client->id, client->fd, client->bufofs, ret, errno, ret && errno ? strerror(errno) : "");
@@ -982,9 +983,11 @@ reparse:
 		return false;
 	}
 
-	/* Filter out non- or incomplete json */
+	/* Decode exactly one newline-delimited message. Parsing the whole receive
+	 * buffer with STOP_WHEN_DONE can accept trailing garbage, cross a message
+	 * boundary, or dispatch a request again when the next line is consumed. */
 	if (unlikely(client->buf[0] != '{' ||
-	    !(sdoc = yyjson_read(client->buf, strlen(client->buf), YYJSON_READ_STOP_WHEN_DONE)))) {
+	    !(sdoc = yyjson_read(client->buf, buflen, 0)))) {
 		char *buf = strdup("Invalid JSON, disconnecting\n");
 
 		LOGINFO("Client id %"PRId64" sent invalid json message %s", client->id, client->buf);

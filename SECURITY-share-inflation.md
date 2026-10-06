@@ -1,13 +1,25 @@
 # Share / hashrate inflation via client-controlled difficulty
 
-**Discovered:** 2026-08-29 · **Status:** patched in `e3bb64f5`, **deployed 2026-09-04** · **Severity:** critical
-**Affects:** this fork on `homolog` and `master`, from `bf4b72e8` (2026) to `be1ca841`
+For subsequent difficulty, accounting, and template hardening, see the
+[development follow-up](docs/security-hardening.md).
+
+**Discovered:** 2026-08-29 · **Status:** fixed; historical patch `e3bb64f5` · **Severity:** critical (affected builds)
+**Affected history:** pre-release BCH fork commits `bf4b72e8` through `be1ca841`
 **Introduced by:** `bf4b72e8` "🐛 fix: CRITICAL - correct share validation logic" and `c3216d85` "⚡ perf: only reject shares below pool mindiff"
 **Not present in:** upstream ckpool (ckolivas), asicseer-pool (cculianu), `asicsteer`, `elostratum`
 
+This is a historical advisory. CashStratum 1.2.0 contains the assigned-difficulty
+acceptance check, worker-suffix override clamp and password clamp described below.
+The old source line numbers and configuration examples describe the affected build,
+not a current deployment. A deployment was recorded on 2026-09-04; that record does
+not establish the version or configuration running on any server today.
+
+The three original fixes close the accounting inflation path. They are not a claim
+that every difficulty input or every other security issue has been audited.
+
 ---
 
-## 1. Summary
+## 1. Summary (affected builds)
 
 Any miner that can connect to the stratum port can inflate its recorded share count and
 hashrate by an arbitrary, self-chosen factor — up to **1,000,000×** using only the
@@ -78,9 +90,9 @@ The change bought nothing and cost accounting integrity.
 
 ## 3. How an attacker does it
 
-### Path A — worker name only (no custom software, works against the live config)
+### Path A — worker name only (no custom software, worked against the affected configuration)
 
-The live pool config contains:
+The affected deployment used the following difficulty configuration:
 
 ```json
 "mindiff_overrides": {
@@ -181,7 +193,7 @@ merely suspected.
 
 ## 5. The fix
 
-Three changes on `homolog`, all in `src/stratifier.c` plus the error enum in `src/libckpool.h`.
+The original patch made three changes in `src/stratifier.c` plus the error enum in `src/libckpool.h`.
 
 **Fix 1 — restore the upstream predicate (this alone closes the vulnerability).**
 
@@ -212,8 +224,8 @@ right.
 
 ## 6. Deployment
 
-Carried out on the reference production deployment on 2026-09-04. The steps below are the
-procedure that was followed, kept here for any operator still running an affected build.
+The repository records a deployment on 2026-09-04. The procedure below is retained for
+operators of affected builds; verify the installed revision and runtime behavior independently.
 
 1. Build and restart `cashstratum.service` on the production host from the patched tree.
 2. **Expect a visible drop in reported pool hashrate after the restart.** That drop is the

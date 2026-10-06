@@ -75,6 +75,82 @@ CPU miner's hashrate and went red on fast, many-core hardware for reasons
 unrelated to the pool. Splitting it out keeps the guard purely count- and
 ratio-based instead of hashrate-based.
 
+### Scenarios 11-14 — difficulty-policy regression (share-inflation fix)
+`SECURITY-share-inflation.md` (`e3bb64f5`) closed a share-inflation hole in
+`src/stratifier.c`: the accept predicate, the password difficulty parser and
+the `mindiff_overrides` worker-segment match. Scenarios 1-10 above never
+exercised any of it — they only prove ACCEPTED shares are credited, on a pool
+with `maxdiff: 0` (unlimited) and no overrides. Scenarios 11-14 close that gap
+against a **second, separate `ckpool -B` instance**
+(`write_diffpolicy_conf` / `start_diffpolicy_pool`) with its own port,
+sockdir and logdir, configured `mindiff: 2, startdiff: 8, maxdiff: 4096`, and
+`mindiff_overrides: { mrr: 1000000, s9: 1, nicehash: 500000,
+miningrigrentals: 1000000 }` — deliberately isolated so none of it perturbs
+scenarios 1-10's shared conf or scenario 8's hashrate-sensitive guard.
+
+- **Scenario 11 (accept predicate)** — authorises a fresh address, submits
+  one syntactically valid but unmined share (a random nonce is already below
+  any assigned difficulty >= 1, so no hashing is needed to prove a reject),
+  and asserts the wire reply is not a success and carries "Above target", the
+  user's cumulative `shares` stayed at 0, the pool log shows
+  `Rejected client ... high diff` and no `Accepted client`, and the sharelog
+  record has `result:false`, `errn:5`, `sdiff < diff`. The wire error's
+  numeric code is logged, not asserted: `share_err_codes[]` in
+  `src/libckpool.h` is never indexed by its literal array name in
+  `src/stratifier.c`, only through the `SHARE_ERR_CODE()` macro (called
+  from `sshare_process_sv1()`), so the assertion is deferred until an
+  actual pool run confirms the value (23 for `SE_HIGH_DIFF`) on the wire.
+- **Scenario 12 (password diff parser)** — a table of `mining.authorize`
+  passwords (`d=`, `diff=`, separator anchoring, `worker_id=`/`pwd=` false
+  positives, `d=0`/negative, mindiff/maxdiff clamps, and two NiceHash rental
+  rows) asserting the first `mining.set_difficulty` observed after authorise.
+- **Scenario 13 (`mindiff_overrides` worker-segment match)** — worker-suffix
+  overrides (`mrr`, `s9`), a non-configured suffix, no separator at all, an
+  address whose TEXT happens to contain a configured key (must NOT match —
+  only the worker segment is checked), and the NiceHash rental floor
+  overriding/skipping the loop entirely.
+- **Scenario 14 (`mining.suggest_difficulty`)** — asserts *today's*
+  behaviour: `suggest_diff()` in `src/stratifier.c` clamps a suggestion to
+  the pool's `mindiff` but has no `maxdiff` clamp, so a huge suggestion is
+  honoured verbatim; a share below it is still rejected by the accept
+  predicate, and `suggest_difficulty(0)` clamps up to the pool's `mindiff`
+  on a fresh connection.
+
+All four drive `testing/stratum_diffprobe.py`, a dependency-free stdlib-only
+stratum V1 client (not `minerd`, which only ever submits shares that meet the
+difficulty it was told):
+
+```bash
+python3 testing/stratum_diffprobe.py --port 3336 --user bchreg:qz... \
+    --password 'd=64' --useragent NiceHashMiner/1.0 --suggest 100000 --submit
+```
+
+It subscribes, authorises, waits for the first `mining.notify` and every
+`mining.set_difficulty`, optionally sends `mining.suggest_difficulty` and
+records the next difficulty push, optionally submits one share for the
+recorded job with a random nonce, and prints a single JSON object on stdout
+(`set_difficulty`, `diff_after_auth`, `submit_reply`, `suggest_reply_difficulty`,
+`authorize_result`, plus `enonce1`/`nonce2_size`/`job_id`/`ntime`). Every
+socket read is bounded (`--timeout`, default 10s) and it never retries a
+submit — after 120s/180s of continuous invalid shares `src/stratifier.c`
+reconnects or drops the client, so a probe that looped on rejects would
+just get disconnected.
+
+Like scenarios 1-10, this only ever runs on Linux (`src/ckpool` needs
+`epoll(7)`); on macOS the available proof is static:
+`bash -n testing/regtest-e2e.sh`, `python3 -m py_compile
+testing/stratum_diffprobe.py`, `python3 testing/stratum_diffprobe.py --help`,
+and `shellcheck -S warning testing/regtest-e2e.sh`.
+
+To run just these four scenarios in isolation, comment out the
+`scenario_1_...` through `scenario_10_...` calls in `main()` (and, if
+`bitcoind`/`ckpool` startup time matters, `write_ckpool_conf`/`start_ckpool`
+too — those start the FIRST pool instance, which scenarios 11-14 never talk
+to). `start_bitcoind` and `mature_chain_and_addresses` must stay: they bring
+up the shared regtest node and wallet that `bch_wallet getnewaddress` (used
+throughout scenarios 11-14) depends on, and `write_diffpolicy_conf` /
+`start_diffpolicy_pool` must run before them.
+
 ## Installer and retention regression fixtures
 
 Run `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s testing -p '*regression*.py' -v`.

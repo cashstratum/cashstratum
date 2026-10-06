@@ -1,6 +1,6 @@
 # CashStratum API Guide - Using ckpmsg
 
-CashStratum doesn't use a traditional HTTP API. Instead, it uses Unix domain sockets accessed via the `ckpmsg` utility. This guide explains how to query and control your CashStratum instance.
+CashStratum's daemon control interface uses Unix domain sockets accessed via `ckpmsg`. This guide explains how to query and control an instance. The separate [HTTP operator API](api/README.md) exposes read-only monitoring endpoints.
 
 ## Prerequisites
 
@@ -60,16 +60,17 @@ ckpmsg_json users | jq '.users | length'
 > read-only HTTP service in [`api/`](api/README.md). It returns clean JSON over
 > an authenticated socket and does not require shell access to the pool host.
 
-### `CKPOOL_CASHADDR_PREFIX` (HTTP API only)
+### `CASHSTRATUM_CASHADDR_PREFIX` (HTTP API only)
 
 The HTTP service's `/coinbase` endpoint runs a phantom stratum probe that
-authorises internally as `<user>.ckpool-api` (see `api/README.md` for the
-full `CKPOOL_*` environment variable table). `CKPOOL_CASHADDR_PREFIX` sets
+authorises internally as `<user>.cashstratum-api` (see `api/README.md` for the
+full `CASHSTRATUM_*` environment variable table). `CASHSTRATUM_CASHADDR_PREFIX` sets
 this pool's CashAddr network prefix (no trailing `:`), which that probe
 prepends to a bare CashAddr username so it authorises under the same
 spelling cashstratum already knows the address by, instead of minting a second,
-bare-spelling shadow user. Defaults to `bitcoincash` (production is
-mainnet); a test host regtest/testnet4 rig sets it to `bchreg`/`bchtest`.
+bare-spelling shadow user. Defaults to `bitcoincash`; a regtest/testnet4
+instance sets it to `bchreg`/`bchtest`. The legacy `CKPOOL_CASHADDR_PREFIX`
+variable remains a fallback when the CashStratum variable is unset.
 
 Where `<process>` is one of:
 - `stratifier` - Main mining process (most commands)

@@ -2,7 +2,7 @@
 ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS =
 
-noinst_HEADERS = bitcoin.h cashaddr_simple.h ckpool.h coinbase_final.h \
+noinst_HEADERS = bitcoin.h cashaddr_simple.h ckpool.h coinbase_final.h merkle.h \
 	connector.h generator.h libckpool.h sha2.h stratifier.h uthash.h utlist.h \
 	yyjson.h yyjson_util.h sv2_bridge.h sv2_cb.h sv2_codec.h sv2_conn.h \
 	sv2_jd.h sv2_jdc.h sv2_noise.h sv2_strat.h sv2_tx.h sv2_types.h sv2_work.h
@@ -49,7 +49,7 @@ endif
 noinst_LIBRARIES = libckpool.a
 libckpool_a_SOURCES = libckpool.c sha2.c sha256_arm_shani.c \
 		      cashaddr_simple.c cashaddr_simple.h \
-		      coinbase_final.c coinbase_final.h
+		      coinbase_final.c coinbase_final.h merkle.c merkle.h
 libckpool_a_LIBADD = $(native_objs)
 
 bin_PROGRAMS = ckpool ckpmsg notifier

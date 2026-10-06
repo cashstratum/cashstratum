@@ -429,13 +429,6 @@ struct txntable {
  * pools; it is generous enough to cover large direct payout coinbases. */
 #define MAX_COINBASE_LEN 8192
 
-/* Upper bound on the number of transactions accepted in a block template.
- * This is the capacity of the fixed 16 entry merkle arrays (2^16 leaves) and
- * is far above any block a real chain can produce, existing only to keep the
- * merkle/hash size arithmetic and stack allocations bounded against a corrupt
- * or malicious template. */
-#define MAX_GBT_TXNS 65535
-
 #define ID_AUTH 0
 #define ID_WORKINFO 1
 #define ID_AGEWORKINFO 2
@@ -1499,46 +1492,48 @@ static void update_txns(sdata_t *sdata, txntable_t *txns, bool local)
 static txntable_t *wb_merkle_bin_txns(sdata_t *sdata, workbase_t *wb,
 				      yyjson_val *txn_array, bool local)
 {
-	int i, j, binleft, binlen;
+	size_t i, binlen, count = yyjson_arr_size(txn_array);
+	bool valid = false;
 	txntable_t *txns = NULL;
 	yyjson_val *arr_val;
 	yyjson_mut_val *arr;
 	uchar *hashbin;
 
-	wb->txns = yyjson_arr_size(txn_array);
+	wb->incomplete = true;
 	wb->merkles = 0;
-	/* Guard against a corrupt transaction count that would overflow the
-	 * size arithmetic below, oversize the hashbin stack allocation or
-	 * exceed the fixed size merkle arrays. Fall through as a zero
-	 * transaction template rather than deriving work from garbage. */
-	if (unlikely(wb->txns < 0 || wb->txns > MAX_GBT_TXNS)) {
-		LOGWARNING("Invalid transaction count %d in wb_merkle_bin_txns, ignoring transactions",
-			   wb->txns);
-		wb->txns = 0;
+	/* BCH templates can legitimately exceed 65,535 transactions. Bound
+	 * representation and allocation arithmetic, not Bitcoin's old limit. */
+	if (unlikely(!yyjson_is_arr(txn_array) || count > INT_MAX ||
+		     count > SIZE_MAX / 65 - 1 || count > SIZE_MAX / 32 - 2)) {
+		LOGWARNING("Invalid transaction count in wb_merkle_bin_txns");
+		return NULL;
 	}
-	binlen = wb->txns * 32 + 32;
-	hashbin = alloca(binlen + 32);
+	wb->txns = count;
+	binlen = (count + 1) * 32;
+	hashbin = ckalloc(binlen + 32);
 	memset(hashbin, 0, 32);
-	binleft = binlen / 32;
 	if (wb->txns) {
-		int len = 1, ofs = 0;
+		size_t len = 1, ofs = 0;
 		const char *txn;
 
-		for (i = 0; i < wb->txns; i++) {
+		for (i = 0; i < count; i++) {
 			arr_val = yyjson_arr_get(txn_array, i);
 			txn = yyjson_get_str(yyjson_obj_get(arr_val, "data"));
-			if (!txn) {
+			if (!txn || !validhex(txn)) {
 				LOGWARNING("Failed to find transaction data in wb_merkle_bin_txns");
 				goto out;
 			}
+			if (unlikely(strlen(txn) > SIZE_MAX - len - 1))
+				goto out;
 			len += strlen(txn);
 		}
 
+		dealloc(wb->txn_data);
 		wb->txn_data = ckzalloc(len + 1);
-		wb->txn_hashes = ckzalloc(wb->txns * 65 + 1);
-		memset(wb->txn_hashes, 0x20, wb->txns * 65); // Spaces
+		wb->txn_hashes = ckzalloc(count * 65 + 1);
+		memset(wb->txn_hashes, 0x20, count * 65); // Spaces
 
-		for (i = 0; i < wb->txns; i++) {
+		for (i = 0; i < count; i++) {
 			const char *txid, *hash;
 			char binswap[32];
 
@@ -1553,13 +1548,13 @@ static txntable_t *wb_merkle_bin_txns(sdata_t *sdata, workbase_t *wb,
 			 * the fixed width txn_hashes and hash is used as a fixed
 			 * length lookup key and copied into a fixed buffer in
 			 * add_txn, so reject a corrupt or missing value. */
-			if (unlikely(!txid || strlen(txid) != 64)) {
+			if (unlikely(!txid || strlen(txid) != 64 || !validhex(txid))) {
 				LOGERR("Missing or invalid txid for transaction in wb_merkle_bins");
 				goto out;
 			}
 			if (!hash)
 				hash = txid;
-			else if (unlikely(strlen(hash) != 64)) {
+			else if (unlikely(strlen(hash) != 64 || !validhex(hash))) {
 				LOGERR("Invalid transaction hash in wb_merkle_bins");
 				goto out;
 			}
@@ -1583,35 +1578,27 @@ static txntable_t *wb_merkle_bin_txns(sdata_t *sdata, workbase_t *wb,
 	arr = yyjson_mut_arr(wb->yymerkle_doc);
 	yyjson_mut_doc_set_root(wb->yymerkle_doc, arr);
 
-	if (binleft > 1) {
-		while (42) {
-			if (binleft == 1)
-				break;
-			/* The transaction count is bounded to keep this within the
-			 * fixed size merkle arrays but guard the write regardless. */
-			if (unlikely(wb->merkles >= 16)) {
-				LOGWARNING("Merkle count overflow in wb_merkle_bin_txns");
-				goto out;
-			}
-			memcpy(&wb->merklebin[wb->merkles][0], hashbin + 32, 32);
-			__bin2hex(&wb->merklehash[wb->merkles][0], &wb->merklebin[wb->merkles][0], 32);
-			yyjson_mut_arr_add_str(wb->yymerkle_doc, arr, &wb->merklehash[wb->merkles][0]);
-			LOGDEBUG("MerkleHash %d %s",wb->merkles, &wb->merklehash[wb->merkles][0]);
-			wb->merkles++;
-			if (binleft % 2) {
-				memcpy(hashbin + binlen, hashbin + binlen - 32, 32);
-				binlen += 32;
-				binleft++;
-			}
-			for (i = 32, j = 64; j < binlen; i += 32, j += 64)
-				gen_hash(hashbin + j, hashbin + i, 64);
-			binleft /= 2;
-			binlen = binleft * 32;
-		}
+	if (!cashstratum_merkle_branch(hashbin, count + 1, wb->merklebin, &wb->merkles)) {
+		LOGWARNING("Merkle count overflow in wb_merkle_bin_txns");
+		goto out;
 	}
+	for (i = 0; i < (size_t)wb->merkles; i++) {
+		__bin2hex(wb->merklehash[i], wb->merklebin[i], 32);
+		yyjson_mut_arr_add_str(wb->yymerkle_doc, arr, wb->merklehash[i]);
+	}
+	valid = true;
+	wb->incomplete = false;
 	LOGNOTICE("Stored %s workbase with %d transactions", local ? "local" : "remote",
 		  wb->txns);
 out:
+	free(hashbin);
+	if (!valid) {
+		txntable_t *txn, *tmp;
+		HASH_ITER(hh, txns, txn, tmp) {
+			HASH_DEL(txns, txn);
+			clear_txn(txn);
+		}
+	}
 	return txns;
 }
 
@@ -1624,19 +1611,19 @@ static const int witness_header_size = sizeof(witness_header);
  * rather than deleted so upstream merges keep applying to this file. */
 static void __maybe_unused gbt_witness_data(workbase_t *wb, yyjson_val *txn_array)
 {
-	int i, binlen, txncount = yyjson_arr_size(txn_array);
+	size_t i, binlen, txncount = yyjson_arr_size(txn_array);
 	const char* hash;
 	yyjson_val *arr_val;
 	uchar *hashbin;
 
 	/* Guard against a corrupt transaction count that would overflow the
-	 * size arithmetic or oversize the hashbin stack allocation. */
-	if (unlikely(txncount < 0 || txncount > MAX_GBT_TXNS)) {
-		LOGWARNING("Invalid transaction count %d in gbt_witness_data", txncount);
+	 * size arithmetic or oversize the hashbin allocation. */
+	if (unlikely(txncount > INT_MAX || txncount > SIZE_MAX / 32 - 2)) {
+		LOGWARNING("Invalid transaction count %zu in gbt_witness_data", txncount);
 		return;
 	}
 	binlen = txncount * 32 + 32;
-	hashbin = alloca(binlen + 32);
+	hashbin = ckalloc(binlen + 32);
 	memset(hashbin, 0, 32);
 
 	for (i = 0; i < txncount; i++) {
@@ -1644,13 +1631,13 @@ static void __maybe_unused gbt_witness_data(workbase_t *wb, yyjson_val *txn_arra
 
 		arr_val = yyjson_arr_get(txn_array, i);
 		hash = yyjson_get_str(yyjson_obj_get(arr_val, "hash"));
-		if (unlikely(!hash)) {
+		if (unlikely(!hash || strlen(hash) != 64 || !validhex(hash))) {
 			LOGERR("Hash missing for transaction");
-			return;
+			goto out;
 		}
 		if (!hex2bin(binswap, hash, 32)) {
 			LOGERR("Failed to hex2bin hash in gbt_witness_data");
-			return;
+			goto out;
 		}
 		bswap_256(hashbin + 32 + 32 * i, binswap);
 	}
@@ -1673,6 +1660,8 @@ static void __maybe_unused gbt_witness_data(workbase_t *wb, yyjson_val *txn_arra
 	memcpy(hashbin, witness_header, witness_header_size);
 	__bin2hex(wb->witnessdata, hashbin, 32 + witness_header_size);
 	wb->insert_witness = true;
+out:
+	free(hashbin);
 }
 
 #ifdef HAVE_CAPNP
@@ -1696,7 +1685,7 @@ static workbase_t *build_ipc_workbase(void)
 		return NULL;
 	if (mining_ipc_template_header(tmpl, header) ||
 	    mining_ipc_template_coinbase(tmpl, &cb) ||
-	    mining_ipc_template_merkle_path(tmpl, branch, &count) || count > 16) {
+	    mining_ipc_template_merkle_path(tmpl, branch, &count) || count > GENWORK_MAX_MERKLE_DEPTH) {
 		mining_block_template_destroy(tmpl);
 		return NULL;
 	}
@@ -1839,6 +1828,11 @@ retry:
 
 		txn_array = yyjson_obj_get(wb->gbtroot, "transactions");
 		txns = wb_merkle_bin_txns(sdata, wb, txn_array, true);
+		if (unlikely(wb->incomplete)) {
+			LOGWARNING("Rejecting invalid block template transactions");
+			clear_workbase(wb);
+			goto out;
+		}
 
 		wb->insert_witness = false;
 
@@ -2045,6 +2039,7 @@ static bool rebuild_txns(sdata_t *sdata, workbase_t *wb)
 		idoc = yyjson_mut_doc_imut_copy(doc, &ckyyalc);
 		txns = wb_merkle_bin_txns(sdata, wb, yyjson_doc_get_root(idoc), false);
 		yyjson_doc_free(idoc);
+		ret = !wb->incomplete;
 		if (likely(txns))
 			update_txns(sdata, txns, false);
 	} else {
@@ -2206,9 +2201,9 @@ static void add_node_base(yyjson_mut_val *val, bool trusted, int64_t client_id)
 	if (!ckpool.proxy) {
 		/* This is a workbase from a trusted remote */
 		yyjson_mut_obj_intcpy(&wb->merkles, val, "merkles");
-		/* merklehash and merklebin are fixed size arrays of 16
-		 * entries so reject rather than overrun them */
-		if (unlikely(wb->merkles < 0 || wb->merkles > 16)) {
+		/* merklehash and merklebin are fixed size arrays with bounded
+		 * depth so reject rather than overrun them */
+		if (unlikely(wb->merkles < 0 || wb->merkles > GENWORK_MAX_MERKLE_DEPTH)) {
 			LOGWARNING("Node base with invalid merkles %d", wb->merkles);
 			clear_workbase(wb);
 			return;
@@ -3554,9 +3549,9 @@ static void update_notify(const char *cmd)
 	merkle_val = yyjson_obj_get(val, "merklehash");
 	wb->merkles = yyjson_arr_size(merkle_val);
 	/* merklehash is a fixed size array so reject rather than overflow it */
-	if (unlikely(wb->merkles > 16)) {
-		LOGWARNING("Proxy %d:%d notify with %d merkles exceeds max of 16", id, subid,
-			   wb->merkles);
+	if (unlikely(wb->merkles > GENWORK_MAX_MERKLE_DEPTH)) {
+		LOGWARNING("Proxy %d:%d notify with %d merkles exceeds max of %d", id, subid,
+			   wb->merkles, GENWORK_MAX_MERKLE_DEPTH);
 		clear_workbase(wb);
 		goto out;
 	}
@@ -3569,7 +3564,7 @@ static void update_notify(const char *cmd)
 		/* Each merkle hash is a fixed 64 hex char (32 byte) value. Reject
 		 * anything else to avoid overflowing merklehash on copy or
 		 * overreading it in hex2bin. */
-		if (unlikely(!merkle || strlen(merkle) != 64)) {
+		if (unlikely(!merkle || strlen(merkle) != 64 || !validhex(merkle))) {
 			LOGWARNING("Proxy %d:%d notify with invalid merkle hash", id, subid);
 			clear_workbase(wb);
 			goto out;
@@ -5611,7 +5606,12 @@ static void *blockupdate(void __maybe_unused *arg)
 		ret = generator_getbest(hash);
 		switch (ret) {
 			case GETBEST_NOTIFY:
+				/* Notifications can be lost during node/socket restarts.
+				 * Keep an independent, low-rate RPC backstop. */
 				cksleep_ms(5000);
+				if (generator_pollbest(hash) == GETBEST_SUCCESS &&
+				    strcmp(hash, sdata->lastswaphash))
+					update_base(sdata, GEN_PRIORITY);
 				break;
 			case GETBEST_SUCCESS:
 				if (strcmp(hash, sdata->lastswaphash)) {
@@ -5854,6 +5854,51 @@ static yyjson_mut_doc *yyjson_string(const char *msg)
  * "nicehash" or "miningrigrentals", returning fallback when the config
  * carries no usable value for it. Config parsing already copied these into
  * owned storage; see ckpool.c parse_config(). */
+/* Client difficulty requests must obey the operator's global bounds. */
+static int64_t clamp_requested_diff(int64_t diff)
+{
+	if (diff < ckpool.mindiff)
+		diff = ckpool.mindiff;
+	if (ckpool.maxdiff && diff > ckpool.maxdiff)
+		diff = ckpool.maxdiff;
+	return diff;
+}
+
+/* Parse complete password tokens, never substrings or partial numbers. */
+static int64_t password_requested_diff(const char *pass)
+{
+	const char *p = pass;
+	int64_t requested = 0;
+
+	while (*p) {
+		char *end;
+		long long value;
+		const char *token_end;
+		int prefix = 0;
+
+		p += strspn(p, ",; \t");
+		if (!*p)
+			break;
+		token_end = p + strcspn(p, ",; \t");
+		if (!strncmp(p, "diff=", 5))
+			prefix = 5;
+		else if (!strncmp(p, "d=", 2))
+			prefix = 2;
+		if (prefix && isdigit((unsigned char)p[prefix])) {
+			errno = 0;
+			value = strtoll(p + prefix, &end, 10);
+			if (!errno && end == token_end && value > 0) {
+				requested = value;
+				/* Preserve long-form precedence for valid tokens. */
+				if (prefix == 5)
+					return requested;
+			}
+		}
+		p = token_end;
+	}
+	return requested;
+}
+
 static int64_t mindiff_override_diff(const char *key, const int64_t fallback)
 {
 	int i;
@@ -5862,9 +5907,9 @@ static int64_t mindiff_override_diff(const char *key, const int64_t fallback)
 		if (strcasecmp(ckpool.mindiff_overrides[i].pattern, key))
 			continue;
 		if (ckpool.mindiff_overrides[i].diff > 0)
-			return ckpool.mindiff_overrides[i].diff;
+			return clamp_requested_diff(ckpool.mindiff_overrides[i].diff);
 	}
-	return fallback;
+	return clamp_requested_diff(fallback);
 }
 
 static yyjson_mut_doc *parse_subscribe(stratum_instance_t *client, const int64_t client_id,
@@ -6804,64 +6849,35 @@ static bool parse_authorise(stratum_instance_t *client, yyjson_mut_val *params_v
 	}
 
 	if (pass) {
-		const char *diff_str;
+		int64_t password_diff = password_requested_diff(pass);
 
 		client->password = strndup(pass, 64);
 
-		/* Password-based difficulty, "d=1000" or "diff=1000000".
-		 * Password difficulty OVERRIDES any pattern-based difficulty. */
-		diff_str = strstr(pass, "diff=");
-		if (!diff_str) {
-			/* Accept "d=" only as a whole token - at the start of the
-			 * password or immediately after a separator. An unanchored
-			 * match fires inside unrelated tokens such as "worker_id=5"
-			 * or "pwd=x" and silently reassigns the client's difficulty. */
-			const char *p = pass;
+		if (password_diff > 0) {
+			/* Apply mindiff/maxdiff limits BEFORE storing
+			 * suggest_diff. suggest_diff is used as the vardiff
+			 * floor in add_submit(), so storing the unclamped
+			 * value would let a client pin its own difficulty
+			 * above the pool's configured maxdiff. */
+			if (ckpool.mindiff && password_diff < ckpool.mindiff)
+				password_diff = ckpool.mindiff;
+			/* A rental floor (NiceHash/MRR) was already applied from
+			 * the useragent and is higher than the pool mindiff. A d=
+			 * below it makes the marketplace flag us for serving under
+			 * the rig's optimal range, so raise it back. A higher d=
+			 * is still honoured. */
+			if (client->rental_diff && password_diff < client->diff)
+				password_diff = client->diff;
+			if (ckpool.maxdiff && password_diff > ckpool.maxdiff)
+				password_diff = ckpool.maxdiff;
 
-			while ((p = strstr(p, "d="))) {
-				if (p == pass || p[-1] == ',' || p[-1] == ';' ||
-				    p[-1] == ' ' || p[-1] == '\t') {
-					diff_str = p;
-					break;
-				}
-				p += 2;
-			}
-		}
+			/* Password difficulty overrides pattern-based difficulty */
+			client->suggest_diff = password_diff;
 
-		if (diff_str) {
-			int64_t password_diff;
-
-			if (diff_str[1] == '=') /* d= format */
-				password_diff = strtoll(diff_str + 2, NULL, 10);
-			else /* diff= format */
-				password_diff = strtoll(diff_str + 5, NULL, 10);
-
-			if (password_diff > 0) {
-				/* Apply mindiff/maxdiff limits BEFORE storing
-				 * suggest_diff. suggest_diff is used as the vardiff
-				 * floor in add_submit(), so storing the unclamped
-				 * value would let a client pin its own difficulty
-				 * above the pool's configured maxdiff. */
-				if (ckpool.mindiff && password_diff < ckpool.mindiff)
-					password_diff = ckpool.mindiff;
-				/* A rental floor (NiceHash/MRR) was already applied from
-				 * the useragent and is higher than the pool mindiff. A d=
-				 * below it makes the marketplace flag us for serving under
-				 * the rig's optimal range, so raise it back. A higher d=
-				 * is still honoured. */
-				if (client->rental_diff && password_diff < client->diff)
-					password_diff = client->diff;
-				if (ckpool.maxdiff && password_diff > ckpool.maxdiff)
-					password_diff = ckpool.maxdiff;
-
-				/* Password difficulty overrides pattern-based difficulty */
-				client->suggest_diff = password_diff;
-
-				/* Apply immediately for NiceHash compatibility */
-				client->diff = client->old_diff = password_diff;
-				LOGNOTICE("Client %s set difficulty to %"PRId64" via password parameter",
-					  client->identity, password_diff);
-			}
+			/* Apply immediately for NiceHash compatibility */
+			client->diff = client->old_diff = password_diff;
+			LOGNOTICE("Client %s set difficulty to %"PRId64" via password parameter",
+				  client->identity, password_diff);
 		}
 	} else
 		client->password = strdup("");
@@ -7549,8 +7565,8 @@ bool stratifier_sv2_snapshot_work(struct sv2_work_snap *out, int64_t instance_id
 	out->enonce1varlen = wb->enonce1varlen;
 	out->enonce2varlen = wb->enonce2varlen;
 	out->merkles = wb->merkles;
-	if (out->merkles > 16)
-		out->merkles = 16;
+	if (out->merkles > GENWORK_MAX_MERKLE_DEPTH)
+		out->merkles = GENWORK_MAX_MERKLE_DEPTH;
 	for (i = 0; i < out->merkles; i++)
 		memcpy(out->merklebin[i], wb->merklebin[i], 32);
 	ck_wunlock(&sdata->workbase_lock);
@@ -7961,7 +7977,7 @@ bool stratifier_sv2_submit_share(int64_t instance_id, int64_t workbase_id,
 		submit = true;
 	ck_runlock(&sdata->workbase_lock);
 
-	add_submit(client, diff, result, submit);
+	add_submit(client, diff, result, submit && result);
 	put_workbase(sdata, wb);
 	dec_instance_ref(sdata, client);
 	return result;
@@ -8063,7 +8079,7 @@ bool stratifier_sv2_account_share(int64_t instance_id, int64_t workbase_id,
 	ck_runlock(&sdata->workbase_lock);
 	if (network_diff_met && result && sdiff >= network_diff && network_diff > 0)
 		*network_diff_met = true;
-	add_submit(client, diff, result, submit);
+	add_submit(client, diff, result, submit && result);
 	dec_instance_ref(sdata, client);
 	return result;
 }
@@ -8252,6 +8268,7 @@ static bool parse_submit(stratum_instance_t *client, yyjson_mut_val *params_val,
 			 enum share_err *err_code)
 {
 	bool share = false, result = false, invalid = true, submit = false, stale = false;
+	bool rate_submit;
 	const char *workername, *job_id, *ntime, *version_mask;
 	double diff = client->diff, wdiff = 0, sdiff = -1;
 	char hexhash[68] = {}, sharehash[32], cdfield[64];
@@ -8489,7 +8506,13 @@ out_nowb:
 		submit_share(client, id, nonce2, ntime, nonce, version_mask32);
 	}
 
-	add_submit(client, diff, result, submit);
+	/* Stale rejects may contribute to rate estimates only once and at
+	 * the credited difficulty. Keep upstream forwarding independent, and
+	 * do not recheck duplicates for latency-grace shares already accepted. */
+	rate_submit = submit;
+	if (stale && !result && rate_submit)
+		rate_submit = sdiff >= diff && new_share(sdata, hash, id);
+	add_submit(client, diff, result, rate_submit);
 
 	/* Record the version bits the client actually submitted (params[5],
 	 * BIP310 version rolling), which every other submitted field in this
@@ -8531,10 +8554,10 @@ out_nowb:
 	if (ckpool.logshares) {
 		fp = fopen(fname, "ae");
 		if (likely(fp)) {
-			yyjson_mut_write_file(fname, doc, YYJSON_WRITE_NEWLINE_AT_END, NULL, NULL);
-			fclose(fp);
-			if (unlikely(len < 0))
-				LOGERR("Failed to fwrite to %s", fname);
+			if (unlikely(!yyjson_mut_write_fp(fp, doc, YYJSON_WRITE_NEWLINE_AT_END, NULL, NULL)))
+				LOGERR("Failed to write sharelog %s", fname);
+			if (unlikely(fclose(fp)))
+				LOGERR("Failed to close sharelog %s", fname);
 		} else
 			LOGERR("Failed to fopen %s", fname);
 	}
@@ -8765,9 +8788,8 @@ static void suggest_diff(stratum_instance_t *client, const char *method,
 		LOGINFO("Failed to parse suggest_difficulty for client %s", client->identity);
 		return;
 	}
-	/* Clamp suggest diff to global pool mindiff */
-	if (sdiff < ckpool.mindiff)
-		sdiff = ckpool.mindiff;
+	/* Clamp before saving the vardiff floor or announcing a target. */
+	sdiff = clamp_requested_diff(sdiff);
 	if (sdiff == client->suggest_diff)
 		return;
 	client->suggest_diff = sdiff;
@@ -9196,6 +9218,8 @@ static user_instance_t *generate_remote_user(const char *workername)
 	username = canon_username;
 
 	user = get_create_user(sdata, username, &new_user);
+	if (unlikely(!user))
+		return NULL;
 
 	if (!ckpool.proxy && (new_user || !user->btcaddress)) {
 		/* segwit is always false on BCH; user_instance no longer
@@ -9204,8 +9228,16 @@ static user_instance_t *generate_remote_user(const char *workername)
 
 		/* Is this a BCH address based username? */
 		if (generator_checkaddr(username, &user->script, &segwit_unused)) {
+			int txnlen = address_to_txn(user->txnbin, username, user->script, segwit_unused);
+
+			if (unlikely(txnlen < 1)) {
+				LOGWARNING("Remote address %s produced an empty payout script", username);
+				user->btcaddress = false;
+				user->txnlen = 0;
+				return NULL;
+			}
+			user->txnlen = txnlen;
 			user->btcaddress = true;
-			user->txnlen = address_to_txn(user->txnbin, username, user->script, segwit_unused);
 		}
 	}
 	if (new_user) {
@@ -11153,48 +11185,64 @@ static void *zmqnotify(void __maybe_unused *arg)
 	}
 
 	context = zmq_ctx_new();
+	if (!context) {
+		LOGERR("ZMQ context creation failed; continuing with block polling");
+		goto out;
+	}
 	subscribers = ckzalloc(sizeof(void *) * num_endpoints);
 	poll_items = ckzalloc(sizeof(zmq_pollitem_t) * num_endpoints);
 
-	for (i = 0; i < num_endpoints; i++) {
-		const char *endpoint = (ckpool.btcdzmq_count > 0) ?
-					ckpool.btcdzmq[i] : ckpool.zmqblock;
-
-		subscribers[i] = zmq_socket(context, ZMQ_SUB);
-		if (!subscribers[i]) {
-			LOGERR("zmq_socket failed for endpoint %d with errno %d", i, errno);
-			continue;
-		}
-
-		/* Subscribe to the hashblock topic. Upstream passes length 0,
-		 * which subscribes to everything; 9 filters to hashblock. */
-		rc = zmq_setsockopt(subscribers[i], ZMQ_SUBSCRIBE, "hashblock", 9);
-		if (rc < 0) {
-			LOGERR("zmq_setsockopt failed for endpoint %d with errno %d", i, errno);
-			zmq_close(subscribers[i]);
-			subscribers[i] = NULL;
-			continue;
-		}
-
-		rc = zmq_connect(subscribers[i], endpoint);
-		if (rc < 0) {
-			LOGERR("zmq_connect to %s failed with errno %d", endpoint, errno);
-			zmq_close(subscribers[i]);
-			subscribers[i] = NULL;
-			continue;
-		}
-
-		LOGNOTICE("ZMQ connected to endpoint %d: %s", i, endpoint);
-
-		poll_items[i].socket = subscribers[i];
-		poll_items[i].events = ZMQ_POLLIN;
-	}
-
 	while (42) {
-		rc = zmq_poll(poll_items, num_endpoints, -1);  /* Block indefinitely */
+		/* Recreate failed sockets on each bounded polling cycle. ZMQ handles
+		 * reconnecting healthy sockets when their remote endpoint restarts. */
+		for (i = 0; i < num_endpoints; i++) {
+			const char *endpoint = (ckpool.btcdzmq_count > 0) ?
+						ckpool.btcdzmq[i] : ckpool.zmqblock;
+
+			if (subscribers[i])
+				continue;
+			subscribers[i] = zmq_socket(context, ZMQ_SUB);
+			if (!subscribers[i]) {
+				LOGERR("zmq_socket failed for endpoint %d with errno %d", i, errno);
+				continue;
+			}
+
+			/* Subscribe to the hashblock topic. Upstream passes length 0,
+			 * which subscribes to everything; 9 filters to hashblock. */
+			rc = zmq_setsockopt(subscribers[i], ZMQ_SUBSCRIBE, "hashblock", 9);
+			if (rc < 0) {
+				LOGERR("zmq_setsockopt failed for endpoint %d with errno %d", i, errno);
+				zmq_close(subscribers[i]);
+				subscribers[i] = NULL;
+				continue;
+			}
+
+			rc = zmq_connect(subscribers[i], endpoint);
+			if (rc < 0) {
+				LOGERR("zmq_connect to %s failed with errno %d", endpoint, errno);
+				zmq_close(subscribers[i]);
+				subscribers[i] = NULL;
+				continue;
+			}
+
+			LOGNOTICE("ZMQ connected to endpoint %d: %s", i, endpoint);
+
+			poll_items[i].socket = subscribers[i];
+			poll_items[i].events = ZMQ_POLLIN;
+		}
+
+		rc = zmq_poll(poll_items, num_endpoints, 1000);
 
 		if (rc < 0) {
-			LOGWARNING("zmq_poll failed with error %d", errno);
+			if (errno == EINTR)
+				continue;
+			LOGWARNING("zmq_poll failed with error %d; recreating subscribers", errno);
+			for (i = 0; i < num_endpoints; i++) {
+				if (subscribers[i])
+					zmq_close(subscribers[i]);
+				subscribers[i] = NULL;
+				memset(&poll_items[i], 0, sizeof(poll_items[i]));
+			}
 			cksleep_ms(1000);
 			continue;
 		}
@@ -11211,11 +11259,14 @@ static void *zmqnotify(void __maybe_unused *arg)
 				int size;
 
 				zmq_msg_init(&message);
-				rc = zmq_msg_recv(&message, subscribers[i], 0);
+				rc = zmq_msg_recv(&message, subscribers[i], ZMQ_DONTWAIT);
 				if (rc < 0) {
 					LOGWARNING("zmq_msg_recv from endpoint %d failed with error %d",
 						   i, errno);
 					zmq_msg_close(&message);
+					zmq_close(subscribers[i]);
+					subscribers[i] = NULL;
+					memset(&poll_items[i], 0, sizeof(poll_items[i]));
 					break;
 				}
 
@@ -11404,6 +11455,10 @@ void *stratifier(void *arg)
 		/* Store this for use elsewhere */
 		hex2bin(scriptsig_header_bin, scriptsig_header, 41);
 		sdata->txnlen = address_to_txn(sdata->txnbin, ckpool.btcaddress, ckpool.script, segwit_unused);
+		if (unlikely(sdata->txnlen < 1)) {
+			LOGEMERG("Fatal: bchaddress produced an empty payout script");
+			goto out;
+		}
 
 		/* Upstream derived ckpool.regtest from which of its three BTC
 		 * donation addresses validated. Those are bech32 addresses the
@@ -11419,6 +11474,10 @@ void *stratifier(void *arg)
 				ckpool.poolvalid = true;
 				sdata->pooltxnlen = address_to_txn(sdata->pooltxnbin, ckpool.pooladdress,
 								   ckpool.poolscript, poolsegwit_unused);
+				if (unlikely(sdata->pooltxnlen < 1)) {
+					LOGEMERG("Fatal: pooladdress produced an empty payout script");
+					goto out;
+				}
 				LOGNOTICE("Pool operator fee address valid %s (%.1f%%)",
 					  ckpool.pooladdress, ckpool.poolfee);
 			} else {

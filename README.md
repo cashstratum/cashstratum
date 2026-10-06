@@ -23,9 +23,10 @@ Direct miner payouts · Native CashAddr · Per-address round statistics · Opera
 
 ## Release status
 
-**CashStratum 1.2.0** is the first public release (2026-09-13). This tree contains the C
-mining engine, Go operator services, installers, unit tests and the regtest money gate. The
-reference production deployment runs a build from this same source line; CHANGELOG.md records
+**CashStratum 1.2.1** (2026-10-06) is the current release; 1.2.0 (2026-09-13) was the first
+public release. This tree contains the C mining engine, Go operator services, installers, unit
+tests and the regtest money gate. The reference production deployment runs a build from this
+same source line; CHANGELOG.md records
 what has and has not been deployed. Tagged releases are listed under
 [Releases](https://github.com/cashstratum/cashstratum/releases); see [CHANGELOG.md](CHANGELOG.md)
 for what each one carries.

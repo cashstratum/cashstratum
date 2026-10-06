@@ -556,8 +556,41 @@ DIM='\033[2m'
 NC='\033[0m'
 
 # Configuration - use environment variable or default
-CASHSTRATUM_DIR="${CASHSTRATUM_DIR:-${CKPOOL_DIR:-$HOME/cashstratum}}"
-[ -d "$CASHSTRATUM_DIR" ] || [ ! -d "$HOME/ckpool" ] || CASHSTRATUM_DIR="$HOME/ckpool"
+# Resolve this script's own directory, following symlinks, so a shortcut such as
+# ~/monitor.sh pointing into the install dir still resolves to the install dir.
+# shellcheck disable=SC1007  # "CDPATH= cd" is a deliberate env prefix, not an assignment
+_cs_script_dir() {
+    local src="${BASH_SOURCE[0]}" dir hops=0
+    while [ -L "$src" ] && [ "$hops" -lt 40 ]; do
+        dir="$(CDPATH= cd -- "$(dirname -- "$src")" && pwd)"
+        src="$(readlink -- "$src")"
+        case "$src" in
+            /*) ;;
+            *) src="$dir/$src" ;;
+        esac
+        hops=$((hops + 1))
+    done
+    CDPATH= cd -- "$(dirname -- "$src")" && pwd
+}
+SCRIPT_DIR="$(_cs_script_dir)"
+# Resolve the install dir by finding one that actually holds a log, so the script
+# works from /opt, from a $HOME copy, and for root as well as the service user.
+_cs_resolve_dir() {
+    local d
+    for d in "$@"; do
+        [ -n "$d" ] || continue
+        if [ -f "$d/logs/cashstratum.log" ] || [ -f "$d/logs/ckpool.log" ]; then
+            printf '%s\n' "$d"
+            return 0
+        fi
+    done
+    return 1
+}
+CASHSTRATUM_DIR="${CASHSTRATUM_DIR:-${CKPOOL_DIR:-}}"
+if [ -z "$CASHSTRATUM_DIR" ]; then
+    CASHSTRATUM_DIR="$(_cs_resolve_dir "$SCRIPT_DIR" "${HOME:-}/cashstratum" "${HOME:-}/ckpool" /opt/cashstratum)" \
+        || CASHSTRATUM_DIR="${HOME:-}/cashstratum"
+fi
 LOG_FILE="$CASHSTRATUM_DIR/logs/cashstratum.log"
 [ -f "$LOG_FILE" ] || LOG_FILE="$CASHSTRATUM_DIR/logs/ckpool.log"
 
@@ -625,10 +658,14 @@ MONITOR_EOF
 chmod +x "$MONITOR_SCRIPT"
 chown "$ACTUAL_USER:$ACTUAL_USER" "$MONITOR_SCRIPT"
 
-# Also create in user's home directory for easy access
-cp "$MONITOR_SCRIPT" "/home/$ACTUAL_USER/monitor.sh"
-chmod +x "/home/$ACTUAL_USER/monitor.sh"
-chown "$ACTUAL_USER:$ACTUAL_USER" "/home/$ACTUAL_USER/monitor.sh"
+# Also expose it in the user's home directory for easy access. Use a symlink
+# rather than a copy so the shortcut tracks the installed script and resolves
+# back to $INSTALL_DIR even when that is outside the probed candidates.
+USER_MONITOR="/home/$ACTUAL_USER/monitor.sh"
+if ! [ "$MONITOR_SCRIPT" -ef "$USER_MONITOR" ]; then
+    ln -sfn "$MONITOR_SCRIPT" "$USER_MONITOR"
+    chown -h "$ACTUAL_USER:$ACTUAL_USER" "$USER_MONITOR"
+fi
 
 echo -e "${GREEN}✓ Monitor script created${NC}"
 

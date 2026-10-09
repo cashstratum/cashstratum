@@ -96,7 +96,7 @@ yyjson_doc *validate_txn(connsock_t *cs, const char *txn)
 	}
 	len = strlen(txn) + 64;
 	rpc_req = ckalloc(len);
-	sprintf(rpc_req, "{\"method\": \"decoderawtransaction\", \"params\": [\"%s\"]}", txn);
+	sprintf(rpc_req, "{\"id\": 0, \"method\": \"decoderawtransaction\", \"params\": [\"%s\"]}", txn);
 	doc = yyjson_rpc_call(cs, rpc_req);
 	dealloc(rpc_req);
 	if (!doc)
@@ -107,7 +107,7 @@ out:
 
 /* BCH has no segwit. Asking a BCHN node for the "segwit" rule makes it reject
  * the template request outright, so the rules array is omitted entirely. */
-static const char *gbt_req = "{\"method\": \"getblocktemplate\", \"params\": [{\"capabilities\": [\"coinbasetxn\", \"workid\", \"coinbase/append\"]}]}\n";
+static const char *gbt_req = "{\"id\": 0, \"method\": \"getblocktemplate\", \"params\": [{\"capabilities\": [\"workid\", \"coinbase/append\"]}]}\n";
 
 /* Request getblocktemplate from bitcoind already connected with a connsock_t
  * and then summarise the information to the most efficient set of data
@@ -116,7 +116,7 @@ bool gen_gbtbase(connsock_t *cs, gbtbase_t *gbt)
 {
 	yyjson_doc *doc = NULL;
 	yyjson_mut_doc *mut_doc;
-	yyjson_val *rules_array, *coinbase_aux, *res_val, *root;
+	yyjson_val *rules_array, *coinbase_aux, *coinbasevalue_val, *res_val, *root;
 	yyjson_mut_val *mut_root;
 	const char *previousblockhash;
 	char hash_swap[32], tmp[32];
@@ -166,14 +166,23 @@ bool gen_gbtbase(connsock_t *cs, gbtbase_t *gbt)
 	curtime = yyjson_get_num(yyjson_obj_get(res_val, "curtime"));
 	bits = yyjson_get_str(yyjson_obj_get(res_val, "bits"));
 	height = yyjson_get_num(yyjson_obj_get(res_val, "height"));
-	coinbasevalue = yyjson_get_num(yyjson_obj_get(res_val, "coinbasevalue"));
+	coinbasevalue_val = yyjson_obj_get(res_val, "coinbasevalue");
+	coinbasevalue = yyjson_get_uint(coinbasevalue_val);
+	/* coinbaseaux is optional in BIP22 and Flowee the Hub omits it. */
 	coinbase_aux = yyjson_obj_get(res_val, "coinbaseaux");
 	flags = yyjson_get_str(yyjson_obj_get(coinbase_aux, "flags"));
 	if (!flags)
 		flags = "";
 
-	if (unlikely(!previousblockhash || !target || !version || !curtime || !bits || !coinbase_aux)) {
+	if (unlikely(!previousblockhash || !target || !version || !curtime || !bits)) {
 		LOGERR("JSON failed to decode GBT %s %s %d %d %s %s", previousblockhash, target, version, curtime, bits, flags);
+		goto out;
+	}
+	/* The coinbase is built from coinbasevalue. A node that answers with a
+	 * coinbasetxn instead (BCHD started with --miningaddr) omits it, and
+	 * reading the absent field as zero would mine blocks paying nothing. */
+	if (unlikely(!yyjson_is_uint(coinbasevalue_val))) {
+		LOGERR("Missing or invalid coinbasevalue in gbt");
 		goto out;
 	}
 
@@ -259,7 +268,7 @@ void clear_gbtbase(gbtbase_t *gbt)
 	memset(gbt, 0, sizeof(gbtbase_t));
 }
 
-static const char *blockcount_req = "{\"method\": \"getblockcount\"}\n";
+static const char *blockcount_req = "{\"id\": 0, \"method\": \"getblockcount\"}\n";
 
 /* Request getblockcount from bitcoind, returning the count or -1 if the call
  * fails. */
@@ -300,7 +309,7 @@ bool get_blockhash(connsock_t *cs, int height, char *hash)
 	char rpc_req[128];
 	bool ret = false;
 
-	sprintf(rpc_req, "{\"method\": \"getblockhash\", \"params\": [%d]}\n", height);
+	sprintf(rpc_req, "{\"id\": 0, \"method\": \"getblockhash\", \"params\": [%d]}\n", height);
 	doc = yyjson_rpc_call(cs, rpc_req);
 	if (!doc) {
 		LOGWARNING("%s:%s Failed to get valid json response to getblockhash", cs->url, cs->port);
@@ -334,7 +343,7 @@ out:
 	return ret;
 }
 
-static const char *bestblockhash_req = "{\"method\": \"getbestblockhash\"}\n";
+static const char *bestblockhash_req = "{\"id\": 0, \"method\": \"getbestblockhash\"}\n";
 
 /* Request getbestblockhash from bitcoind. bitcoind 0.9+ only */
 bool get_bestblockhash(connsock_t *cs, char *hash)
@@ -389,7 +398,7 @@ bool submit_block(connsock_t *cs, const char *params)
 	len = strlen(params) + 64;
 retry:
 	rpc_req = ckalloc(len);
-	sprintf(rpc_req, "{\"method\": \"submitblock\", \"params\": [\"%s\"]}\n", params);
+	sprintf(rpc_req, "{\"id\": 0, \"method\": \"submitblock\", \"params\": [\"%s\"]}\n", params);
 	doc = yyjson_rpc_call(cs, rpc_req);
 	dealloc(rpc_req);
 	if (!doc) {
@@ -447,7 +456,7 @@ void precious_block(connsock_t *cs, const char *params)
 
 	len = strlen(params) + 64;
 	rpc_req = ckalloc(len);
-	sprintf(rpc_req, "{\"method\": \"preciousblock\", \"params\": [\"%s\"]}\n", params);
+	sprintf(rpc_req, "{\"id\": 0, \"method\": \"preciousblock\", \"params\": [\"%s\"]}\n", params);
 	yyjson_rpc_msg(cs, rpc_req);
 	dealloc(rpc_req);
 }
@@ -464,7 +473,7 @@ void submit_txn(connsock_t *cs, const char *params)
 
 	len = strlen(params) + 64;
 	rpc_req = ckalloc(len);
-	sprintf(rpc_req, "{\"method\": \"sendrawtransaction\", \"params\": [\"%s\"]}\n", params);
+	sprintf(rpc_req, "{\"id\": 0, \"method\": \"sendrawtransaction\", \"params\": [\"%s\"]}\n", params);
 	yyjson_rpc_msg(cs, rpc_req);
 	dealloc(rpc_req);
 }
@@ -480,7 +489,7 @@ char *get_txn(connsock_t *cs, const char *hash)
 		goto out;
 	}
 
-	ASPRINTF(&rpc_req, "{\"method\": \"getrawtransaction\", \"params\": [\"%s\"]}\n", hash);
+	ASPRINTF(&rpc_req, "{\"id\": 0, \"method\": \"getrawtransaction\", \"params\": [\"%s\"]}\n", hash);
 	doc = yyjson_rpc_response(cs, rpc_req);
 	dealloc(rpc_req);
 	if (!doc) {

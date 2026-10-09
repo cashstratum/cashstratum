@@ -73,4 +73,7 @@ src/sha256_code_release/*.A
 test/sha256
 test/cashaddr
 test/addrclassify
+test/cbfinal
+test/merklebranch
+test/nodecompat
 *.a

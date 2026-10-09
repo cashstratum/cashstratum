@@ -122,12 +122,14 @@ live BCHN v29.1.0 node by starting each chain and reading `getblockchaininfo`:
 Only `test` and `regtest` happen to match their flag. If you add support for a new chain, confirm
 its token against a live node — do not assume it matches the flag.
 
+[BCHD](https://github.com/gcash/bchd) reports its own network names, which are recognised too:
+`mainnet` → `bitcoincash:`; `testnet3`, `testnet4` and `chipnet` → `bchtest:`; `regtest` →
+`bchreg:`. [Flowee the Hub](https://flowee.org) reports the same short names as BCHN.
+
 **Symptom of an unrecognised chain.** The pool logs
-`Unknown chain '<name>' from getblockchaininfo`, silently falls back to the `bitcoincash` prefix,
-then rejects every address for that network. What you actually see is a stream of
-`Invalid BCH address` lines followed by **`CRITICAL: No bitcoinds active!`** — on a node that is
-perfectly healthy and reachable. If you hit that error, check for the `Unknown chain` line above
-it before investigating connectivity.
+`Unknown chain '<name>' from getblockchaininfo; refusing an unknown CashAddr network` and keeps
+retrying. It never guesses a network, so no work is served and no address is validated until the
+node reports a chain from the table above.
 
 ## 🚀 What's Different from Original CKPool?
 
@@ -265,7 +267,10 @@ that every configuration has been validated on mainnet.
   - Build tools: `build-essential autoconf automake libtool`
   - Libraries: `libssl-dev libzmq3-dev` (JSON is vendored in-tree as yyjson since the
     upstream 1.2.0 rebase; no libjansson is needed to build)
-- **Bitcoin Cash Node**: One or more BCH full nodes with RPC and ZMQ enabled
+- **BCH full node**: One or more nodes with RPC enabled. [Bitcoin Cash Node (BCHN)](https://bitcoincashnode.org)
+  is the reference node; [BCHD](https://github.com/gcash/bchd) and
+  [Flowee the Hub](https://flowee.org) also work. See
+  [Supported nodes](docs/installation.md#supported-nodes).
 
 ## 🛠️ Installation
 

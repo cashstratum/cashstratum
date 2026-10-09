@@ -7,6 +7,33 @@ says so rather than implying one.
 
 ---
 
+## 1.2.2 — 2026-10-06
+
+Adds BCHD and Flowee the Hub as supported nodes and refuses block templates without a usable
+`coinbasevalue`. Behaviour on BCHN is unchanged.
+
+### Added
+
+- **BCHD and Flowee the Hub as the node.** Contributed by
+  [@CyberAshven](https://github.com/CyberAshven), who runs CashStratum in a StartOS package where
+  the operator picks the node. Every JSON-RPC request now carries an `id`: BCHD treats a request
+  without one as a notification and never answers it. `getblocktemplate` no longer asks for the
+  `coinbasetxn` capability, which makes BCHD answer with a coinbase transaction instead of
+  `coinbasevalue` (or an error when it has no `--miningaddr`). `coinbaseaux` is optional, as
+  BIP22 allows, because Flowee the Hub omits it. Chain detection recognises BCHD's network names
+  (`mainnet`, `testnet3`). BCHN, which ignores the capability list and always sends
+  `coinbaseaux`, parses to the same template as before. See
+  [Supported nodes](docs/installation.md#supported-nodes).
+
+### Security
+
+- **A template without `coinbasevalue` is refused.** The missing field used to be read as zero,
+  so a node answering with `coinbasetxn` alone (BCHD started with `--miningaddr` and asked for
+  that capability) would have produced work whose coinbase paid nothing. Covered by
+  `test/nodecompat.c`, which fails 17 checks against the previous request strings and parser.
+
+---
+
 ## 1.2.1 — 2026-10-06
 
 Security hardening of share accounting, difficulty handling, client framing and large BCH

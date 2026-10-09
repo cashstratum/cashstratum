@@ -1,8 +1,8 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)
 LDADD = $(top_builddir)/src/libckpool.a
 
-check_PROGRAMS = sha256 cashaddr addrclassify cbfinal merklebranch
-TESTS = sha256 cashaddr addrclassify cbfinal merklebranch
+check_PROGRAMS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat
+TESTS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat
 
 sha256_SOURCES = sha256.c
 merklebranch_SOURCES = merklebranch.c
@@ -18,6 +18,11 @@ addrclassify_SOURCES = addrclassify.c
 # test/.deps and src/.deps collide on the same "coinbase_final.o" basename
 # (same rule as sv2_codec below), which is why the program is named cbfinal.
 cbfinal_SOURCES = cbfinal.c
+
+# Node RPC compatibility (BCHN, BCHD, Flowee the Hub): request ids, the GBT
+# capability list and template parsing. nodecompat.c includes src/bitcoin.c
+# itself so the RPC layer can be stubbed; see the file header.
+nodecompat_SOURCES = nodecompat.c nodecompat_yyjson.c nodecompat_alloc.c
 
 if HAVE_SV2
 AM_CPPFLAGS += @SV2_CFLAGS@

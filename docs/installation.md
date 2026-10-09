@@ -1,8 +1,36 @@
 # Installing CashStratum
 
 CashStratum serves Bitcoin Cash miners over Stratum V1. It requires an existing,
-configured Bitcoin Cash Node (BCHN). The installers do not provision Bitcoin Core,
-change a node's configuration, download its blockchain, or enable Stratum V2.
+synced BCH full node; [Supported nodes](#supported-nodes) lists which ones. The
+installers do not provision Bitcoin Core, change a node's configuration, download
+its blockchain, or enable Stratum V2.
+
+## Supported nodes
+
+| Node | Status | Notes |
+|---|---|---|
+| [Bitcoin Cash Node (BCHN)](https://bitcoincashnode.org) | **Reference** | Used by the solo installer, the regtest mining gate and the reference deployment. Use ZMQ block notifications (`"notify": true` with `zmqblock`). |
+| [BCHD](https://github.com/gcash/bchd) | Supported | Configure the pool by hand; the solo installer accepts BCHN only. The pool speaks plain HTTP, so start BCHD with `--notls`, which BCHD permits only for an RPC listener on localhost: run the pool on the same host. BCHD has no ZMQ, so set `"notify": false` on its `btcd` entry and the pool polls for new blocks every `blockpoll` milliseconds (100 by default). `--miningaddr` is not needed: the pool builds its own coinbase. |
+| [Flowee the Hub](https://flowee.org) | Supported | Configure the pool by hand, as for BCHD, with `"notify": false` on its `btcd` entry. |
+
+The pool needs `getblocktemplate`, `submitblock`, `getblockchaininfo`,
+`getblockcount`, `getblockhash` and `getbestblockhash` over HTTP JSON-RPC. It
+requests a template that carries `coinbasevalue`, and refuses one that does
+not, rather than build a coinbase that pays nothing. BCHD and Flowee support is
+covered by unit tests of those requests and the template parser (`test/nodecompat.c`)
+built from their documented RPC behaviour; the end-to-end mining gate runs on BCHN.
+Example `btcd` entry for a node without ZMQ:
+
+```json
+"btcd" : [
+	{
+		"url" : "127.0.0.1:8334",
+		"auth" : "rpcuser",
+		"pass" : "rpcpassword",
+		"notify" : false
+	}
+]
+```
 
 ## Prerequisites
 

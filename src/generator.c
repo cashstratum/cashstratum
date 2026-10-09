@@ -259,7 +259,7 @@ typedef struct generator_data gdata_t;
  * unset so server selection retries before validating payout addresses. */
 static bool detect_cashaddr_prefix(connsock_t *cs)
 {
-	static const char *chaininfo_req = "{\"method\": \"getblockchaininfo\"}\n";
+	static const char *chaininfo_req = "{\"id\": 0, \"method\": \"getblockchaininfo\"}\n";
 	const char *prefix = NULL;
 	const char *chain = NULL;
 	yyjson_val *root, *res_val;
@@ -278,7 +278,9 @@ static bool detect_cashaddr_prefix(connsock_t *cs)
 		goto out_free;
 	}
 
-	if (!strcmp(chain, "main"))
+	/* BCHD reports its chaincfg names ("mainnet", "testnet3", "testnet4",
+	 * "chipnet", "regtest") rather than BCHN's short forms. */
+	if (!strcmp(chain, "main") || !strcmp(chain, "mainnet"))
 		prefix = "bitcoincash";
 	/* BCHN reports SHORTENED chain names, not the -flag spellings. Measured
 	 * against a live v29.1.0 node by starting each chain and reading
@@ -301,7 +303,7 @@ static bool detect_cashaddr_prefix(connsock_t *cs)
 	 * assuming it matches the command-line flag. */
 	else if (!strcmp(chain, "test") || !strcmp(chain, "test4") ||
 		 !strcmp(chain, "scale") || !strcmp(chain, "chip") ||
-		 !strcmp(chain, "testnet4") ||
+		 !strcmp(chain, "testnet4") || !strcmp(chain, "testnet3") ||
 		 !strcmp(chain, "scalenet") || !strcmp(chain, "chipnet"))
 		prefix = "bchtest";
 	else if (!strcmp(chain, "regtest"))

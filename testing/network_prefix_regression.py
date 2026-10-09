@@ -38,11 +38,12 @@ int main(void) {
         response = bad[i]; assert(!detect_cashaddr_prefix(&cs));
         assert(!ckpool.cashaddr_prefix); assert(applied == 0);
     }
-    const char *chains[] = {"main", "test", "test4", "scale", "chip", "testnet4", "scalenet", "chipnet", "regtest"};
-    for (size_t i = 0; i < sizeof(chains)/sizeof(*chains); i++) {
+    const char *chains[] = {"main", "mainnet", "test", "test4", "scale", "chip", "testnet3", "testnet4", "scalenet", "chipnet", "regtest"};
+    const size_t nchains = sizeof(chains)/sizeof(*chains);
+    for (size_t i = 0; i < nchains; i++) {
         char buf[128]; snprintf(buf, sizeof(buf), "{\"result\":{\"chain\":\"%s\"}}", chains[i]);
         response = buf; assert(detect_cashaddr_prefix(&cs));
-        assert(!strcmp(ckpool.cashaddr_prefix, i == 0 ? "bitcoincash" : i == 8 ? "bchreg" : "bchtest"));
+        assert(!strcmp(ckpool.cashaddr_prefix, i < 2 ? "bitcoincash" : i == nchains - 1 ? "bchreg" : "bchtest"));
         dealloc(ckpool.cashaddr_prefix);
     }
     puts("CashStratum network prefix: RPC failure, malformed/unknown chain, retry and all supported networks passed");

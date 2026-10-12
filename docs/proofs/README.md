@@ -1,27 +1,29 @@
-# 78 BCH mainnet blocks
+# 81 BCH mainnet blocks
 
-**Proof collection updated:** 2026-10-12T06:58:13Z
+**Proof collection updated:** 2026-10-12T09:00:18Z
 
-**Block dates:** 2025-07-15T16:42:49Z through 2026-10-12T06:26:54Z.
+**Block dates:** 2025-07-15T16:42:49Z through 2026-10-12T08:57:29Z.
 
-These 78 blocks belong to the production history of this modified CKPool lineage, from the
-EloPool deployment in 2025 to CashStratum today. All 78 hashes match the BCH main chain, and
+These 81 blocks belong to the production history of this modified CKPool lineage, from the
+EloPool deployment in 2025 to CashStratum today. All 81 hashes match the BCH main chain, and
 every coinbase carries an EloPool or BlockSniper tag.
 
-**9 of these blocks were found by the released CashStratum v1.2.1 build** (2026-10-06 → 2026-10-12), running on the reference deployment. Every one of them has a recovered, redacted solve excerpt with SHA-256 checksums.
+**12 of these blocks were found by the released CashStratum v1.2.1 build** (2026-10-06 → 2026-10-12), running on the reference deployment. Every one of them has a recovered, redacted solve excerpt with SHA-256 checksums.
 
 | Era | Blocks | Dates (UTC) | Gross BCH |
 |---|---|---|---|
 | EloPool | 68 | 2025-07-15 → 2025-12-06 | 212.67746187 |
 | BlockSniper | 1 | 2026-09-01 → 2026-09-01 | 3.12542747 |
-| CashStratum v1.2.1 | 9 | 2026-10-06 → 2026-10-12 | 28.13863015 |
+| CashStratum v1.2.1 | 12 | 2026-10-06 → 2026-10-12 | 37.51657353 |
 
 ## Historical reward value
 
-**243.94151949 BCH gross rewards**, valued at approximately
-**$129,968.85 USD** using historical BCH/USD minute prices.
+**253.31946287 BCH gross rewards**, valued at approximately
+**$132,752.44 USD** using each block's saved BlockSniper price
+where available: **72 database snapshots, 2 separately marked
+BlockSniper screenshot prices and 7 historical Coinbase fallbacks**.
 Includes transaction fees; before operator/miner splits and operating costs.
-[Per-block amounts, two-source prices and calculation method](VALUATION.md).
+[Per-block values, provenance and the independent exchange comparison](VALUATION.md).
 
 ## Evidence and method
 
@@ -29,7 +31,7 @@ Includes transaction fees; before operator/miner splits and operating costs.
 - Queried the public Blockchain.com Haskoin BCH API by height; required the stored hash to match and `mainchain` to be true.
 - Retrieved each first transaction and required a coinbase input and matching block height.
 - Recorded the coinbase transaction ID, script and recognizable project tag.
-- Recovered solve context for **45 blocks** from preserved pool logs; redacted finder identities.
+- Recovered solve context for **48 blocks** from preserved pool logs; redacted finder identities.
 - **33 blocks have no local solve excerpt recovered in this collection.** Their on-chain identity and tag were verified independently of that gap.
 
 Dates below are UTC block-header timestamps, not local pool log times. Log timestamps retain
@@ -66,6 +68,9 @@ range and the proof-update time. Raw source logs remain private.
 
 | Height / explorer | Block date (UTC) | Era | Coinbase tag | Local solve excerpt | Last checked (UTC) |
 |---|---|---|---|---|---|
+| [972535](https://www.blockchain.com/explorer/blocks/bch/972535) | 2026-10-12T08:57:29Z | CashStratum v1.2.1 | BlockSniper.ai · AI Smart Solo Mining | [Redacted log](logs/972535-context.log) | 2026-10-12T09:00:19Z |
+| [972529](https://www.blockchain.com/explorer/blocks/bch/972529) | 2026-10-12T08:20:18Z | CashStratum v1.2.1 | BlockSniper.ai · AI Smart Solo Mining | [Redacted log](logs/972529-context.log) | 2026-10-12T08:44:10Z |
+| [972524](https://www.blockchain.com/explorer/blocks/bch/972524) | 2026-10-12T07:37:58Z | CashStratum v1.2.1 | BlockSniper.ai · AI Smart Solo Mining | [Redacted log](logs/972524-context.log) | 2026-10-12T08:03:12Z |
 | [972517](https://www.blockchain.com/explorer/blocks/bch/972517) | 2026-10-12T06:26:54Z | CashStratum v1.2.1 | BlockSniper.ai · AI Smart Solo Mining | [Redacted log](logs/972517-context.log) | 2026-10-12T06:58:24Z |
 | [972318](https://www.blockchain.com/explorer/blocks/bch/972318) | 2026-10-10T18:34:48Z | CashStratum v1.2.1 | BlockSniper.ai · AI Smart Solo Mining | [Redacted log](logs/972318-context.log) | 2026-10-12T06:58:23Z |
 | [972313](https://www.blockchain.com/explorer/blocks/bch/972313) | 2026-10-10T17:59:58Z | CashStratum v1.2.1 | BlockSniper.ai · AI Smart Solo Mining | [Redacted log](logs/972313-context.log) | 2026-10-12T06:58:22Z |

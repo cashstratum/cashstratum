@@ -1,0 +1,82 @@
+height,block_time_utc,gross_reward_bch,bch_usd,gross_value_usd,basis,price_source,price_quality
+972535,2026-10-12T08:57:29Z,3.12528740,285.19,891.30,screenshot_snapshot,BlockSniper website block card,rounded_display_price
+972529,2026-10-12T08:20:18Z,3.12620441,285.84,893.59,screenshot_snapshot,BlockSniper Telegram notification,rounded_display_price
+972524,2026-10-12T07:37:58Z,3.12645157,286.68,896.29,stored_snapshot,miningpoolstats.stream,live
+972517,2026-10-12T06:26:54Z,3.12535292,286.26,894.66,stored_snapshot,miningpoolstats.stream,live
+972318,2026-10-10T18:34:48Z,3.12670989,279.82,874.92,stored_snapshot,miningpoolstats.stream,live
+972313,2026-10-10T17:59:58Z,3.12766941,279.98,875.68,stored_snapshot,miningpoolstats.stream,live
+972310,2026-10-10T17:36:18Z,3.12535461,280.08,875.35,stored_snapshot,miningpoolstats.stream,live
+971860,2026-10-07T11:04:52Z,3.12500998,304.03,950.10,stored_snapshot,miningpoolstats.stream,live
+971817,2026-10-07T02:45:23Z,3.12910966,306.00,957.51,stored_snapshot,miningpoolstats.stream,live
+971770,2026-10-06T18:07:48Z,3.12575307,315.79,987.08,stored_snapshot,miningpoolstats.stream,live
+971744,2026-10-06T14:15:20Z,3.12597374,315.71,986.90,stored_snapshot,miningpoolstats.stream,live
+971726,2026-10-06T11:05:31Z,3.12769687,317.43,992.82,stored_snapshot,miningpoolstats.stream,live
+966569,2026-09-01T03:50:05Z,3.12542747,248.17,775.64,stored_snapshot,miningpoolstats.stream,live
+928165,2025-12-06T08:33:03Z,3.12570713,584.80,1827.91,stored_snapshot,miningpoolstats.stream,historical
+928098,2025-12-05T21:48:01Z,3.12636404,564.17,1763.80,stored_snapshot,miningpoolstats.stream,historical
+916984,2025-09-20T10:02:02Z,3.12630717,600.87,1878.50,stored_snapshot,miningpoolstats.stream,historical
+916429,2025-09-16T16:46:10Z,3.12644433,599.36,1873.87,stored_snapshot,miningpoolstats.stream,historical
+916154,2025-09-14T20:24:45Z,3.12613920,603.27,1885.91,stored_snapshot,miningpoolstats.stream,historical
+915924,2025-09-13T05:51:49Z,3.12621588,601.14,1879.29,stored_snapshot,miningpoolstats.stream,historical
+915824,2025-09-12T14:05:13Z,3.12603710,590.93,1847.27,stored_snapshot,miningpoolstats.stream,historical
+915321,2025-09-09T00:18:10Z,3.12628694,588.05,1838.41,historical_exchange_fallback,Coinbase BCH-USD,completed_minute_candle
+914850,2025-09-05T15:51:57Z,3.12508224,613.37,1916.83,stored_snapshot,miningpoolstats.stream,historical
+914754,2025-09-05T04:27:58Z,3.12661462,592.88,1853.71,stored_snapshot,miningpoolstats.stream,historical
+914557,2025-09-03T18:34:12Z,3.12508827,599.55,1873.65,stored_snapshot,miningpoolstats.stream,historical
+914527,2025-09-03T12:31:03Z,3.12934630,601.03,1880.83,stored_snapshot,miningpoolstats.stream,historical
+914486,2025-09-03T06:58:03Z,3.12538262,600.58,1877.04,stored_snapshot,miningpoolstats.stream,historical
+914439,2025-09-03T00:21:32Z,3.13660412,586.04,1838.18,stored_snapshot,miningpoolstats.stream,historical
+914407,2025-09-02T18:31:08Z,3.12650795,583.26,1823.57,stored_snapshot,miningpoolstats.stream,historical
+914239,2025-09-01T18:20:42Z,3.12502275,541.85,1693.29,stored_snapshot,miningpoolstats.stream,historical
+914226,2025-09-01T15:30:33Z,3.12770209,540.15,1689.43,stored_snapshot,miningpoolstats.stream,historical
+914122,2025-08-31T22:13:50Z,3.12823819,542.90,1698.32,stored_snapshot,miningpoolstats.stream,historical
+914076,2025-08-31T13:48:39Z,3.12511446,546.90,1709.13,stored_snapshot,miningpoolstats.stream,historical
+913971,2025-08-30T21:06:26Z,3.12886727,549.08,1718.00,stored_snapshot,miningpoolstats.stream,historical
+913959,2025-08-30T18:52:28Z,3.12535111,544.07,1700.41,stored_snapshot,miningpoolstats.stream,historical
+913820,2025-08-29T21:30:32Z,3.12591546,530.87,1659.45,stored_snapshot,miningpoolstats.stream,historical
+913680,2025-08-28T21:41:37Z,3.12629823,557.08,1741.60,stored_snapshot,miningpoolstats.stream,historical
+913451,2025-08-27T06:54:42Z,3.12507532,552.61,1726.95,stored_snapshot,miningpoolstats.stream,historical
+913423,2025-08-27T03:28:18Z,3.12612515,560.19,1751.22,stored_snapshot,miningpoolstats.stream,historical
+913256,2025-08-25T21:10:12Z,3.12562966,543.82,1699.78,stored_snapshot,miningpoolstats.stream,historical
+912928,2025-08-23T14:20:52Z,3.12593850,588.46,1839.49,stored_snapshot,miningpoolstats.stream,historical
+912893,2025-08-23T09:19:27Z,3.12594102,586.97,1834.83,stored_snapshot,miningpoolstats.stream,historical
+912853,2025-08-23T02:03:17Z,3.12819029,592.45,1853.30,stored_snapshot,miningpoolstats.stream,historical
+912775,2025-08-22T15:24:50Z,3.12507329,602.01,1881.33,stored_snapshot,miningpoolstats.stream,historical
+912602,2025-08-21T10:36:39Z,3.12708359,551.70,1725.21,stored_snapshot,miningpoolstats.stream,historical
+912567,2025-08-21T04:56:04Z,3.12595043,559.45,1748.81,stored_snapshot,miningpoolstats.stream,historical
+912378,2025-08-19T21:25:47Z,3.12527071,552.80,1727.65,stored_snapshot,miningpoolstats.stream,historical
+912116,2025-08-18T01:23:17Z,3.12665382,581.03,1816.68,historical_exchange_fallback,Coinbase BCH-USD,completed_minute_candle
+912035,2025-08-17T11:38:53Z,3.12758278,589.28,1843.02,stored_snapshot,miningpoolstats.stream,historical
+912009,2025-08-17T07:22:41Z,3.12691253,591.40,1849.26,stored_snapshot,miningpoolstats.stream,historical
+911920,2025-08-16T15:29:57Z,3.12609699,578.28,1807.76,stored_snapshot,miningpoolstats.stream,historical
+911903,2025-08-16T13:18:47Z,3.12542799,580.11,1813.09,stored_snapshot,miningpoolstats.stream,historical
+911683,2025-08-14T23:39:09Z,3.12604270,594.94,1859.81,stored_snapshot,miningpoolstats.stream,historical
+911569,2025-08-14T03:52:09Z,3.12686461,614.62,1921.83,stored_snapshot,miningpoolstats.stream,historical
+911549,2025-08-14T01:54:14Z,3.13555915,625.17,1960.26,stored_snapshot,miningpoolstats.stream,historical
+911502,2025-08-13T17:50:32Z,3.16220546,612.05,1935.43,stored_snapshot,miningpoolstats.stream,historical
+911458,2025-08-13T09:28:10Z,3.12576798,607.51,1898.94,stored_snapshot,miningpoolstats.stream,historical
+911379,2025-08-12T19:25:34Z,3.12522579,618.08,1931.64,stored_snapshot,miningpoolstats.stream,historical
+911319,2025-08-12T12:04:33Z,3.12636851,592.49,1852.34,stored_snapshot,miningpoolstats.stream,historical
+911228,2025-08-11T21:37:48Z,3.12518867,580.04,1812.73,stored_snapshot,miningpoolstats.stream,historical
+911053,2025-08-10T17:45:42Z,3.12537820,570.35,1782.56,stored_snapshot,miningpoolstats.stream,historical
+910620,2025-08-07T16:16:38Z,3.12621511,577.41,1805.11,stored_snapshot,miningpoolstats.stream,historical
+910527,2025-08-07T01:02:24Z,3.12912408,569.48,1781.97,stored_snapshot,miningpoolstats.stream,historical
+910381,2025-08-06T01:36:21Z,3.12536822,556.79,1740.17,stored_snapshot,miningpoolstats.stream,historical
+910380,2025-08-06T01:35:21Z,3.12658577,556.79,1740.85,stored_snapshot,miningpoolstats.stream,historical
+910200,2025-08-04T18:36:27Z,3.12513980,559.65,1748.98,stored_snapshot,miningpoolstats.stream,historical
+910003,2025-08-03T12:54:27Z,3.12624401,540.63,1690.14,stored_snapshot,miningpoolstats.stream,historical
+909933,2025-08-03T00:47:04Z,3.12616799,528.44,1651.99,stored_snapshot,miningpoolstats.stream,historical
+909930,2025-08-02T23:54:20Z,3.12572107,528.12,1650.76,stored_snapshot,miningpoolstats.stream,historical
+909890,2025-08-02T18:12:32Z,3.12798370,527.64,1650.45,stored_snapshot,miningpoolstats.stream,historical
+909866,2025-08-02T12:59:17Z,3.12558933,531.27,1660.53,stored_snapshot,miningpoolstats.stream,historical
+909802,2025-08-02T02:57:20Z,3.13888283,539.55,1693.58,stored_snapshot,miningpoolstats.stream,historical
+909720,2025-08-01T12:04:27Z,3.12543440,556.59,1739.59,stored_snapshot,miningpoolstats.stream,historical
+909701,2025-08-01T08:55:07Z,3.12640144,555.20,1735.78,stored_snapshot,miningpoolstats.stream,historical
+909669,2025-08-01T04:11:42Z,3.12635187,564.77,1765.67,stored_snapshot,miningpoolstats.stream,historical
+909494,2025-07-30T22:30:45Z,3.12615255,583.63,1824.52,stored_snapshot,miningpoolstats.stream,historical
+909310,2025-07-29T16:39:56Z,3.12671192,566.03,1769.81,stored_snapshot,miningpoolstats.stream,historical
+908385,2025-07-23T13:05:56Z,3.12764478,518.32,1621.12,historical_exchange_fallback,Coinbase BCH-USD,completed_minute_candle
+908222,2025-07-22T10:16:53Z,3.14416056,521.71,1640.34,historical_exchange_fallback,Coinbase BCH-USD,completed_minute_candle
+907506,2025-07-17T13:57:40Z,3.12608344,495.29,1548.32,historical_exchange_fallback,Coinbase BCH-USD,completed_minute_candle
+907353,2025-07-16T12:09:54Z,3.12655772,501.17,1566.94,historical_exchange_fallback,Coinbase BCH-USD,completed_minute_candle
+907231,2025-07-15T16:42:49Z,3.13075067,489.23,1531.66,historical_exchange_fallback,Coinbase BCH-USD,completed_minute_candle

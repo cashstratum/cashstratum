@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="628" viewBox="0 0 1440 628" role="img" aria-labelledby="title desc">
+<title id="title">Block 972535 accepted on Bitcoin Cash mainnet</title><desc id="desc">Typeset selected lines from the public redacted solve log, 12 October 2026; log timestamps as recorded. Finder identity is redacted. This is historical evidence, not live telemetry.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#087e57" stroke-width="1.5"/></marker></defs>
+<rect x="1" y="1" width="1438" height="626" rx="22" fill="#f6f8fa" stroke="#c9d8d2"/>
+<text x="48" y="49" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="650" fill="#087e57">FROM THE PUBLIC SOLVE LOG</text>
+<text x="48" y="101" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="38" font-weight="650" fill="#152c24">That moment the block is accepted.</text>
+<text x="48" y="139" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="23" font-weight="400" fill="#51655f">BCH mainnet  /  block 972535  /  2026-10-12  /  log timestamps as recorded</text>
+<rect x="36" y="172" width="1368" height="350" rx="14" fill="#ffffff" stroke="#c9d8d2"/>
+<circle cx="62" cy="199" r="5" fill="#f07178"/>
+<circle cx="80" cy="199" r="5" fill="#f4cf7b"/>
+<circle cx="98" cy="199" r="5" fill="#52c69c"/>
+<text x="126" y="206" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="20" font-weight="400" fill="#51655f">cashstratum.log  ·  selected lines, finder redacted</text>
+<text x="58" y="250" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#51655f">08:57:29.010</text>
+<text x="250" y="250" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#152c24">Stored local workbase with 18 transactions</text>
+<text x="58" y="282" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#51655f">08:57:50.346</text>
+<text x="250" y="282" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#087e57">Possible block solve diff 714692894339.901489 !</text>
+<text x="58" y="314" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#51655f">08:57:50.346</text>
+<text x="250" y="314" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#087e57">Submitting block data!</text>
+<rect x="51" y="321" width="1338" height="35" rx="6" fill="#e0f4e9"/>
+<text x="58" y="346" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#51655f">08:57:50.349</text>
+<text x="250" y="346" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="650" fill="#087e57">BLOCK ACCEPTED!</text>
+<text x="58" y="378" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#51655f">08:57:50.352</text>
+<text x="250" y="378" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#09669b">ZMQ block hash</text>
+<text x="250" y="410" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#09669b">00000000000000000189d59e674d1f84bf4c63e7a97a484ed77e205527256638</text>
+<text x="250" y="442" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#09669b">from endpoint 0</text>
+<text x="58" y="474" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#51655f">08:57:50.600</text>
+<text x="250" y="474" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#087e57">Solved and confirmed block 972535 by [redacted]</text>
+<text x="58" y="506" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#51655f">08:57:50.600</text>
+<text x="250" y="506" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#087e57">Block solved after 174049474436 shares at 36.6% diff</text>
+<text x="48" y="565" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="650" fill="#087e57">REAL BLOCK</text>
+<text x="232" y="565" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="25" font-weight="550" fill="#152c24">Public explorer + redacted log + SHA-256 checksums</text>
+<text x="48" y="599" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" font-weight="400" fill="#51655f">Excerpt reformatted for readability. The full proof stays one click away.</text>
+</svg>

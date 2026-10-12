@@ -15,6 +15,11 @@ Accepted solves pay through the block coinbase, subject to the configured operat
 and network coinbase maturity. See [pool fee mechanics](POOL_FEE.md), the
 [configuration guide](README-CASHSTRATUM.md#-configuration) and [engine modes](README-CS_MODES.md).
 
+Pool owners can also accept plain usernames. In the same `-B` mode, a non-address login
+mines to the configured `bchaddress` fallback; the operator's separate accounting and
+payout system handles miner balances and payments. Address-shaped logins that fail
+validation are rejected, protecting direct-payout miners from mistyped addresses.
+
 Existing installations require a separate migration of configuration, logs, helper
 socket names and historical solve protection. A staged install is not a production
 cutover. Follow the [retention procedure](docs/operator-api.md#sharelog-retention) before

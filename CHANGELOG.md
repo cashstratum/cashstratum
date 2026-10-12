@@ -7,6 +7,23 @@ says so rather than implying one.
 
 ---
 
+## 1.2.4 — 2026-10-12
+
+- Refresh the README with light/dark feature artwork, linked node logos, real block evidence,
+  a concise reference-deployment overview and custom rounded badges. Document rental detection,
+  regional HTTP probes, direct-address and username-based mining, guided installation,
+  private deployments and optional pool setup. Keep the extended candidate-payout, block-history
+  and notification gallery in the website draft. Clarify regtest and testnet validation in
+  development before public releases, with links to public CI and detailed chain coverage.
+- Add verified blocks **972524**, **972529** and **972535**, with redacted solve contexts: **81 blocks**,
+  **253.31946287 BCH**, including **12 blocks on CashStratum v1.2.1** and **48 recovered solve excerpts**.
+- Use saved BlockSniper per-block price snapshots for the headline USD valuation: **72 saved
+  prices, two separately marked BlockSniper screenshot prices, and seven historical Coinbase fallbacks**,
+  approximately **$132,752.44**. Retain the independent two-exchange calculation and extend the offline
+  verifier to check both methods. Distinguish the proof collection from account-history totals.
+
+No mining-engine, API or installer behavior changes.
+
 ## 1.2.3 — 2026-10-12
 
 Documentation and proof release. **No engine, API or installer code changed**; a 1.2.2 build

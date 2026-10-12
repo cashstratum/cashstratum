@@ -100,7 +100,7 @@ The pool creates a dual-output coinbase transaction splitting the block reward. 
 
 ### Smart Fallback & Typo Protection
 
-- **Non-address username** (e.g., `rig01`, `miner1`): You mine for the pool's own address (`bchaddress` config) but keep all rewards
+- **Non-address username** (e.g., `rig01`, `miner1`): The coinbase uses the pool's configured `bchaddress` fallback. The pool owner supplies the accounting and payout system that credits and pays username-based miners; the username does not create a direct miner payout output.
 - **Invalid address** (bad checksum/wrong network): You're **rejected immediately** with the message "Invalid BCH address (bad checksum or wrong network) - check your username for typos" — this protects you from accidentally donating a block to a mistyped address
 
 ### Network Support

@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1100" viewBox="0 0 1440 1100" role="img" aria-labelledby="title desc">
+<title id="title">The CashStratum advantage</title><desc id="desc">Six visual groups cover CashAddr and direct payouts, rental-client detection and bounded difficulty, independent address rounds, supported full nodes and failover, browser-to-region HTTP latency probes, and the operator API and terminal monitor.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M1 1 L7 4 L1 7" fill="none" stroke="#52e0ae" stroke-width="1.5"/></marker></defs>
+<rect x="1" y="1" width="1438" height="1098" rx="22" fill="#0d1117" stroke="#33434e"/>
+<text x="48" y="49" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="650" fill="#52e0ae">BUILT INTO CASHSTRATUM</text>
+<text x="48" y="101" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="38" font-weight="650" fill="#f0f6fc">Everything between a miner and a block.</text>
+<text x="48" y="139" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="23" font-weight="400" fill="#aab9c3">BCH-native payouts. Rental-aware connections. A pool you can inspect.</text>
+<rect x="48" y="182" width="656" height="272" rx="16" fill="#151e25" stroke="#33434e"/>
+<text x="76" y="222" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="650" fill="#52e0ae">DIRECT PAYOUTS</text>
+<text x="76" y="267" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="31" font-weight="650" fill="#f0f6fc">Your address. Your block reward.</text>
+<rect x="76" y="292" width="205" height="45" rx="9" fill="#133c32"/>
+<text x="92" y="323" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="23" font-weight="600" fill="#52e0ae">Native CashAddr</text>
+<path d="M297 315 H357" fill="none" stroke="#52e0ae" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+<text x="381" y="316" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="25" font-weight="600" fill="#f0f6fc">Miner reward</text>
+<text x="381" y="350" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="23" font-weight="400" fill="#aab9c3">+ operator fee</text>
+<text x="76" y="408" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="23" font-weight="400" fill="#aab9c3">Outputs written into the block coinbase.</text>
+<rect x="736" y="182" width="656" height="272" rx="16" fill="#151e25" stroke="#33434e"/>
+<text x="764" y="222" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="650" fill="#52e0ae">RENTAL-AWARE</text>
+<text x="764" y="267" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="31" font-weight="650" fill="#f0f6fc">Detected. Configured. Ready.</text>
+<rect x="764" y="292" width="218" height="42" rx="8" fill="#133c32"/>
+<text x="781" y="321" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="23" font-weight="600" fill="#52e0ae">NiceHash</text>
+<rect x="997" y="292" width="367" height="42" rx="8" fill="#133c32"/>
+<text x="1013" y="321" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" font-weight="600" fill="#52e0ae">MiningRigRentals / MRR-Hash</text>
+<path d="M1064 346 V368" fill="none" stroke="#52e0ae" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+<text x="764" y="403" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="23" font-weight="550" fill="#f0f6fc">Recognize client → apply bounded difficulty</text>
+<text x="764" y="435" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="400" fill="#aab9c3">Send mining.set_difficulty after authorization.</text>
+<rect x="48" y="478" width="656" height="272" rx="16" fill="#151e25" stroke="#33434e"/>
+<text x="76" y="518" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="650" fill="#52e0ae">INDEPENDENT ROUNDS</text>
+<text x="76" y="563" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="31" font-weight="650" fill="#f0f6fc">One miner wins. Others keep going.</text>
+<text x="76" y="604" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="23" font-weight="600" fill="#f0f6fc">Miner A</text>
+<rect x="230" y="585" width="343" height="18" rx="9" fill="#33434e"/>
+<circle cx="239" cy="594" r="8" fill="#52e0ae"/>
+<text x="589" y="604" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" font-weight="400" fill="#52e0ae">Reset</text>
+<text x="76" y="652" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="23" font-weight="600" fill="#f0f6fc">Miner B</text>
+<rect x="230" y="633" width="343" height="18" rx="9" fill="#33434e"/>
+<rect x="230" y="633" width="248" height="18" rx="9" fill="#52e0ae"/>
+<text x="589" y="652" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" font-weight="400" fill="#52e0ae">Kept</text>
+<text x="76" y="706" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="22" font-weight="400" fill="#aab9c3">Round shares and luck tracked per payout identity.</text>
+<rect x="736" y="478" width="656" height="272" rx="16" fill="#151e25" stroke="#33434e"/>
+<text x="764" y="518" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="650" fill="#52e0ae">NODE CHOICE + RESILIENCE</text>
+<text x="764" y="563" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="31" font-weight="650" fill="#f0f6fc">Choose the node behind your pool.</text>
+<rect x="764" y="588" width="139" height="49" rx="9" fill="#133c32"/>
+<text x="780" y="621" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="24" font-weight="600" fill="#52e0ae">BCHN</text>
+<rect x="919" y="588" width="139" height="49" rx="9" fill="#133c32"/>
+<text x="935" y="621" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="24" font-weight="600" fill="#52e0ae">BCHD</text>
+<rect x="1074" y="588" width="290" height="49" rx="9" fill="#133c32"/>
+<text x="1090" y="621" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="24" font-weight="600" fill="#52e0ae">Flowee the Hub</text>
+<text x="764" y="678" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="22" font-weight="400" fill="#f0f6fc">Multi-node failover. RPC + notifications or polling.</text>
+<text x="764" y="716" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="400" fill="#aab9c3">BCHD and Flowee use the documented polling setup.</text>
+<rect x="48" y="774" width="656" height="272" rx="16" fill="#151e25" stroke="#33434e"/>
+<text x="76" y="814" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="650" fill="#52e0ae">REGIONAL LATENCY</text>
+<text x="76" y="859" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="31" font-weight="650" fill="#f0f6fc">Choose a location from your browser.</text>
+<text x="76" y="898" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="25" font-weight="600" fill="#f0f6fc">Visitor</text>
+<path d="M183 889 H267" fill="none" stroke="#52e0ae" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrow)"/>
+<circle cx="299" cy="876" r="5" fill="#52e0ae"/>
+<text x="317" y="883" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="24" font-weight="550" fill="#f0f6fc">Americas</text>
+<text x="500" y="883" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="22" font-weight="400" fill="#82caff">/ping</text>
+<circle cx="299" cy="917" r="5" fill="#52e0ae"/>
+<text x="317" y="924" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="24" font-weight="550" fill="#f0f6fc">Europe</text>
+<text x="500" y="924" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="22" font-weight="400" fill="#82caff">/ping</text>
+<circle cx="299" cy="958" r="5" fill="#52e0ae"/>
+<text x="317" y="965" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="24" font-weight="550" fill="#f0f6fc">Asia</text>
+<text x="500" y="965" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="22" font-weight="400" fill="#82caff">/ping</text>
+<text x="76" y="1014" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" font-weight="400" fill="#aab9c3">Compare browser → regional host HTTP round trips.</text>
+<rect x="736" y="774" width="656" height="272" rx="16" fill="#151e25" stroke="#33434e"/>
+<text x="764" y="814" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="650" fill="#52e0ae">OPERATOR VISIBILITY</text>
+<text x="764" y="859" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="31" font-weight="650" fill="#f0f6fc">Show the work. Show the result.</text>
+<text x="764" y="900" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="23" font-weight="400" fill="#82caff">/stats   /coinbase   /shares</text>
+<rect x="764" y="921" width="600" height="46" rx="9" fill="#133c32"/>
+<text x="785" y="952" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', monospace" font-size="25" font-weight="650" fill="#52e0ae">&gt; BLOCK ACCEPTED!</text>
+<text x="764" y="1014" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" font-weight="400" fill="#aab9c3">Read-only Go API + color-coded terminal monitoring.</text>
+<text x="48" y="1070" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" font-weight="400" fill="#aab9c3">Regional endpoint setup is operator-managed; /ping measures HTTP latency, not Stratum job delivery.</text>
+</svg>

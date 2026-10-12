@@ -1,10 +1,142 @@
 {
   "schema_version": 1,
-  "last_updated_utc": "2026-10-12T06:58:13Z",
+  "last_updated_utc": "2026-10-12T09:00:18Z",
   "network": "BCH mainnet",
-  "count": 78,
+  "count": 81,
   "method": "Local pool record hashes matched to public mainchain headers and coinbase tags. Local log excerpts are additional operator evidence, with finder identities redacted.",
   "blocks": [
+    {
+      "height": 972535,
+      "hash": "00000000000000000189d59e674d1f84bf4c63e7a97a484ed77e205527256638",
+      "block_time_utc": "2026-10-12T08:57:29Z",
+      "mainchain": true,
+      "coinbase_txid": "43afb021c5bde0d01cc72ebffaa501260cb3deed1a7bdf44a1cd7c5d5cd73ab2",
+      "coinbase_script_hex": "03f7d60e0004f9a0cc6a0473b8a3000ce073cc6a3a24bb7cfc000034252f426c6f636b536e697065722e61692f20414920536d61727420536f6c6f204d696e696e67",
+      "recognized_tags": [
+        "BlockSniper.ai",
+        "AI Smart Solo Mining"
+      ],
+      "checked_at_utc": "2026-10-12T09:00:19Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/972535",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/43afb021c5bde0d01cc72ebffaa501260cb3deed1a7bdf44a1cd7c5d5cd73ab2",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/972535",
+      "local_solve_log": "recovered",
+      "attribution": "BlockSniper.ai reference deployment",
+      "software": "CashStratum v1.2.1",
+      "solve_excerpt": "logs/972535-context.log",
+      "solve_excerpt_sha256": "02bec5e8275df4294baa82e3e6eaa154ed2967fd1199e266fad8e4ee877aed3a",
+      "original_solve_excerpt": "logs/972535.log",
+      "original_solve_excerpt_sha256": "846e8ebde9e7c47d4c9371462ced9982583ae3eb21f0b60a7798760ae7e9c959",
+      "proof_updated_at_utc": "2026-10-12T09:00:18Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 23,
+        "source_line_start": 1,
+        "source_line_end": 44,
+        "source_sha256": "b0dbb9d36b98e1d485245d55b3eb5038538f152f0a0beae11821985e136b4457",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12528740",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00028740",
+        "bch_usd": "285.12",
+        "gross_value_usd": "891.08",
+        "bitstamp_bch_usd": "285.13",
+        "price_candle_end_utc": "2026-10-12T08:55:00Z",
+        "price_age_seconds": 149,
+        "checked_at_utc": "2026-10-12T09:00:19Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
+    },
+    {
+      "height": 972529,
+      "hash": "0000000000000000019ef3d50081e6ec941d07fbd69e64381aafabf88f76c93e",
+      "block_time_utc": "2026-10-12T08:20:18Z",
+      "mainchain": true,
+      "coinbase_txid": "89fcd04ce97811d603cd5aaa39faa4eec55e540c655e6d38ff6da8725b562a96",
+      "coinbase_script_hex": "03f1d60e00044298cc6a049fd2d1380ce073cc6af547ba7cfc0eb400252f426c6f636b536e697065722e61692f20414920536d61727420536f6c6f204d696e696e67",
+      "recognized_tags": [
+        "BlockSniper.ai",
+        "AI Smart Solo Mining"
+      ],
+      "checked_at_utc": "2026-10-12T08:44:10Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/972529",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/89fcd04ce97811d603cd5aaa39faa4eec55e540c655e6d38ff6da8725b562a96",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/972529",
+      "local_solve_log": "recovered",
+      "attribution": "BlockSniper.ai reference deployment",
+      "software": "CashStratum v1.2.1",
+      "solve_excerpt": "logs/972529-context.log",
+      "solve_excerpt_sha256": "7f5f2e448c9ba25d3073f32d797434c99c70a4ab810a9316919a32b8cadffd69",
+      "original_solve_excerpt": "logs/972529.log",
+      "original_solve_excerpt_sha256": "976711f3d373988a62934cc5c3399bc2f362d9b6dbff674ce9dc4cbf521434fb",
+      "proof_updated_at_utc": "2026-10-12T08:44:09Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 1,
+        "source_line_end": 51,
+        "source_sha256": "7228bdc4864f5f176e685b40da2e2fc322aceaf1bd61bebc715221e5e5893d35",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12620441",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00120441",
+        "bch_usd": "284.86",
+        "gross_value_usd": "890.53",
+        "bitstamp_bch_usd": "285.07",
+        "price_candle_end_utc": "2026-10-12T08:20:00Z",
+        "price_age_seconds": 18,
+        "checked_at_utc": "2026-10-12T08:44:10Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
+    },
+    {
+      "height": 972524,
+      "hash": "0000000000000000023b3596d678001d1e1a9ef4a4209eb245d7ae78fd580c05",
+      "block_time_utc": "2026-10-12T07:37:58Z",
+      "mainchain": true,
+      "coinbase_txid": "e195411bc9ec1900f3f5f3eda6a230809642112a60c7446d44310f727a49b3d8",
+      "coinbase_script_hex": "03ecd60e0004568ecc6a048c28e5340ce073cc6a10d7b97cfc000027252f426c6f636b536e697065722e61692f20414920536d61727420536f6c6f204d696e696e67",
+      "recognized_tags": [
+        "BlockSniper.ai",
+        "AI Smart Solo Mining"
+      ],
+      "checked_at_utc": "2026-10-12T08:03:12Z",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/972524",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/e195411bc9ec1900f3f5f3eda6a230809642112a60c7446d44310f727a49b3d8",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/972524",
+      "local_solve_log": "recovered",
+      "attribution": "BlockSniper.ai reference deployment",
+      "software": "CashStratum v1.2.1",
+      "solve_excerpt": "logs/972524-context.log",
+      "solve_excerpt_sha256": "02d7a96f04c79ed9eeff59ab4a458a0538bada994fe5a293be4af090a2ea855e",
+      "original_solve_excerpt": "logs/972524.log",
+      "original_solve_excerpt_sha256": "02f9ffde17bfcd1dbf92117527043a8c5302662e06e1ac706874c0d1742d1dae",
+      "proof_updated_at_utc": "2026-10-12T08:03:11Z",
+      "context": {
+        "lines_before": 20,
+        "lines_after": 30,
+        "source_line_start": 1,
+        "source_line_end": 51,
+        "source_sha256": "b5a7e721e8b770bb8b0572633e4d6b37e97184cdcd5870ee9f1ebea8d5a424ee",
+        "redaction": "Strict event allowlist; all other messages replaced with explicit redaction markers; original timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12645157",
+        "subsidy_bch": "3.12500000",
+        "transaction_fees_bch": "0.00145157",
+        "bch_usd": "286.85",
+        "gross_value_usd": "896.82",
+        "bitstamp_bch_usd": "286.84",
+        "price_candle_end_utc": "2026-10-12T07:37:00Z",
+        "price_age_seconds": 58,
+        "checked_at_utc": "2026-10-12T08:03:12Z",
+        "method": "Coinbase BCH/USD last completed nonzero-volume minute close before block header timestamp; Bitstamp minute close retained separately."
+      }
+    },
     {
       "height": 972517,
       "hash": "0000000000000000007026b19ed14f97ed534f0145997e3c888d3ebad0ce0cf2",
@@ -2939,13 +3071,13 @@
     }
   ],
   "valuation_summary": {
-    "blocks": 78,
-    "gross_reward_bch": "243.94151949",
-    "subsidy_bch": "243.75000000",
-    "transaction_fees_bch": "0.19151949",
-    "historical_gross_value_usd": "129968.85",
-    "bitstamp_comparison_total_usd": "129994.66",
+    "blocks": 81,
+    "gross_reward_bch": "253.31946287",
+    "subsidy_bch": "253.12500000",
+    "transaction_fees_bch": "0.19446287",
+    "historical_gross_value_usd": "132647.28",
+    "bitstamp_comparison_total_usd": "132673.75",
     "maximum_source_difference_percent": "0.4658",
-    "maximum_primary_price_age_seconds": 147
+    "maximum_primary_price_age_seconds": 149
   }
 }

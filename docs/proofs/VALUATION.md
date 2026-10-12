@@ -1,10 +1,10 @@
 # Historical BCH rewards and USD valuation
 
-**Updated:** 2026-09-05T22:37:38Z
+**Updated:** 2026-10-12T06:58:13Z
 
-**69 blocks · 215.80288934 BCH · approximately $121,575.15 USD at historical prices.**
+**78 blocks · 243.94151949 BCH · approximately $129,968.85 USD at historical prices.**
 
-The BCH total consists of **215.62500000 BCH subsidy** and **0.17788934 BCH transaction fees**. It is the gross coinbase reward, including all outputs, before any operator/miner split.
+The BCH total consists of **243.75000000 BCH subsidy** and **0.19151949 BCH transaction fees**. It is the gross coinbase reward, including all outputs, before any operator/miner split.
 
 ## Method
 
@@ -14,11 +14,10 @@ The BCH total consists of **215.62500000 BCH subsidy** and **0.17788934 BCH tran
 4. Record the Bitstamp BCH/USD last completed one-minute candle separately as a comparison. Some Bitstamp candles have zero volume and carry a previous price; their volumes are preserved in JSON. Do not average differently traded market observations.
 5. Multiply exact BCH by the primary price using decimal arithmetic, round each USD result half-up to cents, then sum those displayed values.
 
-All 69 blocks have both sources. Maximum primary candle-end age: **147 seconds**. Maximum quote difference: **0.4658%**. Using Bitstamp instead produces **$121,598.10**.
+All 78 blocks have both sources. Maximum primary candle-end age: **147 seconds**. Maximum quote difference: **0.4658%**. Using Bitstamp instead produces **$129,994.66**.
 
 These are historical gross-value estimates, not sale proceeds, profit, present value or a
 guarantee of earnings. No electricity, rental, operating or exchange costs are deducted.
-The count describes the predecessor deployment of this modified CKPool lineage.
 
 ## Sources and reproducibility
 
@@ -32,9 +31,18 @@ The count describes the predecessor deployment of this modified CKPool lineage.
 
 | Block | Date/time (UTC) | Gross BCH | BCH/USD — Coinbase | Gross USD estimate | BCH/USD — Bitstamp |
 |---|---|---|---|---|---|
+| [972517](https://www.blockchain.com/explorer/blocks/bch/972517) | 2026-10-12T06:26:54Z | 3.12535292 | $286.33 | $894.88 | $286.32 |
+| [972318](https://www.blockchain.com/explorer/blocks/bch/972318) | 2026-10-10T18:34:48Z | 3.12670989 | $280.27 | $876.32 | $279.94 |
+| [972313](https://www.blockchain.com/explorer/blocks/bch/972313) | 2026-10-10T17:59:58Z | 3.12766941 | $279.90 | $875.43 | $280.03 |
+| [972310](https://www.blockchain.com/explorer/blocks/bch/972310) | 2026-10-10T17:36:18Z | 3.12535461 | $280.16 | $875.60 | $280.26 |
+| [971860](https://www.blockchain.com/explorer/blocks/bch/971860) | 2026-10-07T11:04:52Z | 3.12500998 | $303.56 | $948.63 | $303.78 |
+| [971817](https://www.blockchain.com/explorer/blocks/bch/971817) | 2026-10-07T02:45:23Z | 3.12910966 | $305.80 | $956.88 | $306.26 |
+| [971770](https://www.blockchain.com/explorer/blocks/bch/971770) | 2026-10-06T18:07:48Z | 3.12575307 | $315.16 | $985.11 | $315.60 |
+| [971744](https://www.blockchain.com/explorer/blocks/bch/971744) | 2026-10-06T14:15:20Z | 3.12597374 | $316.07 | $988.03 | $315.86 |
+| [971726](https://www.blockchain.com/explorer/blocks/bch/971726) | 2026-10-06T11:05:31Z | 3.12769687 | $317.43 | $992.82 | $317.54 |
 | [966569](https://www.blockchain.com/explorer/blocks/bch/966569) | 2026-09-01T03:50:05Z | 3.12542747 | $247.68 | $774.11 | $247.60 |
 | [928165](https://www.blockchain.com/explorer/blocks/bch/928165) | 2025-12-06T08:33:03Z | 3.12570713 | $573.61 | $1,792.94 | $573.75 |
-| [928098](https://www.blockchain.com/explorer/blocks/bch/928098) | 2025-12-05T21:48:01Z | 3.12636404 | $561.7 | $1,756.08 | $561.93 |
+| [928098](https://www.blockchain.com/explorer/blocks/bch/928098) | 2025-12-05T21:48:01Z | 3.12636404 | $561.70 | $1,756.08 | $561.93 |
 | [916984](https://www.blockchain.com/explorer/blocks/bch/916984) | 2025-09-20T10:02:02Z | 3.12630717 | $601.58 | $1,880.72 | $601.43 |
 | [916429](https://www.blockchain.com/explorer/blocks/bch/916429) | 2025-09-16T16:46:10Z | 3.12644433 | $597.45 | $1,867.89 | $597.35 |
 | [916154](https://www.blockchain.com/explorer/blocks/bch/916154) | 2025-09-14T20:24:45Z | 3.12613920 | $594.67 | $1,859.02 | $595.69 |
@@ -56,8 +64,8 @@ The count describes the predecessor deployment of this modified CKPool lineage.
 | [913959](https://www.blockchain.com/explorer/blocks/bch/913959) | 2025-08-30T18:52:28Z | 3.12535111 | $543.39 | $1,698.28 | $543.53 |
 | [913820](https://www.blockchain.com/explorer/blocks/bch/913820) | 2025-08-29T21:30:32Z | 3.12591546 | $532.44 | $1,664.36 | $529.96 |
 | [913680](https://www.blockchain.com/explorer/blocks/bch/913680) | 2025-08-28T21:41:37Z | 3.12629823 | $552.56 | $1,727.47 | $552.93 |
-| [913451](https://www.blockchain.com/explorer/blocks/bch/913451) | 2025-08-27T06:54:42Z | 3.12507532 | $556.5 | $1,739.10 | $557.63 |
-| [913423](https://www.blockchain.com/explorer/blocks/bch/913423) | 2025-08-27T03:28:18Z | 3.12612515 | $547.3 | $1,710.93 | $547.03 |
+| [913451](https://www.blockchain.com/explorer/blocks/bch/913451) | 2025-08-27T06:54:42Z | 3.12507532 | $556.50 | $1,739.10 | $557.63 |
+| [913423](https://www.blockchain.com/explorer/blocks/bch/913423) | 2025-08-27T03:28:18Z | 3.12612515 | $547.30 | $1,710.93 | $547.03 |
 | [913256](https://www.blockchain.com/explorer/blocks/bch/913256) | 2025-08-25T21:10:12Z | 3.12562966 | $540.23 | $1,688.56 | $539.51 |
 | [912928](https://www.blockchain.com/explorer/blocks/bch/912928) | 2025-08-23T14:20:52Z | 3.12593850 | $591.19 | $1,848.02 | $592.20 |
 | [912893](https://www.blockchain.com/explorer/blocks/bch/912893) | 2025-08-23T09:19:27Z | 3.12594102 | $589.45 | $1,842.59 | $589.55 |
@@ -87,10 +95,10 @@ The count describes the predecessor deployment of this modified CKPool lineage.
 | [910200](https://www.blockchain.com/explorer/blocks/bch/910200) | 2025-08-04T18:36:27Z | 3.12513980 | $566.45 | $1,770.24 | $566.35 |
 | [910003](https://www.blockchain.com/explorer/blocks/bch/910003) | 2025-08-03T12:54:27Z | 3.12624401 | $541.62 | $1,693.24 | $541.30 |
 | [909933](https://www.blockchain.com/explorer/blocks/bch/909933) | 2025-08-03T00:47:04Z | 3.12616799 | $521.34 | $1,629.80 | $522.08 |
-| [909930](https://www.blockchain.com/explorer/blocks/bch/909930) | 2025-08-02T23:54:20Z | 3.12572107 | $519.9 | $1,625.06 | $520.58 |
+| [909930](https://www.blockchain.com/explorer/blocks/bch/909930) | 2025-08-02T23:54:20Z | 3.12572107 | $519.90 | $1,625.06 | $520.58 |
 | [909890](https://www.blockchain.com/explorer/blocks/bch/909890) | 2025-08-02T18:12:32Z | 3.12798370 | $526.86 | $1,648.01 | $527.08 |
 | [909866](https://www.blockchain.com/explorer/blocks/bch/909866) | 2025-08-02T12:59:17Z | 3.12558933 | $536.83 | $1,677.91 | $536.81 |
-| [909802](https://www.blockchain.com/explorer/blocks/bch/909802) | 2025-08-02T02:57:20Z | 3.13888283 | $540.9 | $1,697.82 | $540.60 |
+| [909802](https://www.blockchain.com/explorer/blocks/bch/909802) | 2025-08-02T02:57:20Z | 3.13888283 | $540.90 | $1,697.82 | $540.60 |
 | [909720](https://www.blockchain.com/explorer/blocks/bch/909720) | 2025-08-01T12:04:27Z | 3.12543440 | $558.81 | $1,746.52 | $558.86 |
 | [909701](https://www.blockchain.com/explorer/blocks/bch/909701) | 2025-08-01T08:55:07Z | 3.12640144 | $555.72 | $1,737.40 | $556.51 |
 | [909669](https://www.blockchain.com/explorer/blocks/bch/909669) | 2025-08-01T04:11:42Z | 3.12635187 | $568.37 | $1,776.92 | $568.29 |

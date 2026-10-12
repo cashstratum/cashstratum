@@ -9,7 +9,7 @@ root = Path(__file__).resolve().parent
 data = json.loads((root / 'valuations.json').read_text())
 proofs = {b['height']: b for b in json.loads((root / 'blocks.json').read_text())['blocks']}
 rows = data['blocks']
-assert len(rows) == 69 == len({b['height'] for b in rows})
+assert len(rows) == data['summary']['blocks'] == len({b['height'] for b in rows})
 assert {b['height'] for b in rows} == set(proofs)
 sats = subsidy = fees = 0
 usd = secondary = D(0)
@@ -46,4 +46,4 @@ assert D(summary['subsidy_bch']) == D(subsidy) / D(100000000)
 assert D(summary['transaction_fees_bch']) == D(fees) / D(100000000)
 assert D(summary['historical_gross_value_usd']) == usd
 assert D(summary['bitstamp_comparison_total_usd']) == secondary
-print(f"69 valuations verified: {summary['gross_reward_bch']} BCH; ${usd:,.2f} historical gross value.")
+print(f"{len(rows)} valuations verified: {summary['gross_reward_bch']} BCH; ${usd:,.2f} historical gross value.")

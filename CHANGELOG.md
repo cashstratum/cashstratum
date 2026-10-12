@@ -7,6 +7,33 @@ says so rather than implying one.
 
 ---
 
+## 1.2.3 — 2026-10-12
+
+Documentation and proof release. **No engine, API or installer code changed**; a 1.2.2 build
+and a 1.2.3 build are functionally identical.
+
+### Added
+
+- **Nine blocks found by the released CashStratum 1.2.1 build** join the production proofs:
+  971726, 971744, 971770, 971817, 971860, 972310, 972313, 972318 and 972517 (2026-10-06 →
+  2026-10-12, 28.13863015 BCH gross). They are the first blocks found by a tagged CashStratum
+  release rather than its predecessor fork. Each record carries a redacted solve excerpt with
+  SHA-256 checksums for the excerpt and its source, and a two-exchange valuation.
+- **Block 966569 now has its solve excerpt**, recovered from a preserved log; it was previously
+  listed as not recovered.
+- **`software` field** on proof records whose deployment record names the running release.
+
+### Changed
+
+- **Proof collection: 69 → 78 blocks, 215.80288934 → 243.94151949 BCH, ≈ $121,575.15 →
+  ≈ $129,968.85** at historical prices. Solve excerpts: 35 → 45. All 78 re-verified against
+  the public chain on 2026-10-12.
+- **`verify-values.py`** reads the block count from the data instead of a hard-coded 69.
+- **README** rebuilt around the evidence: headline figures, the proof timeline by era, a
+  verify-it-yourself walkthrough and a documentation map.
+
+---
+
 ## 1.2.2 — 2026-10-06
 
 Adds BCHD and Flowee the Hub as supported nodes and refuses block templates without a usable

@@ -1,18 +1,459 @@
 {
   "schema_version": 1,
-  "last_updated_utc": "2026-09-05T22:37:38Z",
+  "last_updated_utc": "2026-10-12T06:58:13Z",
   "summary": {
-    "blocks": 69,
-    "gross_reward_bch": "215.80288934",
-    "subsidy_bch": "215.62500000",
-    "transaction_fees_bch": "0.17788934",
-    "historical_gross_value_usd": "121575.15",
-    "bitstamp_comparison_total_usd": "121598.10",
+    "blocks": 78,
+    "gross_reward_bch": "243.94151949",
+    "subsidy_bch": "243.75000000",
+    "transaction_fees_bch": "0.19151949",
+    "historical_gross_value_usd": "129968.85",
+    "bitstamp_comparison_total_usd": "129994.66",
     "maximum_source_difference_percent": "0.4658",
     "maximum_primary_price_age_seconds": 147
   },
   "method": "Gross coinbase outputs multiplied by Coinbase BCH/USD completed minute close. Per-block USD rounded half-up to cents; total is sum of rounded rows. Bitstamp is a separate comparison, not averaged. Block-header UTC times are the valuation anchor; prices are historical estimates, not exact execution prices or net profit.",
   "blocks": [
+    {
+      "height": 972517,
+      "block_time_utc": "2026-10-12T06:26:54Z",
+      "gross_reward_bch": "3.12535292",
+      "subsidy_bch": "3.12500000",
+      "transaction_fees_bch": "0.00035292",
+      "bch_usd": "286.33",
+      "gross_value_usd": "894.88",
+      "bitstamp_bch_usd": "286.32",
+      "bitstamp_comparison_value_usd": "894.85",
+      "source_difference_percent": "0.0035",
+      "price_candle_end_utc": "2026-10-12T06:26:00Z",
+      "price_age_seconds": 54,
+      "checked_at_utc": "2026-10-12T06:58:24Z",
+      "evidence": {
+        "height": 972517,
+        "reward_satoshis": 312535292,
+        "subsidy_satoshis": 312500000,
+        "fees_satoshis": 35292,
+        "coinbase_outputs_satoshis": [
+          306284587,
+          6250705
+        ],
+        "coinbase": {
+          "url": "https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1791782760&end=1791786360&granularity=ONE_MINUTE&limit=100",
+          "candle": {
+            "start": "1791786300",
+            "low": "286.33",
+            "high": "286.33",
+            "open": "286.33",
+            "close": "286.33",
+            "volume": "0.01476373"
+          }
+        },
+        "bitstamp": {
+          "url": "https://www.bitstamp.net/api/v2/ohlc/bchusd/?step=60&limit=61&end=1791786360",
+          "candle": {
+            "timestamp": "1791786300",
+            "open": "286.32",
+            "high": "286.32",
+            "low": "286.32",
+            "close": "286.32",
+            "volume": "0.15861756"
+          }
+        },
+        "block_timestamp": 1791786414,
+        "retrieved_at_utc": "2026-10-12T06:58:24Z"
+      }
+    },
+    {
+      "height": 972318,
+      "block_time_utc": "2026-10-10T18:34:48Z",
+      "gross_reward_bch": "3.12670989",
+      "subsidy_bch": "3.12500000",
+      "transaction_fees_bch": "0.00170989",
+      "bch_usd": "280.27",
+      "gross_value_usd": "876.32",
+      "bitstamp_bch_usd": "279.94",
+      "bitstamp_comparison_value_usd": "875.29",
+      "source_difference_percent": "0.1177",
+      "price_candle_end_utc": "2026-10-10T18:34:00Z",
+      "price_age_seconds": 48,
+      "checked_at_utc": "2026-10-12T06:58:23Z",
+      "evidence": {
+        "height": 972318,
+        "reward_satoshis": 312670989,
+        "subsidy_satoshis": 312500000,
+        "fees_satoshis": 170989,
+        "coinbase_outputs_satoshis": [
+          306417570,
+          6253419
+        ],
+        "coinbase": {
+          "url": "https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1791653640&end=1791657240&granularity=ONE_MINUTE&limit=100",
+          "candle": {
+            "start": "1791657180",
+            "low": "280.12",
+            "high": "280.27",
+            "open": "280.12",
+            "close": "280.27",
+            "volume": "1.88785646"
+          }
+        },
+        "bitstamp": {
+          "url": "https://www.bitstamp.net/api/v2/ohlc/bchusd/?step=60&limit=61&end=1791657240",
+          "candle": {
+            "timestamp": "1791657180",
+            "open": "279.94",
+            "high": "279.94",
+            "low": "279.94",
+            "close": "279.94",
+            "volume": "0.00000000"
+          }
+        },
+        "block_timestamp": 1791657288,
+        "retrieved_at_utc": "2026-10-12T06:58:23Z"
+      }
+    },
+    {
+      "height": 972313,
+      "block_time_utc": "2026-10-10T17:59:58Z",
+      "gross_reward_bch": "3.12766941",
+      "subsidy_bch": "3.12500000",
+      "transaction_fees_bch": "0.00266941",
+      "bch_usd": "279.9",
+      "gross_value_usd": "875.43",
+      "bitstamp_bch_usd": "280.03",
+      "bitstamp_comparison_value_usd": "875.84",
+      "source_difference_percent": "0.0464",
+      "price_candle_end_utc": "2026-10-10T17:59:00Z",
+      "price_age_seconds": 58,
+      "checked_at_utc": "2026-10-12T06:58:22Z",
+      "evidence": {
+        "height": 972313,
+        "reward_satoshis": 312766941,
+        "subsidy_satoshis": 312500000,
+        "fees_satoshis": 266941,
+        "coinbase_outputs_satoshis": [
+          306511603,
+          6255338
+        ],
+        "coinbase": {
+          "url": "https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1791651540&end=1791655140&granularity=ONE_MINUTE&limit=100",
+          "candle": {
+            "start": "1791655080",
+            "low": "279.9",
+            "high": "280.04",
+            "open": "280.04",
+            "close": "279.9",
+            "volume": "2.16817797"
+          }
+        },
+        "bitstamp": {
+          "url": "https://www.bitstamp.net/api/v2/ohlc/bchusd/?step=60&limit=61&end=1791655140",
+          "candle": {
+            "timestamp": "1791655080",
+            "open": "280.03",
+            "high": "280.03",
+            "low": "280.03",
+            "close": "280.03",
+            "volume": "0.00000000"
+          }
+        },
+        "block_timestamp": 1791655198,
+        "retrieved_at_utc": "2026-10-12T06:58:22Z"
+      }
+    },
+    {
+      "height": 972310,
+      "block_time_utc": "2026-10-10T17:36:18Z",
+      "gross_reward_bch": "3.12535461",
+      "subsidy_bch": "3.12500000",
+      "transaction_fees_bch": "0.00035461",
+      "bch_usd": "280.16",
+      "gross_value_usd": "875.60",
+      "bitstamp_bch_usd": "280.26",
+      "bitstamp_comparison_value_usd": "875.91",
+      "source_difference_percent": "0.0357",
+      "price_candle_end_utc": "2026-10-10T17:36:00Z",
+      "price_age_seconds": 18,
+      "checked_at_utc": "2026-10-12T06:58:20Z",
+      "evidence": {
+        "height": 972310,
+        "reward_satoshis": 312535461,
+        "subsidy_satoshis": 312500000,
+        "fees_satoshis": 35461,
+        "coinbase_outputs_satoshis": [
+          306284752,
+          6250709
+        ],
+        "coinbase": {
+          "url": "https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1791650160&end=1791653760&granularity=ONE_MINUTE&limit=100",
+          "candle": {
+            "start": "1791653700",
+            "low": "280.13",
+            "high": "280.19",
+            "open": "280.13",
+            "close": "280.16",
+            "volume": "4.73735169"
+          }
+        },
+        "bitstamp": {
+          "url": "https://www.bitstamp.net/api/v2/ohlc/bchusd/?step=60&limit=61&end=1791653760",
+          "candle": {
+            "timestamp": "1791653700",
+            "open": "280.26",
+            "high": "280.26",
+            "low": "280.26",
+            "close": "280.26",
+            "volume": "0.00000000"
+          }
+        },
+        "block_timestamp": 1791653778,
+        "retrieved_at_utc": "2026-10-12T06:58:20Z"
+      }
+    },
+    {
+      "height": 971860,
+      "block_time_utc": "2026-10-07T11:04:52Z",
+      "gross_reward_bch": "3.12500998",
+      "subsidy_bch": "3.12500000",
+      "transaction_fees_bch": "0.00000998",
+      "bch_usd": "303.56",
+      "gross_value_usd": "948.63",
+      "bitstamp_bch_usd": "303.78",
+      "bitstamp_comparison_value_usd": "949.32",
+      "source_difference_percent": "0.0725",
+      "price_candle_end_utc": "2026-10-07T11:04:00Z",
+      "price_age_seconds": 52,
+      "checked_at_utc": "2026-10-12T06:58:19Z",
+      "evidence": {
+        "height": 971860,
+        "reward_satoshis": 312500998,
+        "subsidy_satoshis": 312500000,
+        "fees_satoshis": 998,
+        "coinbase_outputs_satoshis": [
+          306250979,
+          6250019
+        ],
+        "coinbase": {
+          "url": "https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1791367440&end=1791371040&granularity=ONE_MINUTE&limit=100",
+          "candle": {
+            "start": "1791370980",
+            "low": "303.52",
+            "high": "303.56",
+            "open": "303.52",
+            "close": "303.56",
+            "volume": "18.69400949"
+          }
+        },
+        "bitstamp": {
+          "url": "https://www.bitstamp.net/api/v2/ohlc/bchusd/?step=60&limit=61&end=1791371040",
+          "candle": {
+            "timestamp": "1791370980",
+            "open": "303.78",
+            "high": "303.78",
+            "low": "303.78",
+            "close": "303.78",
+            "volume": "0.00000000"
+          }
+        },
+        "block_timestamp": 1791371092,
+        "retrieved_at_utc": "2026-10-12T06:58:19Z"
+      }
+    },
+    {
+      "height": 971817,
+      "block_time_utc": "2026-10-07T02:45:23Z",
+      "gross_reward_bch": "3.12910966",
+      "subsidy_bch": "3.12500000",
+      "transaction_fees_bch": "0.00410966",
+      "bch_usd": "305.8",
+      "gross_value_usd": "956.88",
+      "bitstamp_bch_usd": "306.26",
+      "bitstamp_comparison_value_usd": "958.32",
+      "source_difference_percent": "0.1504",
+      "price_candle_end_utc": "2026-10-07T02:45:00Z",
+      "price_age_seconds": 23,
+      "checked_at_utc": "2026-10-12T06:58:18Z",
+      "evidence": {
+        "height": 971817,
+        "reward_satoshis": 312910966,
+        "subsidy_satoshis": 312500000,
+        "fees_satoshis": 410966,
+        "coinbase_outputs_satoshis": [
+          306652747,
+          6258219
+        ],
+        "coinbase": {
+          "url": "https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1791337500&end=1791341100&granularity=ONE_MINUTE&limit=100",
+          "candle": {
+            "start": "1791341040",
+            "low": "305.72",
+            "high": "305.99",
+            "open": "305.99",
+            "close": "305.8",
+            "volume": "123.13801136"
+          }
+        },
+        "bitstamp": {
+          "url": "https://www.bitstamp.net/api/v2/ohlc/bchusd/?step=60&limit=61&end=1791341100",
+          "candle": {
+            "timestamp": "1791341040",
+            "open": "306.26",
+            "high": "306.26",
+            "low": "306.26",
+            "close": "306.26",
+            "volume": "0.00000000"
+          }
+        },
+        "block_timestamp": 1791341123,
+        "retrieved_at_utc": "2026-10-12T06:58:18Z"
+      }
+    },
+    {
+      "height": 971770,
+      "block_time_utc": "2026-10-06T18:07:48Z",
+      "gross_reward_bch": "3.12575307",
+      "subsidy_bch": "3.12500000",
+      "transaction_fees_bch": "0.00075307",
+      "bch_usd": "315.16",
+      "gross_value_usd": "985.11",
+      "bitstamp_bch_usd": "315.60",
+      "bitstamp_comparison_value_usd": "986.49",
+      "source_difference_percent": "0.1396",
+      "price_candle_end_utc": "2026-10-06T18:07:00Z",
+      "price_age_seconds": 48,
+      "checked_at_utc": "2026-10-12T06:58:17Z",
+      "evidence": {
+        "height": 971770,
+        "reward_satoshis": 312575307,
+        "subsidy_satoshis": 312500000,
+        "fees_satoshis": 75307,
+        "coinbase_outputs_satoshis": [
+          306323801,
+          6251506
+        ],
+        "coinbase": {
+          "url": "https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1791306420&end=1791310020&granularity=ONE_MINUTE&limit=100",
+          "candle": {
+            "start": "1791309960",
+            "low": "315.16",
+            "high": "315.23",
+            "open": "315.22",
+            "close": "315.16",
+            "volume": "1.69516485"
+          }
+        },
+        "bitstamp": {
+          "url": "https://www.bitstamp.net/api/v2/ohlc/bchusd/?step=60&limit=61&end=1791310020",
+          "candle": {
+            "timestamp": "1791309960",
+            "open": "315.60",
+            "high": "315.60",
+            "low": "315.60",
+            "close": "315.60",
+            "volume": "0.00000000"
+          }
+        },
+        "block_timestamp": 1791310068,
+        "retrieved_at_utc": "2026-10-12T06:58:17Z"
+      }
+    },
+    {
+      "height": 971744,
+      "block_time_utc": "2026-10-06T14:15:20Z",
+      "gross_reward_bch": "3.12597374",
+      "subsidy_bch": "3.12500000",
+      "transaction_fees_bch": "0.00097374",
+      "bch_usd": "316.07",
+      "gross_value_usd": "988.03",
+      "bitstamp_bch_usd": "315.86",
+      "bitstamp_comparison_value_usd": "987.37",
+      "source_difference_percent": "0.0664",
+      "price_candle_end_utc": "2026-10-06T14:15:00Z",
+      "price_age_seconds": 20,
+      "checked_at_utc": "2026-10-12T06:58:15Z",
+      "evidence": {
+        "height": 971744,
+        "reward_satoshis": 312597374,
+        "subsidy_satoshis": 312500000,
+        "fees_satoshis": 97374,
+        "coinbase_outputs_satoshis": [
+          306345427,
+          6251947
+        ],
+        "coinbase": {
+          "url": "https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1791292500&end=1791296100&granularity=ONE_MINUTE&limit=100",
+          "candle": {
+            "start": "1791296040",
+            "low": "315.99",
+            "high": "316.12",
+            "open": "316.12",
+            "close": "316.07",
+            "volume": "1.00305105"
+          }
+        },
+        "bitstamp": {
+          "url": "https://www.bitstamp.net/api/v2/ohlc/bchusd/?step=60&limit=61&end=1791296100",
+          "candle": {
+            "timestamp": "1791296040",
+            "open": "315.86",
+            "high": "315.86",
+            "low": "315.86",
+            "close": "315.86",
+            "volume": "0.33356710"
+          }
+        },
+        "block_timestamp": 1791296120,
+        "retrieved_at_utc": "2026-10-12T06:58:15Z"
+      }
+    },
+    {
+      "height": 971726,
+      "block_time_utc": "2026-10-06T11:05:31Z",
+      "gross_reward_bch": "3.12769687",
+      "subsidy_bch": "3.12500000",
+      "transaction_fees_bch": "0.00269687",
+      "bch_usd": "317.43",
+      "gross_value_usd": "992.82",
+      "bitstamp_bch_usd": "317.54",
+      "bitstamp_comparison_value_usd": "993.17",
+      "source_difference_percent": "0.0347",
+      "price_candle_end_utc": "2026-10-06T11:05:00Z",
+      "price_age_seconds": 31,
+      "checked_at_utc": "2026-10-12T06:58:14Z",
+      "evidence": {
+        "height": 971726,
+        "reward_satoshis": 312769687,
+        "subsidy_satoshis": 312500000,
+        "fees_satoshis": 269687,
+        "coinbase_outputs_satoshis": [
+          306514294,
+          6255393
+        ],
+        "coinbase": {
+          "url": "https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1791281100&end=1791284700&granularity=ONE_MINUTE&limit=100",
+          "candle": {
+            "start": "1791284640",
+            "low": "317.42",
+            "high": "317.43",
+            "open": "317.42",
+            "close": "317.43",
+            "volume": "0.62974948"
+          }
+        },
+        "bitstamp": {
+          "url": "https://www.bitstamp.net/api/v2/ohlc/bchusd/?step=60&limit=61&end=1791284700",
+          "candle": {
+            "timestamp": "1791284640",
+            "open": "317.54",
+            "high": "317.54",
+            "low": "317.54",
+            "close": "317.54",
+            "volume": "0.00000000"
+          }
+        },
+        "block_timestamp": 1791284731,
+        "retrieved_at_utc": "2026-10-12T06:58:14Z"
+      }
+    },
     {
       "height": 966569,
       "block_time_utc": "2026-09-01T03:50:05Z",

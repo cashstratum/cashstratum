@@ -20,6 +20,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
+/* Certificate format version (spec 04 §4.5.3), not the authority key prefix. */
+#define SV2_NOISE_CERT_VERSION 0
+
 /* Opaque Noise session (one per SV2 TCP connection). */
 typedef struct sv2_noise_session sv2_noise_session_t;
 
@@ -30,6 +33,7 @@ struct sv2_noise_server_keys {
 	uint8_t static_xonly[32];	/* server static x-only pub for cert */
 	uint8_t authority_sk[32];	/* authority private (signs cert) */
 	uint8_t authority_xonly[32];	/* authority public (published to miners) */
+	/* Initial window; its duration is reused for per-handshake renewal. */
 	uint32_t cert_valid_from;
 	uint32_t cert_not_valid_after;
 	uint16_t cert_version;
@@ -60,7 +64,7 @@ bool sv2_noise_client_act1(sv2_noise_session_t *s, uint8_t out[64]);
 
 /* Initiator act 2: process the 234-byte responder message (e, ee, encrypted
  * static, es, encrypted SIGNATURE_NOISE_MESSAGE). Verifies the server
- * certificate against the authority key and its validity window, then derives
+ * certificate version, authority signature and validity window, then derives
  * transport CipherStates. Returns false on any failure (drop the connection).
  * After success use sv2_noise_encrypt_frame / sv2_noise_decrypt_frame. */
 bool sv2_noise_client_act2(sv2_noise_session_t *s, const uint8_t *in, size_t inlen);
@@ -94,7 +98,8 @@ void sv2_noise_test_set_transport_nonces(sv2_noise_session_t *s,
 					 uint64_t send_n, uint64_t recv_n);
 
 /* Base58Check encode authority pubkey for URL path (spec 04 §4.7). Caller frees.
- * Form: base58check( LE_u16(1) || xonly_pubkey[32] ) */
+ * Form: base58check( LE_u16(1) || xonly_pubkey[32] )
+ * The prefix versions the key encoding only, not the certificate format. */
 char *sv2_noise_authority_pubkey_b58(const struct sv2_noise_server_keys *keys);
 
 /* Test helper: encode raw 32-byte x-only pubkey the same way. Caller frees. */

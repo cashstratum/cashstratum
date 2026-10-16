@@ -7,6 +7,27 @@ says so rather than implying one.
 
 ---
 
+## 1.2.5 — 2026-10-16
+
+Engine release limited to the Stratum V2 Noise handshake. Builds configured with `--disable-sv2`
+are functionally identical to 1.2.4.
+
+- Stratum V2 Noise certificates now carry format version **0**, as the SV2 specification requires.
+  The listener previously signed version **1**. Initiators that enforce the specification, such as
+  SRI `noise_sv2` **2.0.0** and later, rejected the handshake with `InvalidCertificate`; they can now
+  complete it. The wire observation and the SRI rejection are documented in
+  cashstratum/cashstratum#3. Upstream CKPool fixed the same defect in `528b9baf`.
+- CashStratum's own SV2 client (ckproxy and the job-declarator client) now rejects any certificate
+  version other than 0 before it checks the signature.
+- Certificates served by a long-running SV2 listener are re-dated for each handshake when they are
+  within one day of expiry. The validity window was previously fixed at key-load time, so a listener
+  up for more than 365 days served an expired certificate. Ports upstream CKPool commit `3c45dbe8`.
+
+Operator note: restart the pool server to serve the new certificate. It is signed under the same
+authority key, so published `stratum2+tcp://host:port/<key>` URLs do not change. Roll out pool
+servers before proxies and job-declarator clients: an updated client refuses an upstream that still
+serves version 1.
+
 ## 1.2.4 — 2026-10-12
 
 - Refresh the README with light/dark feature artwork, linked node logos, real block evidence,

@@ -6,6 +6,7 @@
  * Validates:
  *  - ECDH ell_a/ell_b ordering (initiator vs responder) produces matching keys
  *  - SIGNATURE_NOISE_MESSAGE verifies under the authority key
+ *  - Certificate version 0 is sent; unsupported versions are rejected
  *  - Transport AEAD round-trip
  *  - Header decrypt is not re-run on incomplete payload (nonce desync bug)
  */
@@ -220,6 +221,10 @@ static bool verify_cert(struct initiator *ini, const uint8_t sigmsg[74])
 	uint8_t signed_fields[42];
 	uint8_t mhash[32];
 	secp256k1_xonly_pubkey auth;
+
+	/* Spec 04 §4.5.3 requires certificate version 0 on the wire. */
+	if (sigmsg[0] != 0 || sigmsg[1] != 0)
+		return false;
 
 	/* Reconstruct signed material: version|from|to|server_xonly */
 	memcpy(signed_fields, sigmsg, 10);
@@ -520,6 +525,62 @@ int main(void)
 		sv2_noise_session_free(bresp);
 		sv2_noise_session_free(bcli);
 		printf("sv2_noise_hs: src initiator interop + wrong-key reject OK\n");
+	}
+
+	/* Simulate keys loaded over a year ago. New handshakes renew dates,
+	 * retain the configured duration and leave shared key material untouched. */
+	{
+		struct sv2_noise_server_keys old = keys, saved;
+		sv2_noise_session_t *sresp, *scli;
+		uint32_t now = (uint32_t)time(NULL);
+
+		old.cert_valid_from = now - 366u * 86400;
+		old.cert_not_valid_after = now - 86400;
+		saved = old;
+		sresp = sv2_noise_session_new(&old);
+		scli = sv2_noise_client_session_new(old.authority_xonly);
+		if (!sresp || !scli || !sv2_noise_client_act1(scli, act1) ||
+		    !sv2_noise_handshake_read(sresp, act1, sizeof(act1), &act2, &act2len) ||
+		    !sv2_noise_client_act2(scli, act2, act2len))
+			return fail("long uptime certificate renewal");
+		if (memcmp(&old, &saved, sizeof(old)))
+			return fail("renewal modified shared keys");
+		dealloc(act2);
+		act2 = NULL;
+		sv2_noise_session_free(sresp);
+		sv2_noise_session_free(scli);
+		sv2_noise_server_keys_clear(&old);
+		sv2_noise_server_keys_clear(&saved);
+		printf("sv2_noise_hs: long uptime certificate renewal OK\n");
+	}
+
+	/* Correctly signed certificates with unsupported versions must fail.
+	 * Exercise both bytes of the U16 version, including the old ckpool value. */
+	{
+		static const uint16_t versions[] = { 1, 0x0100, 0xffff };
+		size_t i;
+
+		for (i = 0; i < sizeof(versions) / sizeof(versions[0]); i++) {
+			sv2_noise_session_t *sresp, *scli;
+
+			keys.cert_version = versions[i];
+			sresp = sv2_noise_session_new(&keys);
+			scli = sv2_noise_client_session_new(keys.authority_xonly);
+			if (!sresp || !scli)
+				return fail("unsupported version sessions");
+			if (!sv2_noise_client_act1(scli, act1) ||
+			    !sv2_noise_handshake_read(sresp, act1, sizeof(act1), &act2, &act2len))
+				return fail("unsupported version handshake setup");
+			if (sv2_noise_client_act2(scli, act2, act2len))
+				return fail("unsupported certificate version accepted");
+			if (sv2_noise_handshake_complete(scli))
+				return fail("unsupported version completed handshake");
+			dealloc(act2);
+			act2 = NULL;
+			sv2_noise_session_free(sresp);
+			sv2_noise_session_free(scli);
+		}
+		printf("sv2_noise_hs: unsupported certificate versions rejected OK\n");
 	}
 
 	sv2_noise_server_keys_clear(&keys);

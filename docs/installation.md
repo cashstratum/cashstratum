@@ -175,3 +175,12 @@ privileged port (below 1024) directly, opt in during a privileged, non-staged in
 ```sh
 sudo make install INSTALL_BIND_CAPABILITY=yes
 ```
+
+## Stratum V2 certificates
+
+The server signs its Stratum V2 Noise certificate under the authority key at startup, with
+certificate format version 0, and re-dates the validity window automatically when it is within a
+day of expiry. The client side, ckproxy and the job-declarator client, accepts only format version 0.
+After upgrading, a restart is sufficient: the authority key and miner URLs do not change. Upgrade
+pool servers before proxies and job-declarator clients, because an updated client refuses an
+upstream still serving version 1.

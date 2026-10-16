@@ -444,18 +444,33 @@ static bool build_signature_noise_message(const struct sv2_noise_server_keys *ke
 	uint8_t signed_fields[42];
 	secp256k1_keypair keypair;
 	uint8_t mhash[32];
+	uint32_t valid_from = keys->cert_valid_from;
+	uint32_t not_valid_after = keys->cert_not_valid_after;
+	time_t now = time(NULL);
+	uint64_t until;
+
+	if (now < 0 || (uint64_t)now >= UINT32_MAX || not_valid_after <= valid_from)
+		return false;
+	/* Renew within a day of expiry, using local dates for this handshake.
+	 * Shared key material stays immutable; concurrent handshakes need no
+	 * renewal lock and retain the same authority and static public keys. */
+	if ((uint64_t)not_valid_after <= (uint64_t)now + 86400) {
+		until = (uint64_t)now + (not_valid_after - valid_from);
+		valid_from = (uint32_t)now;
+		not_valid_after = until > UINT32_MAX ? UINT32_MAX : (uint32_t)until;
+	}
 
 	/* LE fields matching wire layout of version/valid_from/not_valid_after */
 	signed_fields[0] = (uint8_t)(keys->cert_version & 0xff);
 	signed_fields[1] = (uint8_t)((keys->cert_version >> 8) & 0xff);
-	signed_fields[2] = (uint8_t)(keys->cert_valid_from & 0xff);
-	signed_fields[3] = (uint8_t)((keys->cert_valid_from >> 8) & 0xff);
-	signed_fields[4] = (uint8_t)((keys->cert_valid_from >> 16) & 0xff);
-	signed_fields[5] = (uint8_t)((keys->cert_valid_from >> 24) & 0xff);
-	signed_fields[6] = (uint8_t)(keys->cert_not_valid_after & 0xff);
-	signed_fields[7] = (uint8_t)((keys->cert_not_valid_after >> 8) & 0xff);
-	signed_fields[8] = (uint8_t)((keys->cert_not_valid_after >> 16) & 0xff);
-	signed_fields[9] = (uint8_t)((keys->cert_not_valid_after >> 24) & 0xff);
+	signed_fields[2] = (uint8_t)(valid_from & 0xff);
+	signed_fields[3] = (uint8_t)((valid_from >> 8) & 0xff);
+	signed_fields[4] = (uint8_t)((valid_from >> 16) & 0xff);
+	signed_fields[5] = (uint8_t)((valid_from >> 24) & 0xff);
+	signed_fields[6] = (uint8_t)(not_valid_after & 0xff);
+	signed_fields[7] = (uint8_t)((not_valid_after >> 8) & 0xff);
+	signed_fields[8] = (uint8_t)((not_valid_after >> 16) & 0xff);
+	signed_fields[9] = (uint8_t)((not_valid_after >> 24) & 0xff);
 	memcpy(signed_fields + 10, keys->static_xonly, 32);
 
 	/* Wire: version|valid_from|not_valid_after (10) || sig (64) */
@@ -495,6 +510,7 @@ bool sv2_noise_load_server_keys(struct sv2_noise_server_keys *keys,
 	time_t now = time(NULL);
 	bool ok = false;
 	bool auth_new = false, static_new = false;
+	uint64_t until;
 
 	memset(keys, 0, sizeof(*keys));
 	if (sodium_init() < 0) {
@@ -505,11 +521,14 @@ bool sv2_noise_load_server_keys(struct sv2_noise_server_keys *keys,
 	if (!secp)
 		return false;
 
-	keys->cert_version = 1;
+	if (now < 0 || (uint64_t)now >= UINT32_MAX)
+		return false;
+	keys->cert_version = SV2_NOISE_CERT_VERSION;
 	keys->cert_valid_from = (uint32_t)now;
 	if (valid_days == 0)
 		valid_days = 365;
-	keys->cert_not_valid_after = (uint32_t)now + valid_days * 86400u;
+	until = (uint64_t)now + (uint64_t)valid_days * 86400;
+	keys->cert_not_valid_after = until > UINT32_MAX ? UINT32_MAX : (uint32_t)until;
 
 	/* Authority seckey */
 	if (authority_path && authority_path[0] &&
@@ -715,6 +734,7 @@ bool sv2_noise_handshake_read(sv2_noise_session_t *s, const uint8_t *in, size_t 
  *   version U16 | valid_from U32 | not_valid_after U32 | signature(64)
  * The signed message is m = SHA256(version || valid_from || not_valid_after ||
  * server_static_xonly), where the server static key is the rs learned in act2.
+ * The certificate version must be supported (currently 0 only).
  * The signature must verify under the configured pool authority x-only pubkey,
  * and the current time must fall within the certificate validity window.
  */
@@ -725,7 +745,14 @@ static bool client_verify_certificate(sv2_noise_session_t *s, const uint8_t sigm
 	secp256k1_pubkey pub;
 	secp256k1_xonly_pubkey xopub, auth;
 	uint32_t valid_from, not_valid_after;
+	uint16_t version;
 	time_t now = time(NULL);
+
+	version = (uint16_t)sigmsg[0] | ((uint16_t)sigmsg[1] << 8);
+	if (version != SV2_NOISE_CERT_VERSION) {
+		LOGNOTICE("SV2 client: unsupported server certificate version %u", version);
+		return false;
+	}
 
 	/* version|valid_from|not_valid_after: first 10 wire bytes (LE) */
 	memcpy(signed_fields, sigmsg, 10);
@@ -1016,6 +1043,7 @@ bool sv2_noise_encrypt_frame(sv2_noise_session_t *s, const uint8_t *plain, size_
 /*
  * Base58Check for SV2 authority pubkey (spec 04 §4.7):
  *   payload = version_le_u16(0x0001 as bytes [1,0]) || xonly_pubkey(32)
+ *   This prefix versions the key encoding only, not the certificate format.
  *   checksum = first 4 bytes of SHA256(SHA256(payload))
  *   encode payload||checksum in Base58 (Bitcoin alphabet)
  */

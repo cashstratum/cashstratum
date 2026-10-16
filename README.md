@@ -14,7 +14,7 @@ Run your pool. Choose direct payouts or username-based mining. Inspect the work 
   <img alt="CashStratum — Your pool. Your rules. Direct payouts, native CashAddr and verifiable blocks." src=".github/assets/readme/hero-light.webp" width="100%">
 </picture>
 
-[![Release v1.2.4](.github/assets/readme/badge-release.svg)](https://github.com/cashstratum/cashstratum/releases/tag/v1.2.4)
+[![Release v1.2.5](.github/assets/readme/badge-release.svg)](https://github.com/cashstratum/cashstratum/releases/tag/v1.2.5)
 [![81 verified BCH blocks](.github/assets/readme/badge-proofs.svg)](docs/proofs/)
 [![Regtest and testnet before engine releases](.github/assets/readme/badge-validation.svg)](#release-validation)
 [![License: GPL v3 or later](.github/assets/readme/badge-license.svg)](COPYING)
@@ -51,7 +51,7 @@ The [proof index](docs/proofs/) contains the full hash, explorer link and excerp
 Clone a release on Linux, then run the guided installer:
 
 ```bash
-git clone --branch v1.2.4 --depth 1 https://github.com/cashstratum/cashstratum.git
+git clone --branch v1.2.5 --depth 1 https://github.com/cashstratum/cashstratum.git
 cd cashstratum
 bash install-cashstratum.sh
 ```
@@ -71,8 +71,9 @@ they do not provision a node or automatically enable SV2.
 
 ### Release status
 
-**[v1.2.4](https://github.com/cashstratum/cashstratum/releases/tag/v1.2.4)** (2026-10-12) is a
-proof and documentation release; its engine is unchanged from v1.2.3. **v1.2.2** introduced
+**[v1.2.5](https://github.com/cashstratum/cashstratum/releases/tag/v1.2.5)** (2026-10-16) fixes the
+Stratum V2 Noise certificate version (now 0, as the specification requires) and renews
+certificates on long uptime; builds without SV2 are unchanged from v1.2.4. **v1.2.2** introduced
 BCHD and Flowee compatibility. See [CHANGELOG.md](CHANGELOG.md) for release details and
 deployment evidence. This tree includes the C engine, Go services, installers, unit tests
 and the regtest mining gate.

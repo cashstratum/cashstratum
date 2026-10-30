@@ -35,9 +35,11 @@
 #include "coinbase_final.h"
 #include "sha2.h"
 #include "stratifier.h"
+#include "stratifier_stats.h"
 #include "uthash.h"
 #include "utlist.h"
 #include "connector.h"
+#include "dropreason.h"
 #include "generator.h"
 #ifdef HAVE_SV2
 #include "sv2_strat.h"
@@ -149,6 +151,36 @@ typedef struct user_instance user_instance_t;
 typedef struct worker_instance worker_instance_t;
 typedef struct stratum_instance stratum_instance_t;
 
+/* Reason classes for rejected submissions, one counter each per user and per
+ * worker. Every class is always reported, even at zero. */
+enum reject_bucket {
+	RB_STALE,
+	RB_DUPLICATE,
+	RB_LOWDIFF,
+	RB_NTIME,
+	RB_BADJOB,
+	RB_MALFORMED,
+	RB_WORKER,
+	RB_MAX
+};
+
+/* Rejected submission accounting, kept per user and per worker. Updated
+ * without locking exactly like the accepted shares counters beside it, so a
+ * reader may see a transiently torn value. */
+typedef struct reject_stats {
+	int64_t rejected; /* Accumulated credited diff of rejected submissions */
+	int64_t count; /* Number of rejected submissions */
+	int64_t buckets[RB_MAX]; /* Number of rejected submissions per reject_bucket */
+	time_t last_reject; /* Time of the most recent reject, 0 if never */
+	const char *last_reason; /* Static string sent to the miner, never freed */
+
+	int64_t uadiff; /* Rejected diff not yet accounted for in the reject meter */
+	double dsps1; /* Rejected diff per second, 1 minute rolling average */
+	double dsps5; /* ... 5 minute ... */
+	double dsps60; /* ... 1 hour ... */
+	tv_t last_decay;
+} reject_stats_t;
+
 struct user_instance {
 	UT_hash_handle hh;
 	char username[128];
@@ -190,6 +222,8 @@ struct user_instance {
 	tv_t last_share;
 	tv_t last_decay;
 
+	reject_stats_t rstats; /* Rejects from all of this user's workers */
+
 	bool authorised; /* Has this username ever been authorised? */
 	time_t auth_time;
 	time_t failed_authtime; /* Last time this username failed to authorise */
@@ -220,6 +254,13 @@ struct worker_instance {
 	tv_t last_share;
 	tv_t last_decay;
 	time_t start_time;
+
+	reject_stats_t rstats; /* Rejects from this worker's instances */
+
+	int64_t connects; /* Successful authorisations as this worker */
+	int64_t disconnects; /* Instances of this worker dropped */
+	time_t last_disconnect; /* Time of the most recent drop, 0 if never */
+	const char *last_disconnect_reason; /* Static drop_reason_str(), never freed */
 
 	double best_diff; /* Best share found by this worker */
 	int64_t best_ever; /* Best share ever found by this worker */
@@ -268,7 +309,9 @@ struct stratum_instance {
 
 	int64_t diff; /* Current diff */
 	int64_t old_diff; /* Previous diff */
+	int64_t start_diff; /* Pool-assigned initial diff, before client suggestions */
 	int64_t diff_change_job_id; /* Last job_id we changed diff */
+	double max_accepted_diff; /* Highest accepted assigned diff; pool uastats_lock */
 
 	int64_t uadiff; /* Shares not yet accounted for in hashmeter */
 
@@ -285,6 +328,13 @@ struct stratum_instance {
 	time_t first_invalid; /* Time of first invalid in run of non stale rejects */
 	time_t upstream_invalid; /* As first_invalid but for upstream responses */
 	time_t start_time;
+	time_t connect_time; /* When the connector first told us of this client */
+
+	/* Why this client is being dropped. Only the first reason recorded is
+	 * kept, see record_drop_reason() */
+	int drop_reason; /* enum drop_reason */
+	int drop_errno;
+	bool drop_recorded;
 
 	char address[INET6_ADDRSTRLEN];
 	bool node; /* Is this a mining node */
@@ -2766,13 +2816,63 @@ static void __del_client(sdata_t *sdata, stratum_instance_t *client)
 	}
 }
 
-static void connector_drop_client(const int64_t id)
+/* Record why a client is going away. Only the first reason recorded sticks,
+ * since a drop the stratifier starts comes back from the connector as another
+ * dropclient carrying the same or a less specific reason. Set unlocked on a
+ * client we hold a reference to, or with instance_lock held. */
+static void record_drop_reason(stratum_instance_t *client, int reason, const int errn)
+{
+	if (!client || client->drop_recorded)
+		return;
+	if (reason < 0 || reason >= DR_MAX)
+		reason = DR_OTHER;
+	client->drop_reason = reason;
+	client->drop_errno = errn;
+	client->drop_recorded = true;
+}
+
+/* The reason to pass on for a client, DR_OTHER when none was recorded */
+static int client_drop_reason(const stratum_instance_t *client)
+{
+	if (!client || !client->drop_recorded)
+		return DR_OTHER;
+	return client->drop_reason;
+}
+
+/* Ask the connector to drop a client, telling it why so it can hand the same
+ * reason back when it confirms the drop. */
+static void connector_drop_client(const int64_t id, const int reason)
 {
 	char buf[256];
 
-	LOGDEBUG("Stratifier requesting connector drop client %"PRId64, id);
-	snprintf(buf, 255, "dropclient=%"PRId64, id);
+	LOGDEBUG("Stratifier requesting connector drop client %"PRId64" reason %s",
+		 id, drop_reason_str(reason));
+	snprintf(buf, 255, "dropclient=%"PRId64",%d", id, reason);
 	send_proc(ckpool.connector, buf);
+}
+
+/* Record reason on a client we hold, then ask the connector to drop it with
+ * whichever reason was recorded first. */
+static void connector_drop_reason(stratum_instance_t *client, const int reason)
+{
+	record_drop_reason(client, reason, 0);
+	connector_drop_client(client->id, client_drop_reason(client));
+}
+
+/* Enter with instance_lock held. Credit the drop of a client to its worker.
+ * A dropall is a pool wide event rather than a failure of each worker, so it
+ * is recorded as the last disconnect without being counted as one. */
+static void __account_disconnect(const stratum_instance_t *client)
+{
+	worker_instance_t *worker = client->worker_instance;
+	const int reason = client_drop_reason(client);
+
+	if (!worker)
+		return;
+	if (reason != DR_DROPALL)
+		worker->disconnects++;
+	worker->last_disconnect = time(NULL);
+	worker->last_disconnect_reason = drop_reason_str(reason);
 }
 
 static void drop_allclients(void)
@@ -2800,7 +2900,9 @@ static void drop_allclients(void)
 #ifdef HAVE_SV2
 		was_sv2 = client->sv2;
 #endif
+		record_drop_reason(client, DR_DROPALL, 0);
 		if (!client->ref) {
+			__account_disconnect(client);
 			__del_client(sdata, client);
 			__kill_instance(sdata, client);
 		} else
@@ -2808,7 +2910,7 @@ static void drop_allclients(void)
 		kills++;
 		/* Virtual SV2 instances have no connector fd — skip. */
 		if (!was_sv2)
-			connector_drop_client(client_id);
+			connector_drop_client(client_id, DR_DROPALL);
 	}
 	sdata->stats.users = sdata->stats.workers = 0;
 	ck_wunlock(&sdata->instance_lock);
@@ -3899,7 +4001,10 @@ static int __drop_subclients(sdata_t *sdata, const stratum_instance_t *parent)
 	HASH_ITER(hh, sdata->stratum_instances, client, tmp) {
 		if (subclient(client->id) != parent_id)
 			continue;
+		/* A subclient goes for the same reason as its parent */
+		record_drop_reason(client, client_drop_reason(parent), parent->drop_errno);
 		if (!client->ref) {
+			__account_disconnect(client);
 			__del_client(sdata, client);
 			__kill_instance(sdata, client);
 		} else
@@ -3912,7 +4017,16 @@ static int __drop_subclients(sdata_t *sdata, const stratum_instance_t *parent)
 static void __drop_client(sdata_t *sdata, stratum_instance_t *client, bool lazily, char **msg)
 {
 	user_instance_t *user = client->user_instance;
+	char reason[96], errnostr[24] = "";
 	int subclients = 0;
+
+	/* Appended to every Dropped line so the text before it is unchanged */
+	if (client->drop_errno)
+		snprintf(errnostr, sizeof(errnostr), " errno=%d", client->drop_errno);
+	snprintf(reason, sizeof(reason), " reason=%s%s age=%"PRId64,
+		 drop_reason_str(client_drop_reason(client)), errnostr,
+		 (int64_t)(time(NULL) - client->connect_time));
+	__account_disconnect(client);
 
 	if (unlikely(client->subclients))
 		subclients = __drop_subclients(sdata, client);
@@ -3927,18 +4041,19 @@ static void __drop_client(sdata_t *sdata, stratum_instance_t *client, bool lazil
 			 * these only can be LOGNOTICE messages.
 			 */
 			if (!user->throttled) {
-				ASPRINTF(msg, "Dropped client %s %s user %s worker %s %s",
+				ASPRINTF(msg, "Dropped client %s %s user %s worker %s %s%s",
 					 client->identity, client->address,
-					 user->username, client->workername, lazily ? "lazily" : "");
+					 user->username, client->workername, lazily ? "lazily" : "",
+					 reason);
 			}
 		} else {
-			ASPRINTF(msg, "Dropped client %s %s no user worker %s %s",
+			ASPRINTF(msg, "Dropped client %s %s no user worker %s %s%s",
 				 client->identity, client->address, client->workername,
-				 lazily ? "lazily" : "");
+				 lazily ? "lazily" : "", reason);
 		}
 	} else if (unlikely(subclients)) {
-		ASPRINTF(msg, "Dropped %s %s with %d subclients %s", client->identity,
-			 client->address, subclients, lazily ? "lazily" : "");
+		ASPRINTF(msg, "Dropped %s %s with %d subclients %s%s", client->identity,
+			 client->address, subclients, lazily ? "lazily" : "", reason);
 	} else {
 		/* Workerless client. Too noisy to log them all */
 	}
@@ -4013,6 +4128,7 @@ static stratum_instance_t *__stratum_add_instance(int64_t id, const char *addres
 	/* Fake a share time at startup to prevent client being dropped for
 	 * being idle. */
 	client->start_time = client->last_share.tv_sec = time(NULL);
+	client->connect_time = client->start_time;
 
 	client->id = id;
 	client->session_id = ++sdata->session_id;
@@ -4029,6 +4145,7 @@ static stratum_instance_t *__stratum_add_instance(int64_t id, const char *addres
 		if (client->suggest_diff > client->diff)
 			client->diff = client->old_diff = client->suggest_diff;
 	}
+	client->start_diff = client->diff;
 	tv_time(&client->ldc);
 	/* Points to ckp sdata in ckpool mode, but is changed later in proxy
 	 * mode . */
@@ -4340,19 +4457,26 @@ static void stratum_add_yysend(sdata_t *sdata, yyjson_mut_doc *doc, const int64_
 	free(msg);
 }
 
-static void drop_client(sdata_t *sdata, const int64_t id)
+/* Drop a client for reason, with the errno that caused it if any. A reason
+ * already recorded on the client takes precedence. */
+static void drop_client(sdata_t *sdata, const int64_t id, const int reason, const int errn)
 {
 	char_entry_t *entries = NULL;
 	stratum_instance_t *client;
 	char *msg = NULL;
+#ifdef HAVE_SV2
 	bool was_sv2 = false;
+#endif
 
 	LOGINFO("Stratifier asked to drop client %"PRId64, id);
 
 	ck_wlock(&sdata->instance_lock);
 	client = __instance_by_id(sdata, id);
 	if (client) {
+#ifdef HAVE_SV2
 		was_sv2 = client->sv2;
+#endif
+		record_drop_reason(client, reason, errn);
 		__disconnect_session(sdata, client);
 		/* If the client is still holding a reference, don't drop them
 		 * now but wait till the reference is dropped */
@@ -4523,9 +4647,37 @@ static user_instance_t *user_by_workername(sdata_t *sdata, const char *workernam
 
 static worker_instance_t *get_worker(sdata_t *sdata, user_instance_t *user, const char *workername);
 
+/* Render the decayed reject rates in the same units as the hashrate fields so
+ * the two can be compared directly. Each buffer must hold 16 bytes. */
+static void reject_rate_suffixes(const reject_stats_t *rs, char *suffix1, char *suffix5,
+				 char *suffix60)
+{
+	suffix_string(rs->dsps1 * nonces, suffix1, 16, 0);
+	suffix_string(rs->dsps5 * nonces, suffix5, 16, 0);
+	suffix_string(rs->dsps60 * nonces, suffix60, 16, 0);
+}
+
+/* A NULL string would make yyjson_mut_pack fail, so never rejected reads "" */
+static const char *reject_reason(const reject_stats_t *rs)
+{
+	const char *reason = rs->last_reason;
+
+	return reason ? reason : "";
+}
+
+/* As reject_reason() for the reason of a worker's last disconnect */
+static const char *disconnect_reason(const worker_instance_t *worker)
+{
+	const char *reason = worker->last_disconnect_reason;
+
+	return reason ? reason : "";
+}
+
 static yyjson_mut_doc *worker_stats(const worker_instance_t *worker)
 {
 	char suffix1[16], suffix5[16], suffix60[16], suffix1440[16], suffix10080[16];
+	char rsuffix1[16], rsuffix5[16], rsuffix60[16];
+	const reject_stats_t *rs = &worker->rstats;
 	yyjson_mut_doc *doc;
 	double ghs;
 
@@ -4544,18 +4696,43 @@ static yyjson_mut_doc *worker_stats(const worker_instance_t *worker)
 	ghs = worker->dsps10080 * nonces;
 	suffix_string(ghs, suffix10080, 16, 0);
 
-	doc = yyjson_mut_pack("{ss,ss,ss,ss,ss}",
+	reject_rate_suffixes(rs, rsuffix1, rsuffix5, rsuffix60);
+
+	doc = yyjson_mut_pack("{ss,ss,ss,ss,ss,"
+			      "sI,sI,s{sI,sI,sI,sI,sI,sI,sI},sI,ss,ss,ss,ss,"
+			      "sI,sI,sI,ss}",
 			"hashrate1m", suffix1,
 			"hashrate5m", suffix5,
 			"hashrate1hr", suffix60,
 			"hashrate1d", suffix1440,
-			"hashrate7d", suffix10080);
+			"hashrate7d", suffix10080,
+			"rejected", rs->rejected,
+			"rejectedcount", rs->count,
+			"rejects",
+				"stale", rs->buckets[RB_STALE],
+				"duplicate", rs->buckets[RB_DUPLICATE],
+				"lowdiff", rs->buckets[RB_LOWDIFF],
+				"ntime", rs->buckets[RB_NTIME],
+				"badjob", rs->buckets[RB_BADJOB],
+				"malformed", rs->buckets[RB_MALFORMED],
+				"worker", rs->buckets[RB_WORKER],
+			"lastreject", rs->last_reject,
+			"lastrejectreason", reject_reason(rs),
+			"rejectrate1m", rsuffix1,
+			"rejectrate5m", rsuffix5,
+			"rejectrate1hr", rsuffix60,
+			"connects", worker->connects,
+			"disconnects", worker->disconnects,
+			"lastdisconnect", worker->last_disconnect,
+			"lastdisconnectreason", disconnect_reason(worker));
 	return doc;
 }
 
 static yyjson_mut_doc *user_stats(const user_instance_t *user)
 {
 	char suffix1[16], suffix5[16], suffix60[16], suffix1440[16], suffix10080[16];
+	char rsuffix1[16], rsuffix5[16], rsuffix60[16];
+	const reject_stats_t *rs = &user->rstats;
 	yyjson_mut_doc *doc;
 	double ghs;
 
@@ -4574,14 +4751,32 @@ static yyjson_mut_doc *user_stats(const user_instance_t *user)
 	ghs = user->dsps10080 * nonces;
 	suffix_string(ghs, suffix10080, 16, 0);
 
-	doc = yyjson_mut_pack("{ss,ss,ss,ss,ss,sI,sI}",
+	reject_rate_suffixes(rs, rsuffix1, rsuffix5, rsuffix60);
+
+	doc = yyjson_mut_pack("{ss,ss,ss,ss,ss,sI,sI,"
+			      "sI,sI,s{sI,sI,sI,sI,sI,sI,sI},sI,ss,ss,ss,ss}",
 			"hashrate1m", suffix1,
 			"hashrate5m", suffix5,
 			"hashrate1hr", suffix60,
 			"hashrate1d", suffix1440,
 			"hashrate7d", suffix10080,
 			"shares", user->shares,
-			"authorised", user->auth_time);
+			"authorised", user->auth_time,
+			"rejected", rs->rejected,
+			"rejectedcount", rs->count,
+			"rejects",
+				"stale", rs->buckets[RB_STALE],
+				"duplicate", rs->buckets[RB_DUPLICATE],
+				"lowdiff", rs->buckets[RB_LOWDIFF],
+				"ntime", rs->buckets[RB_NTIME],
+				"badjob", rs->buckets[RB_BADJOB],
+				"malformed", rs->buckets[RB_MALFORMED],
+				"worker", rs->buckets[RB_WORKER],
+			"lastreject", rs->last_reject,
+			"lastrejectreason", reject_reason(rs),
+			"rejectrate1m", rsuffix1,
+			"rejectrate5m", rsuffix5,
+			"rejectrate1hr", rsuffix60);
 	return doc;
 }
 
@@ -4827,7 +5022,7 @@ static void reconnect_client(sdata_t *sdata, stratum_instance_t *client)
 	/* Already requested? */
 	if (client->reconnect_request) {
 		if (time(NULL) - client->reconnect_request >= 60)
-			connector_drop_client(client->id);
+			connector_drop_reason(client, DR_RECONNECT_IGNORED);
 		return;
 	}
 	client->reconnect_request = time(NULL);
@@ -5560,13 +5755,16 @@ retry:
 	} else if (cmdmatch(buf, "diff")) {
 		update_diff(buf);
 	} else if (cmdmatch(buf, "dropclient")) {
+		int drop_reason = DR_OTHER, drop_errno = 0;
 		int64_t client_id;
 
-		ret = sscanf(buf, "dropclient=%"PRId64, &client_id);
-		if (ret < 0)
+		/* The connector appends the reason and errno it dropped for */
+		ret = sscanf(buf, "dropclient=%"PRId64",%d,%d", &client_id, &drop_reason,
+			     &drop_errno);
+		if (ret < 1)
 			LOGDEBUG("Stratifier failed to parse dropclient command: %s", buf);
 		else
-			drop_client(sdata, client_id);
+			drop_client(sdata, client_id, drop_reason, drop_errno);
 	} else if (cmdmatch(buf, "reconnclient")) {
 		int64_t client_id;
 
@@ -6159,6 +6357,182 @@ static void decay_user(user_instance_t *user, double diff, tv_t *now_t)
 	decay_time(&user->dsps10080, diff, tdiff, WEEK);
 }
 
+/* As decay_worker() but for the rejected diff, over the short windows only */
+static void decay_rejects(reject_stats_t *rs, double diff, tv_t *now_t)
+{
+	double tdiff = sane_tdiff(now_t, &rs->last_decay);
+
+	if (tdiff < 0.05) {
+		rs->uadiff += diff;
+		return;
+	}
+	copy_tv(&rs->last_decay, now_t);
+	diff += rs->uadiff;
+	rs->uadiff = 0;
+	decay_time(&rs->dsps1, diff, tdiff, MIN1);
+	decay_time(&rs->dsps5, diff, tdiff, MIN5);
+	decay_time(&rs->dsps60, diff, tdiff, HOUR);
+}
+
+/* The difficulty a rejected submission is credited at. Bound by the highest
+ * assigned difficulty actually met by an accepted share on this connection,
+ * not its PoW diff, and by the pool-assigned start_diff until one is accepted.
+ * Suggestions and stale work cannot raise this cap. */
+static double credited_reject_diff(const stratum_instance_t *client, const double diff)
+{
+	return client->max_accepted_diff > 0 ?
+		MIN(diff, client->max_accepted_diff) : client->start_diff;
+}
+
+static void add_reject(reject_stats_t *rs, const double diff, const enum reject_bucket bucket,
+		       const char *reason, tv_t *now_t)
+{
+	rs->rejected = add_reject_diff(rs->rejected, diff);
+	rs->count++;
+	rs->buckets[bucket]++;
+	rs->last_reject = now_t->tv_sec;
+	rs->last_reason = reason;
+	decay_rejects(rs, diff, now_t);
+}
+
+/* Credit one rejected submission, at the client's credited diff, to its
+ * worker and user. Called exactly once per rejected submission whether or not
+ * it reached add_submit(), so these counters include rejects that the pool
+ * wide rejected counter never sees. A client that has not authorised has no
+ * worker or user yet and is counted on neither. reason must be a string with
+ * static storage since only the pointer is kept. Needs to be entered with
+ * client holding a ref count. */
+static void account_reject(stratum_instance_t *client, const double diff,
+			   enum reject_bucket bucket, const char *reason)
+{
+	worker_instance_t *worker;
+	user_instance_t *user;
+	double rdiff;
+	tv_t now_t;
+
+	if (unlikely(!client))
+		return;
+	worker = client->worker_instance;
+	user = client->user_instance;
+	if (!worker && !user)
+		return;
+	if (unlikely((unsigned int)bucket >= RB_MAX))
+		bucket = RB_MALFORMED;
+
+	/* Read without uastats_lock: a reject racing an accepted share may be
+	 * credited against the previous cap, which these stats tolerate. */
+	rdiff = credited_reject_diff(client, diff);
+	tv_time(&now_t);
+	if (worker)
+		add_reject(&worker->rstats, rdiff, bucket, reason, &now_t);
+	if (user)
+		add_reject(&user->rstats, rdiff, bucket, reason, &now_t);
+}
+
+static enum reject_bucket share_err_bucket(const enum share_err err)
+{
+	switch (err) {
+		case SE_STALE:
+			return RB_STALE;
+		case SE_DUPE:
+			return RB_DUPLICATE;
+		case SE_HIGH_DIFF:
+			return RB_LOWDIFF;
+		case SE_NTIME_INVALID:
+			return RB_NTIME;
+		case SE_INVALID_JOBID:
+		case SE_NO_WORKBASE:
+		case SE_NO_USER_COINBASE:
+			return RB_BADJOB;
+		case SE_WORKER_MISMATCH:
+			return RB_WORKER;
+		default:
+			return RB_MALFORMED;
+	}
+}
+
+/* Error codes returned to SV2 clients for rejected shares */
+static const char *sv2_reject_reasons[] = {
+	"unauthorized-worker",
+	"invalid-job-id",
+	"invalid-extranonce-size",
+	"stale-share",
+	"invalid-ntime",
+	"duplicate-share",
+	"difficulty-too-low"
+};
+
+/* Map a reject reason read back from a users file onto the matching static
+ * string, since only static strings may be stored as a last reason. Returns
+ * NULL for anything unrecognised. */
+static const char *static_reject_reason(const char *reason)
+{
+	size_t i;
+
+	if (!reason || !*reason)
+		return NULL;
+	for (i = 0; i < sizeof(share_errs) / sizeof(share_errs[0]); i++) {
+		if (!strcmp(reason, share_errs[i]))
+			return share_errs[i];
+	}
+	for (i = 0; i < sizeof(sv2_reject_reasons) / sizeof(sv2_reject_reasons[0]); i++) {
+		if (!strcmp(reason, sv2_reject_reasons[i]))
+			return sv2_reject_reasons[i];
+	}
+	return NULL;
+}
+
+/* Restore the cumulative reject counters from a user or worker object of a
+ * users file. Files written before these keys existed lack them, so every
+ * missing key leaves its counter at zero. Rates are not persisted. */
+static void read_reject_stats(reject_stats_t *rs, yyjson_val *val, tv_t *now)
+{
+	yyjson_val *buckets = yyjson_obj_get(val, "rejects");
+	const char *reason;
+	int64_t lastreject = 0;
+
+	yyjson_obj_get_int64(&rs->rejected, val, "rejected");
+	yyjson_obj_get_int64(&rs->count, val, "rejectedcount");
+	if (yyjson_is_obj(buckets)) {
+		yyjson_obj_get_int64(&rs->buckets[RB_STALE], buckets, "stale");
+		yyjson_obj_get_int64(&rs->buckets[RB_DUPLICATE], buckets, "duplicate");
+		yyjson_obj_get_int64(&rs->buckets[RB_LOWDIFF], buckets, "lowdiff");
+		yyjson_obj_get_int64(&rs->buckets[RB_NTIME], buckets, "ntime");
+		yyjson_obj_get_int64(&rs->buckets[RB_BADJOB], buckets, "badjob");
+		yyjson_obj_get_int64(&rs->buckets[RB_MALFORMED], buckets, "malformed");
+		yyjson_obj_get_int64(&rs->buckets[RB_WORKER], buckets, "worker");
+	}
+	if (yyjson_obj_get_int64(&lastreject, val, "lastreject"))
+		rs->last_reject = lastreject;
+	reason = yyjson_get_str(yyjson_obj_get(val, "lastrejectreason"));
+	rs->last_reason = static_reject_reason(reason);
+	copy_tv(&rs->last_decay, now);
+}
+
+/* Restore a worker's connection counters from its users file entry, leaving
+ * each at zero when the key is missing from an older file. */
+static void read_disconnect_stats(worker_instance_t *worker, yyjson_val *val)
+{
+	const char *reason;
+	int64_t lastdisconnect = 0;
+	int i;
+
+	yyjson_obj_get_int64(&worker->connects, val, "connects");
+	yyjson_obj_get_int64(&worker->disconnects, val, "disconnects");
+	if (yyjson_obj_get_int64(&lastdisconnect, val, "lastdisconnect"))
+		worker->last_disconnect = lastdisconnect;
+	/* Only static strings may be stored, so map back onto the table */
+	reason = yyjson_get_str(yyjson_obj_get(val, "lastdisconnectreason"));
+	if (!reason || !*reason)
+		return;
+	for (i = 0; i < DR_MAX; i++) {
+		if (!strcmp(reason, drop_reason_str(i))) {
+			worker->last_disconnect_reason = drop_reason_str(i);
+			break;
+		}
+	}
+}
+
 static user_instance_t *get_create_user(sdata_t *sdata, const char *username, bool *new_user);
 static worker_instance_t *get_create_worker(sdata_t *sdata, user_instance_t *user,
 					    const char *workername, bool *new_worker);
@@ -6264,6 +6638,7 @@ static void read_userstats(sdata_t *sdata, int tvsec_diff)
 		user->auth_time = authorised;
 		if (user->best_diff > user->best_ever)
 			user->best_ever = user->best_diff;
+		read_reject_stats(&user->rstats, val, &now);
 		LOGINFO("Successfully read user %s stats %f %f %f %f %f %f %ld %ld", user->username,
 			user->dsps1, user->dsps5, user->dsps60, user->dsps1440,
 			user->dsps10080, user->best_diff, user->best_ever, user->auth_time);
@@ -6301,6 +6676,8 @@ static void read_userstats(sdata_t *sdata, int tvsec_diff)
 			if (worker->best_diff > worker->best_ever)
 				worker->best_ever = worker->best_diff;
 			yyjson_obj_get_int64(&worker->shares, arr_val, "shares");
+			read_reject_stats(&worker->rstats, arr_val, &now);
+			read_disconnect_stats(worker, arr_val);
 			LOGINFO("Successfully read worker %s stats %f %f %f %f %f %ld", worker->workername,
 				worker->dsps1, worker->dsps5, worker->dsps60, worker->dsps1440, worker->best_diff, worker->best_ever);
 			if (tvsec_diff > 60)
@@ -6637,6 +7014,9 @@ static void client_auth(stratum_instance_t *client, user_instance_t *user,
 		user->throttled = false;
 		if (!user->auth_time)
 			user->auth_time = time(NULL);
+		/* Unlocked like the other worker counters */
+		if (likely(client->worker_instance))
+			client->worker_instance->connects++;
 	} else {
 		if (user->throttled) {
 			LOGINFO("Client %s %s worker %s failed to authorise as throttled user %s",
@@ -7003,6 +7383,22 @@ static double time_bias(const double tdiff, const double period)
 	return 1.0 - 1.0 / exp(dexp);
 }
 
+/* Caller holds the pool uastats_lock. Only an accepted share raises the
+ * client's reject cap, at its assigned diff; see credited_reject_diff(). */
+static void account_client_share(pool_stats_t *stats, stratum_instance_t *client,
+				 const double diff, const bool valid)
+{
+	if (valid) {
+		if (diff > client->max_accepted_diff)
+			client->max_accepted_diff = diff;
+		stats->unaccounted_shares++;
+		stats->unaccounted_diff_shares += diff;
+	} else {
+		stats->unaccounted_rejects = add_reject_diff(stats->unaccounted_rejects,
+							     credited_reject_diff(client, diff));
+	}
+}
+
 /* Needs to be entered with client holding a ref count. */
 static void add_submit(stratum_instance_t *client, const double diff, const bool valid,
 		       const bool submit)
@@ -7015,11 +7411,7 @@ static void add_submit(stratum_instance_t *client, const double diff, const bool
 	tv_t now_t;
 
 	mutex_lock(&ckp_sdata->uastats_lock);
-	if (valid) {
-		ckp_sdata->stats.unaccounted_shares++;
-		ckp_sdata->stats.unaccounted_diff_shares += diff;
-	} else
-		ckp_sdata->stats.unaccounted_rejects += diff;
+	account_client_share(&ckp_sdata->stats, client, diff, valid);
 	mutex_unlock(&ckp_sdata->uastats_lock);
 
 	/* Count only accepted and stale rejects in diff calculation. */
@@ -7874,14 +8266,17 @@ bool stratifier_sv2_submit_share(int64_t instance_id, int64_t workbase_id,
 			"(client=%s authorised=%d)",
 			instance_id, client ? "yes" : "null/dropped",
 			client ? client->authorised : 0);
-		if (client)
+		if (client) {
+			account_reject(client, client->diff, RB_WORKER, "unauthorized-worker");
 			dec_instance_ref(sdata, client);
+		}
 		return false;
 	}
 
 	wb = get_workbase(sdata, workbase_id);
 	if (!wb) {
 		snprintf(errbuf, errbufsz, "invalid-job-id");
+		account_reject(client, client->diff, RB_BADJOB, "invalid-job-id");
 		dec_instance_ref(sdata, client);
 		return false;
 	}
@@ -7897,6 +8292,7 @@ bool stratifier_sv2_submit_share(int64_t instance_id, int64_t workbase_id,
 	if (nonce2hex_in && strlen(nonce2hex_in)) {
 		if ((int)strlen(nonce2hex_in) != expect || !validhex(nonce2hex_in)) {
 			snprintf(errbuf, errbufsz, "invalid-extranonce-size");
+			account_reject(client, client->diff, RB_BADJOB, "invalid-extranonce-size");
 			put_workbase(sdata, wb);
 			dec_instance_ref(sdata, client);
 			return false;
@@ -7918,6 +8314,7 @@ bool stratifier_sv2_submit_share(int64_t instance_id, int64_t workbase_id,
 			   ", rejecting share", instance_id,
 			   client->user_instance->username, workbase_id);
 		renotify_solo_client(sdata, client);
+		account_reject(client, client->diff, RB_BADJOB, "invalid-job-id");
 		put_workbase(sdata, wb);
 		dec_instance_ref(sdata, client);
 		return false;
@@ -7937,12 +8334,14 @@ bool stratifier_sv2_submit_share(int64_t instance_id, int64_t workbase_id,
 
 	if (stale) {
 		snprintf(errbuf, errbufsz, "stale-share");
+		account_reject(client, client->diff, RB_STALE, "stale-share");
 		put_workbase(sdata, wb);
 		dec_instance_ref(sdata, client);
 		return false;
 	}
 	if (ntime < wb->ntime32 || ntime > wb->ntime32 + 7000) {
 		snprintf(errbuf, errbufsz, "invalid-ntime");
+		account_reject(client, client->diff, RB_NTIME, "invalid-ntime");
 		put_workbase(sdata, wb);
 		dec_instance_ref(sdata, client);
 		return false;
@@ -7960,12 +8359,14 @@ bool stratifier_sv2_submit_share(int64_t instance_id, int64_t workbase_id,
 				instance_id, sdiff, diff);
 		} else {
 			snprintf(errbuf, errbufsz, "duplicate-share");
+			account_reject(client, diff, RB_DUPLICATE, "duplicate-share");
 			result = false;
 		}
 	} else {
 		snprintf(errbuf, errbufsz, "difficulty-too-low");
 		LOGINFO("SV2 reject instance %"PRId64" difficulty-too-low sdiff %.4f need %.0f",
 			instance_id, sdiff, diff);
+		account_reject(client, diff, RB_LOWDIFF, "difficulty-too-low");
 		result = false;
 	}
 
@@ -8031,8 +8432,10 @@ bool stratifier_sv2_account_share(int64_t instance_id, int64_t workbase_id,
 	if (!client || !client->authorised) {
 		if (errbuf)
 			snprintf(errbuf, errbufsz, "unauthorized-worker");
-		if (client)
+		if (client) {
+			account_reject(client, client->diff, RB_WORKER, "unauthorized-worker");
 			dec_instance_ref(sdata, client);
+		}
 		return false;
 	}
 	if (sdiff > client->best_diff) {
@@ -8061,11 +8464,13 @@ bool stratifier_sv2_account_share(int64_t instance_id, int64_t workbase_id,
 		} else {
 			if (errbuf)
 				snprintf(errbuf, errbufsz, "duplicate-share");
+			account_reject(client, diff, RB_DUPLICATE, "duplicate-share");
 			result = false;
 		}
 	} else {
 		if (errbuf)
 			snprintf(errbuf, errbufsz, "difficulty-too-low");
+		account_reject(client, diff, RB_LOWDIFF, "difficulty-too-low");
 		result = false;
 	}
 	ck_rlock(&sdata->workbase_lock);
@@ -8357,6 +8762,7 @@ static bool parse_submit(stratum_instance_t *client, yyjson_mut_val *params_val,
 
 	if (unlikely(!sdata->current_workbase)) {
 		err = SE_NO_WORKBASE;
+		account_reject(client, diff, share_err_bucket(err), SHARE_ERR(err));
 		*err_code = err;
 		return false;
 	}
@@ -8565,14 +8971,21 @@ out_nowb:
 		upstream_yydoc_msgtype(doc, SM_SHARE);
 	yyjson_mut_doc_free(doc);
 out:
+	/* Every rejected submission leaves through here except the no
+	 * workbase case above, which accounts for itself. A rejected share
+	 * always has err set. */
+	if (!result && err != SE_NONE)
+		account_reject(client, diff, share_err_bucket(err), SHARE_ERR(err));
+
 	if (!sdata->wbincomplete && ((!result && !submit) || !share)) {
 		/* Is this the first in a run of invalids? */
 		if (client->first_invalid < client->last_share.tv_sec || !client->first_invalid)
 			client->first_invalid = now_t;
 		else if (client->first_invalid && client->first_invalid < now_t - 180 && client->reject < 3) {
 			LOGNOTICE("Client %s rejecting for 180s, disconnecting", client->identity);
+			record_drop_reason(client, DR_INVALID_SHARES, 0);
 			if (ckpool.node)
-				connector_drop_client(client->id);
+				connector_drop_reason(client, DR_INVALID_SHARES);
 			else
 				stratum_send_message(sdata, client, "Disconnecting for continuous invalid shares");
 			client->reject = 3;
@@ -8910,7 +9323,7 @@ static void parse_method(sdata_t *sdata, stratum_instance_t *client,
 
 	if (cmdmatch(method, "mining.term")) {
 		LOGDEBUG("Mining terminate requested from %s %s", client->identity, client->address);
-		drop_client(sdata, client_id);
+		drop_client(sdata, client_id, DR_MINING_TERM, 0);
 		return;
 	}
 
@@ -8952,7 +9365,7 @@ static void parse_method(sdata_t *sdata, stratum_instance_t *client,
 		if (!ckpool.trusted[client->server] || ckpool.proxy) {
 			LOGNOTICE("Dropping client %s %s trying to authorise as remote node on non trusted server %d",
 				  client->identity, client->address, client->server);
-			connector_drop_client(client_id);
+			connector_drop_reason(client, DR_ROLE_REFUSED);
 		} else {
 			snprintf(buf, 255, "remote=%"PRId64, client_id);
 			send_proc(ckpool.connector, buf);
@@ -8970,8 +9383,8 @@ static void parse_method(sdata_t *sdata, stratum_instance_t *client,
 		if (!ckpool.nodeserver[client->server] || ckpool.proxy) {
 			LOGNOTICE("Dropping client %s %s trying to authorise as node on non node server %d",
 				  client->identity, client->address, client->server);
-			connector_drop_client(client_id);
-			drop_client(sdata, client_id);
+			connector_drop_reason(client, DR_ROLE_REFUSED);
+			drop_client(sdata, client_id, DR_ROLE_REFUSED, 0);
 		} else {
 			snprintf(buf, 255, "passthrough=%"PRId64, client_id);
 			send_proc(ckpool.connector, buf);
@@ -8987,8 +9400,8 @@ static void parse_method(sdata_t *sdata, stratum_instance_t *client,
 		if (!ckpool.passthroughserver[client->server] || ckpool.proxy || ckpool.node) {
 			LOGNOTICE("Dropping client %s %s trying to connect as passthrough on non passthrough server %d",
 				  client->identity, client->address, client->server);
-			connector_drop_client(client_id);
-			drop_client(sdata, client_id);
+			connector_drop_reason(client, DR_ROLE_REFUSED);
+			drop_client(sdata, client_id, DR_ROLE_REFUSED, 0);
 		} else {
 			/*Flag this as a passthrough and manage its messages
 			 * accordingly. No data from this client id should ever
@@ -9045,7 +9458,7 @@ static void parse_method(sdata_t *sdata, stratum_instance_t *client,
 	if (!client->subscribed) {
 		LOGINFO("Dropping %s from unsubscribed client %s %s", method,
 			client->identity, client->address);
-		connector_drop_client(client_id);
+		connector_drop_reason(client, DR_NOT_SUBSCRIBED);
 		return;
 	}
 
@@ -9098,7 +9511,7 @@ static void parse_share_result(stratum_instance_t *client, yyjson_mut_val *val)
 		client->upstream_invalid = now_t;
 	else if (client->upstream_invalid && client->upstream_invalid < now_t - 150) {
 		LOGNOTICE("Client %s upstream rejects for 150s, disconnecting", client->identity);
-		connector_drop_client(client->id);
+		connector_drop_reason(client, DR_UPSTREAM_REJECT);
 		client->reject = 3;
 	}
 }
@@ -9140,8 +9553,8 @@ static void parse_authorise_result(sdata_t *sdata, stratum_instance_t *client,
 	if (!yyjson_mut_is_true(val)) {
 		LOGNOTICE("Client %s was not authorised upstream, dropping", client->identity);
 		client->authorised = false;
-		connector_drop_client(client->id);
-		drop_client(sdata, client->id);
+		connector_drop_reason(client, DR_AUTH_REJECTED_UPSTREAM);
+		drop_client(sdata, client->id, DR_AUTH_REJECTED_UPSTREAM, 0);
 	} else
 		LOGINFO("Client %s was authorised upstream", client->identity);
 }
@@ -9890,7 +10303,9 @@ static void parse_instance_msg(sdata_t *sdata, smsg_t *msg, stratum_instance_t *
 	if (client->reject == 3) {
 		LOGINFO("Dropping client %s %s tagged for lazy invalidation",
 			client->identity, client->address);
-		connector_drop_client(client_id);
+		/* A failed authorise is tagged the same way as a run of
+		 * invalid shares, and has no more specific reason. */
+		connector_drop_reason(client, client->authorised ? DR_INVALID_SHARES : DR_OTHER);
 		return;
 	}
 
@@ -9944,6 +10359,7 @@ static void srecv_process(smsg_t *msg)
 {
 	bool noid = false, dropped = false, refused = false;
 	char address[INET6_ADDRSTRLEN], *buf = NULL;
+	int dropped_reason = DR_OTHER;
 	subclient_refusal_t sref = {};
 	yyjson_mut_val *root, *val;
 	sdata_t *sdata = ckpool.sdata;
@@ -10008,7 +10424,7 @@ static void srecv_process(smsg_t *msg)
 		if (unlikely(!addr || strlen(addr) >= sizeof(address))) {
 			LOGWARNING("Invalid address for client %"PRId64" in connector json smsg",
 				   msg->client_id);
-			connector_drop_client(msg->client_id);
+			connector_drop_client(msg->client_id, DR_SMSG_ERR);
 			goto out;
 		}
 		strcpy(address, addr);
@@ -10024,14 +10440,14 @@ static void srecv_process(smsg_t *msg)
 	if (unlikely(!yyjson_mut_is_int(val))) {
 		LOGWARNING("Non integer server for client %"PRId64" in connector json smsg",
 			   msg->client_id);
-		connector_drop_client(msg->client_id);
+		connector_drop_client(msg->client_id, DR_SMSG_ERR);
 		goto out;
 	}
 	server = yyjson_mut_get_sint(val);
 	if (unlikely(server < 0 || server >= ckpool.serverurls)) {
 		LOGWARNING("Out of range server %d for client %"PRId64" in connector json smsg",
 			   server, msg->client_id);
-		connector_drop_client(msg->client_id);
+		connector_drop_client(msg->client_id, DR_SMSG_ERR);
 		goto out;
 	}
 	yyjson_mut_obj_clear(val);
@@ -10057,6 +10473,8 @@ static void srecv_process(smsg_t *msg)
 			refused = true;
 	} else if (unlikely(client->dropped))
 		dropped = true;
+	if (unlikely(dropped))
+		dropped_reason = client_drop_reason(client);
 	if (likely(!refused && !dropped))
 		__inc_instance_ref(client);
 	ck_wunlock(&sdata->instance_lock);
@@ -10070,7 +10488,7 @@ static void srecv_process(smsg_t *msg)
 				msg->client_id, sref.identity, sref.reason);
 		}
 		if (sref.drop)
-			connector_drop_client(msg->client_id);
+			connector_drop_client(msg->client_id, DR_ROLE_REFUSED);
 		goto out;
 	}
 
@@ -10078,7 +10496,7 @@ static void srecv_process(smsg_t *msg)
 		/* Client may be NULL here */
 		LOGNOTICE("Stratifier skipped dropped instance %"PRId64" message from server %d",
 			  msg->client_id, server);
-		connector_drop_client(msg->client_id);
+		connector_drop_client(msg->client_id, dropped_reason);
 		goto out;
 	}
 	if (unlikely(noid))
@@ -10531,12 +10949,13 @@ static worker_instance_t *next_worker(sdata_t *sdata, user_instance_t *user, wor
 	return worker;
 }
 
-static void lazy_drop_client(stratum_instance_t *client)
+static void lazy_drop_client(stratum_instance_t *client, const int reason)
 {
 	/* Updated unlocked, a race will only delay the dropping which is
 	 * harmless. */
+	record_drop_reason(client, reason, 0);
 	client->dropped = true;
-	connector_drop_client(client->id);
+	connector_drop_client(client->id, client_drop_reason(client));
 }
 
 static void *statsupdate(void __maybe_unused *arg)
@@ -10556,6 +10975,7 @@ static void *statsupdate(void __maybe_unused *arg)
 			per_tdiff, percent;
 		char suffix1[16], suffix5[16], suffix15[16], suffix60[16];
 		char suffix360[16], suffix1440[16], suffix10080[16];
+		char rsuffix1[16], rsuffix5[16], rsuffix60[16];
 		int remote_users = 0, remote_workers = 0, idle_workers = 0;
 		log_entry_t *log_entries = NULL;
 		char_entry_t *char_list = NULL;
@@ -10598,14 +11018,14 @@ static void *statsupdate(void __maybe_unused *arg)
 					}
 				}
 			} else if (client->dropped)
-				connector_drop_client(client->id);
+				connector_drop_client(client->id, client_drop_reason(client));
 			else if (remote_server(client)) {
 				/* Do nothing to these */
 			} else if (!client->authorised) {
 				/* Test for clients that haven't authed in over a minute
 				 * and drop them lazily */
 				if (now.tv_sec > client->start_time + 60)
-					lazy_drop_client(client);
+					lazy_drop_client(client, DR_AUTH_TIMEOUT);
 			} else {
 				per_tdiff = tvdiff(&now, &client->last_share);
 				/* Decay times per connected instance */
@@ -10617,7 +11037,7 @@ static void *statsupdate(void __maybe_unused *arg)
 						/* Drop clients idle for longer than
 						 * ckpool.dropidle in seconds if set */
 						LOGINFO("Dropping client %"PRId64" due to being idle", client->id);
-						lazy_drop_client(client);
+						lazy_drop_client(client, DR_IDLE_DROP);
 					} else if (per_tdiff > 600) {
 						client->idle = true;
 						/* Test idle clients are still connected */
@@ -10653,13 +11073,17 @@ static void *statsupdate(void __maybe_unused *arg)
 
 			/* Decay times per user */
 			per_tdiff = tvdiff(&now, &user->last_share);
-			/* Drop storage of users with no shares */
-			if (!user->last_share.tv_sec) {
+			/* Drop storage of users with neither shares nor rejects.
+			 * A user whose every submission is rejected is still
+			 * stored so its rejects are visible. */
+			if (!user->last_share.tv_sec && !user->rstats.last_reject) {
 				LOGDEBUG("Skipping inactive user %s", user->username);
 				continue;
 			}
 			if (per_tdiff > 60)
 				decay_user(user, 0, &now);
+			if (now.tv_sec - user->rstats.last_reject > 60)
+				decay_rejects(&user->rstats, 0, &now);
 
 			ghs = user->dsps1440 * nonces;
 			suffix_string(ghs, suffix1440, 16, 0);
@@ -10694,7 +11118,10 @@ static void *statsupdate(void __maybe_unused *arg)
 			if (likely(stats->network_diff > 0))
 				user_luck = (double)user->round_shares * 100 / stats->network_diff;
 
-			doc = yyjson_mut_pack("{ss,ss,ss,ss,ss,sI,si,sI,sI,sf,sf,sf,sI,sI}",
+			reject_rate_suffixes(&user->rstats, rsuffix1, rsuffix5, rsuffix60);
+
+			doc = yyjson_mut_pack("{ss,ss,ss,ss,ss,sI,si,sI,sI,sf,sf,sf,sI,sI,"
+					      "sI,sI,s{sI,sI,sI,sI,sI,sI,sI},sI,ss,ss,ss,ss}",
 				"hashrate1m", suffix1,
 				"hashrate5m", suffix5,
 				"hashrate1hr", suffix60,
@@ -10708,7 +11135,22 @@ static void *statsupdate(void __maybe_unused *arg)
 				"luck", user_luck,
 				"networkdiff", stats->network_diff,
 				"bestever", user->best_ever,
-				"authorised", user->auth_time);
+				"authorised", user->auth_time,
+				"rejected", user->rstats.rejected,
+				"rejectedcount", user->rstats.count,
+				"rejects",
+					"stale", user->rstats.buckets[RB_STALE],
+					"duplicate", user->rstats.buckets[RB_DUPLICATE],
+					"lowdiff", user->rstats.buckets[RB_LOWDIFF],
+					"ntime", user->rstats.buckets[RB_NTIME],
+					"badjob", user->rstats.buckets[RB_BADJOB],
+					"malformed", user->rstats.buckets[RB_MALFORMED],
+					"worker", user->rstats.buckets[RB_WORKER],
+				"lastreject", user->rstats.last_reject,
+				"lastrejectreason", reject_reason(&user->rstats),
+				"rejectrate1m", rsuffix1,
+				"rejectrate5m", rsuffix5,
+				"rejectrate1hr", rsuffix60);
 			root = yyjson_mut_doc_get_root(doc);
 
 			if (user->remote_workers) {
@@ -10736,11 +11178,15 @@ static void *statsupdate(void __maybe_unused *arg)
 				yyjson_mut_val *wval;
 
 				per_tdiff = tvdiff(&now, &worker->last_share);
+				if (now.tv_sec - worker->rstats.last_reject > 60)
+					decay_rejects(&worker->rstats, 0, &now);
 				if (per_tdiff > 60) {
 					decay_worker(worker, 0, &now);
 					worker->idle = true;
-					/* Drop storage of workers idle for 1 week */
-					if (per_tdiff > 600000) {
+					/* Drop storage of workers idle for 1 week, counting
+					 * rejected submissions as activity */
+					if (per_tdiff > 600000 &&
+					    now.tv_sec - worker->rstats.last_reject > 600000) {
 						LOGDEBUG("Skipping inactive worker %s", worker->workername);
 						continue;
 					}
@@ -10761,9 +11207,13 @@ static void *statsupdate(void __maybe_unused *arg)
 				ghs = worker->dsps10080 * nonces;
 				suffix_string(ghs, suffix10080, 16, 0);
 
+				reject_rate_suffixes(&worker->rstats, rsuffix1, rsuffix5, rsuffix60);
+
 				LOGDEBUG("Storing worker %s", worker->workername);
 
-				wval = yyjson_mut_pack_val(doc, "{ss,ss,ss,ss,ss,ss,sI,sI,sf,sI}",
+				wval = yyjson_mut_pack_val(doc, "{ss,ss,ss,ss,ss,ss,sI,sI,sf,sI,"
+							   "sI,sI,s{sI,sI,sI,sI,sI,sI,sI},sI,ss,ss,ss,ss,"
+							   "sI,sI,sI,ss}",
 					"workername", worker->workername,
 					"hashrate1m", suffix1,
 					"hashrate5m", suffix5,
@@ -10773,7 +11223,26 @@ static void *statsupdate(void __maybe_unused *arg)
 				        "lastshare", worker->last_share.tv_sec,
 					"shares", worker->shares,
 					"bestshare", worker->best_diff,
-					"bestever", worker->best_ever);
+					"bestever", worker->best_ever,
+					"rejected", worker->rstats.rejected,
+					"rejectedcount", worker->rstats.count,
+					"rejects",
+						"stale", worker->rstats.buckets[RB_STALE],
+						"duplicate", worker->rstats.buckets[RB_DUPLICATE],
+						"lowdiff", worker->rstats.buckets[RB_LOWDIFF],
+						"ntime", worker->rstats.buckets[RB_NTIME],
+						"badjob", worker->rstats.buckets[RB_BADJOB],
+						"malformed", worker->rstats.buckets[RB_MALFORMED],
+						"worker", worker->rstats.buckets[RB_WORKER],
+					"lastreject", worker->rstats.last_reject,
+					"lastrejectreason", reject_reason(&worker->rstats),
+					"rejectrate1m", rsuffix1,
+					"rejectrate5m", rsuffix5,
+					"rejectrate1hr", rsuffix60,
+					"connects", worker->connects,
+					"disconnects", worker->disconnects,
+					"lastdisconnect", worker->last_disconnect,
+					"lastdisconnectreason", disconnect_reason(worker));
 				yyjson_mut_arr_append(workers_arr, wval);
 			}
 
@@ -10986,7 +11455,7 @@ out_status:
 			mutex_lock(&sdata->stats_lock);
 			stats->accounted_shares += unaccounted_shares;
 			stats->accounted_diff_shares += unaccounted_diff_shares;
-			stats->accounted_rejects += unaccounted_rejects;
+			stats->accounted_rejects = add_rejects(stats->accounted_rejects, unaccounted_rejects);
 
 			decay_time(&stats->sps1, unaccounted_shares, per_tdiff, MIN1);
 			decay_time(&stats->sps5, unaccounted_shares, per_tdiff, MIN5);

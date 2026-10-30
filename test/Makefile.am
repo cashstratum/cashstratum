@@ -1,11 +1,20 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)
 LDADD = $(top_builddir)/src/libckpool.a
 
-check_PROGRAMS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat
-TESTS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat
+check_PROGRAMS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat reject_stats
+TESTS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat reject_stats
 
 sha256_SOURCES = sha256.c
 merklebranch_SOURCES = merklebranch.c
+
+# Rejected-difficulty accounting: the per-connection cap and saturating
+# counters. reject_stats.c includes src/stratifier.c to exercise its actual
+# accounting path; unrelated server entry points and their dependencies are
+# discarded when linking.
+reject_stats_SOURCES = reject_stats.c
+reject_stats_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/ipc/mining
+reject_stats_CFLAGS = $(AM_CFLAGS) $(CFLAGS) -ffunction-sections -fdata-sections
+reject_stats_LDFLAGS = -Wl,--gc-sections
 
 # BCH address unit tests (fork-local): CashAddr decode/checksum vectors and
 # the local cashaddr+legacy classifier that feeds address_to_txn().
@@ -64,4 +73,41 @@ sv2_idle_SOURCES = sv2_idle.c \
 	$(top_srcdir)/src/sv2_noise.c
 sv2_idle_LDADD = $(top_builddir)/src/libckpool.a @SV2_LIBS@
 sv2_idle_CPPFLAGS = $(AM_CPPFLAGS) -DHAVE_SV2
+# Loopback SV2 responder driven by the interop test below. It is a server, so
+# it is built for make check but never listed in TESTS.
+check_PROGRAMS += sv2_interop_responder
+sv2_interop_responder_SOURCES = sv2_interop_responder.c \
+	$(top_srcdir)/src/sv2_conn.c \
+	$(top_srcdir)/src/sv2_noise.c
+sv2_interop_responder_LDADD = $(top_builddir)/src/libckpool.a @SV2_LIBS@
+sv2_interop_responder_CPPFLAGS = $(AM_CPPFLAGS) -DHAVE_SV2
 endif
+
+# Stratum V2 interoperability test (./configure --enable-sv2-interop). The
+# wrapper is copied into the build directory under the name sv2_interop, so
+# its results land in test/sv2_interop.log and test/sv2_interop.trs rather
+# than next to the source. It exits 77 (SKIP) when cargo is unavailable or
+# the crate cannot be built.
+if HAVE_SV2_INTEROP
+check_SCRIPTS = sv2_interop
+TESTS += sv2_interop
+AM_TESTS_ENVIRONMENT = \
+	SV2_INTEROP_RESPONDER=./sv2_interop_responder; export SV2_INTEROP_RESPONDER; \
+	CARGO='$(CARGO)'; export CARGO; \
+	SV2_INTEROP_CRATE='$(abs_top_srcdir)/testing/sv2-interop'; export SV2_INTEROP_CRATE; \
+	CARGO_TARGET_DIR='$(abs_builddir)/sv2-interop-target'; export CARGO_TARGET_DIR;
+endif
+
+sv2_interop: $(top_srcdir)/testing/sv2-interop/sv2_interop.sh
+	$(AM_V_GEN)cp $(top_srcdir)/testing/sv2-interop/sv2_interop.sh $@ && chmod +x $@
+
+CLEANFILES = sv2_interop
+
+# Distributed in every configuration so that make distcheck finds them.
+EXTRA_DIST = $(top_srcdir)/testing/sv2-interop/sv2_interop.sh \
+	$(top_srcdir)/testing/sv2-interop/Cargo.toml \
+	$(top_srcdir)/testing/sv2-interop/Cargo.lock \
+	$(top_srcdir)/testing/sv2-interop/src/main.rs
+
+clean-local:
+	rm -rf sv2-interop-target

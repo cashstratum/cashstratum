@@ -11,7 +11,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'src/connector.c').read_text()
-start = source.index('static bool parse_client_msg(cdata_t *cdata, client_instance_t *client)')
+start = source.index('static bool parse_client_msg(')
 end = source.index('\nstatic client_instance_t *ref_client_by_id', start)
 parser = source[start:end]
 HARNESS = r'''
@@ -26,6 +26,7 @@ HARNESS = r'''
 #include <sys/socket.h>
 #include <unistd.h>
 #include "yyjson.h"
+#include "dropreason.h"
 #define MAX_MSGSIZE 1024
 #define MAX_REMOTE_MSGSIZE (16 * 1024 * 1024)
 #define likely(x) (x)
@@ -53,18 +54,21 @@ static void stratifier_add_yyrecv(yyjson_mut_doc *d) { delivered++; yyjson_mut_d
 static void generator_add_send(yyjson_mut_doc *d) { stratifier_add_yyrecv(d); }
 '''
 CASES = r'''
-static void run_case(const char *data, size_t len, bool accepted, int messages) {
+static void run_case(const char *data, size_t len, bool accepted, int messages, int want_reason) {
     int fd[2]; cdata_t ctx = {0}; client_instance_t client = {0};
+    int reason = -1, err = 0;
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, fd) == 0);
     assert(fcntl(fd[0], F_SETFL, O_NONBLOCK) == 0);
     client.fd = fd[0]; client.buf = calloc(1, 4096);
     assert(client.buf); delivered = 0;
     assert(write(fd[1], data, len) == (ssize_t)len);
-    assert(parse_client_msg(&ctx, &client) == accepted);
+    assert(parse_client_msg(&ctx, &client, &reason, &err) == accepted);
     assert(delivered == messages);
+    /* Accepted input leaves the reason untouched; rejects must name it. */
+    assert(reason == want_reason);
     close(fd[0]); close(fd[1]); free(client.buf);
 }
-#define CASE(s, ok, n) run_case(s, sizeof(s) - 1, ok, n)
+#define CASE(s, ok, n) run_case(s, sizeof(s) - 1, ok, n, (ok) ? -1 : DR_BAD_JSON)
 int main(void) {
     CASE("{\"id\":1}\n", true, 1);
     CASE("{\"id\":1}\r\n{\"id\":2}\n", true, 2);
@@ -76,16 +80,19 @@ int main(void) {
     CASE("[]\n", false, 0);
     CASE("{broken}\n", false, 0);
     int fd[2]; cdata_t ctx = {0}; client_instance_t client = {0};
+    int reason = -1, err = 0;
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, fd) == 0);
     assert(fcntl(fd[0], F_SETFL, O_NONBLOCK) == 0);
     client.fd = fd[0]; client.buf = calloc(1, 4096); delivered = 0;
     assert(write(fd[1], "{\"id\":", 6) == 6);
-    assert(parse_client_msg(&ctx, &client)); assert(delivered == 0);
+    assert(parse_client_msg(&ctx, &client, &reason, &err)); assert(delivered == 0);
     assert(write(fd[1], "1}\n", 3) == 3);
-    assert(parse_client_msg(&ctx, &client)); assert(delivered == 1);
+    assert(parse_client_msg(&ctx, &client, &reason, &err)); assert(delivered == 1);
+    assert(reason == -1);
     close(fd[1]);
     /* EOF must not retain an already-active client indefinitely. */
-    assert(!parse_client_msg(&ctx, &client));
+    assert(!parse_client_msg(&ctx, &client, &reason, &err));
+    assert(reason == DR_PEER_EOF);
     close(fd[0]); free(client.buf);
     puts("CashStratum connector: framing, fragmentation, coalescing and EOF passed");
     return 0;

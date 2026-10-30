@@ -1,0 +1,8 @@
+[package]
+name = "sv2-noise-probe"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+noise_sv2 = "=2.0.0"
+key-utils = "=1.2.0"

@@ -597,6 +597,22 @@ type ShareRecord struct {
 	VersionMask string `json:"version_mask"`
 }
 
+// fillRejectReason sets RejectReason from the sharelog's "error" string when
+// the share was rejected. The pool writes the reject text under "error" (with
+// the numeric code in "errn") and never emits a "reject-reason" key itself.
+// Accepted shares keep a nil RejectReason. A reason already present on the
+// line is left alone.
+func fillRejectReason(rec *ShareRecord) {
+	if rec.Result || rec.RejectReason != nil {
+		return
+	}
+	var reason string
+	if err := json.Unmarshal(rec.Error, &reason); err != nil || reason == "" {
+		return
+	}
+	rec.RejectReason = &reason
+}
+
 // SharesResponse is /shares' payload.
 type SharesResponse struct {
 	Shares []ShareRecord `json:"shares"`
@@ -1742,6 +1758,7 @@ outer:
 					return true // malformed but newline-terminated -- skip AND advance past
 				}
 				rec.Worker = shortWorkerName(rec.Workername, rec.Username)
+				fillRejectReason(&rec)
 				if userFilter != nil {
 					if _, ok := userFilter[rec.Username]; !ok {
 						return true
@@ -2609,6 +2626,26 @@ func min(a, b int) int {
 	return b
 }
 
+// newMux registers every route. No "/" pattern is registered, so the root
+// path answers 404.
+func newMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/tail", authMiddleware(handleTail))
+	mux.HandleFunc("/grep", authMiddleware(handleGrep))
+	mux.HandleFunc("/find-block", authMiddleware(handleFindBlock))
+	mux.HandleFunc("/user-file", authMiddleware(handleUserFile))
+	mux.HandleFunc("/stats", authMiddleware(handleStats))
+	mux.HandleFunc("/user-log", authMiddleware(handleUserLog))
+	mux.HandleFunc("/coinbase", authMiddleware(handleCoinbase))
+	mux.HandleFunc("/shares", authMiddlewareWithLimiter(sharesRateLimiter, handleShares))
+	mux.HandleFunc("/health", authMiddleware(handleHealth))
+	mux.HandleFunc("/metrics", authMiddleware(handleMetrics))
+	// Deliberately unauthenticated -- see pingMiddleware for why /health cannot
+	// be reused for this instead.
+	mux.HandleFunc("/ping", pingMiddleware(handlePing))
+	return mux
+}
+
 func main() {
 	// Load configuration from environment
 	// Fail closed. Falling back to DefaultAPIKey would start the server on a
@@ -2712,21 +2749,7 @@ func main() {
 	log.Printf("Version: 3.0.0-go")
 	log.Printf("Features: High performance, low memory, concurrent requests")
 
-	// Setup HTTP routes
-	mux := http.NewServeMux()
-	mux.HandleFunc("/tail", authMiddleware(handleTail))
-	mux.HandleFunc("/grep", authMiddleware(handleGrep))
-	mux.HandleFunc("/find-block", authMiddleware(handleFindBlock))
-	mux.HandleFunc("/user-file", authMiddleware(handleUserFile))
-	mux.HandleFunc("/stats", authMiddleware(handleStats))
-	mux.HandleFunc("/user-log", authMiddleware(handleUserLog))
-	mux.HandleFunc("/coinbase", authMiddleware(handleCoinbase))
-	mux.HandleFunc("/shares", authMiddlewareWithLimiter(sharesRateLimiter, handleShares))
-	mux.HandleFunc("/health", authMiddleware(handleHealth))
-	mux.HandleFunc("/metrics", authMiddleware(handleMetrics))
-	// Deliberately unauthenticated -- see pingMiddleware for why /health cannot
-	// be reused for this instead.
-	mux.HandleFunc("/ping", pingMiddleware(handlePing))
+	mux := newMux()
 
 	// Create server
 	server := &http.Server{

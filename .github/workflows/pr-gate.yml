@@ -58,10 +58,10 @@ jobs:
       - name: Build
         run: |
           ./autogen.sh
-          # --disable-sv2 keeps this deterministic: Stratum V2 is Bitcoin-only
-          # and would otherwise switch on or off depending on whether the runner
-          # has libsodium and a populated src/secp256k1. Matches
-          # release-gate.yml.
+          # --disable-sv2 keeps this job deterministic: Stratum V2 would
+          # otherwise switch on or off depending on whether the runner has
+          # libsodium and a populated src/secp256k1. SV2 is exercised by the
+          # `sv2-interop` job. Matches release-gate.yml.
           ./configure --disable-sv2
           make -j"$(nproc)"
 
@@ -98,6 +98,64 @@ jobs:
       - name: API unit tests
         run: go test -mod=vendor ./...
         working-directory: api
+
+  sv2-interop:
+    name: Stratum V2 build, unit and interop tests
+    # Pinned: `ubuntu-latest` moves to 26.04 in November 2026, and the
+    # toolchain versions on the image are what this job depends on.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # The interop test fetches crates from crates.io at test time, so forks of
+    # the public export do not inherit this job unless they opt in. Hosted
+    # rather than self-hosted: cargo and rustup are preinstalled on the image
+    # (about 2 minutes end to end), and cargo is not on the `bch-regtest`
+    # runner -- sending it there would also queue, which is that runner's
+    # documented failure mode.
+    if: github.repository == 'cashstratum/dev' && github.event.pull_request.draft == false
+
+    steps:
+      - name: Check out the PR merge commit
+        uses: actions/checkout@v4
+        with:
+          # src/secp256k1 is a submodule and --enable-sv2 is fatal without it.
+          submodules: true
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool pkg-config \
+            libssl-dev libzmq3-dev libsodium-dev
+
+      - name: Rust toolchain versions
+        run: cargo --version && rustc --version
+
+      - name: Build with Stratum V2
+        run: |
+          set -euo pipefail
+          ./autogen.sh
+          ./configure --enable-sv2 --enable-sv2-interop 2>&1 | tee configure.out
+          # In `auto` mode a missing dependency silently turns SV2 off, so the
+          # summary line is asserted rather than trusted.
+          grep -q 'SV2 (Stratum V2).....: yes' configure.out
+          make -j"$(nproc)"
+
+      - name: Unit and interop tests
+        run: make -C test check
+
+      # The wrapper exits 77 (automake SKIP) when cargo is missing or the crate
+      # cannot be fetched, and `make check` is still green on a SKIP. Cargo is
+      # guaranteed on this runner, so here a SKIP is turned into a failure.
+      - name: Interop test ran, not skipped
+        run: |
+          grep -q ':test-result: PASS' test/sv2_interop.trs
+
+      - name: Show test logs on failure
+        if: failure()
+        run: |
+          for f in test/test-suite.log test/*.log; do
+            [ -f "$f" ] && { echo "===== $f ====="; cat "$f"; }
+          done || true
 
   e2e:
     name: Regtest money gate (self-hosted)

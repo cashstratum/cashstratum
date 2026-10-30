@@ -12,9 +12,6 @@
 #include <stdio.h>
 #include "libckpool.h"
 
-/* CashAddr charset for base32 */
-static const char CHARSET[] = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
-
 static const int8_t CHARSET_REV[128] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,

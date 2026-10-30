@@ -77,3 +77,7 @@ test/cbfinal
 test/merklebranch
 test/nodecompat
 *.a
+testing/sv2-interop/target/
+sv2-interop-target/
+test/sv2_interop_responder
+test/sv2_interop

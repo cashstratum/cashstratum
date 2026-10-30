@@ -63,7 +63,7 @@ trap 'echo "FAILED at line $LINENO: $BASH_COMMAND" >&2' ERR
 collect_evidence() {
   result=$?
   mkdir -p /evidence
-  cp /src/config.log /src/test/test-suite.log /tmp/daemon-help.txt /evidence/ 2>/dev/null || true
+  cp /src/config.log /src/test/test-suite.log /src/test/sv2_interop.log /tmp/daemon-help.txt /evidence/ 2>/dev/null || true
   tar -czf /evidence/runtime-logs.tar.gz --ignore-failed-read /tmp/install-node/regtest/debug.log /tmp/installed-pool.log /tmp/installed-proxy.log /tmp/interactive-pool.log /tmp/ckpool-e2e.* /solo-stage/opt/cashstratum/logs 2>/dev/null || true
   exit "$result"
 }
@@ -78,9 +78,18 @@ case "$ID" in
   fedora)
     # The minimal image omits the service-unit directory and account tools
     # supplied on an installed system; service state is still simulated below.
-    dnf install -y gcc gcc-c++ make git autoconf automake libtool pkgconf-pkg-config yasm zeromq-devel libsodium-devel openssl-devel libcap python3 jq curl ca-certificates libcurl jansson systemd shadow-utils
+    # The Python regression fixtures link the sanitizer runtimes, which Fedora
+    # ships as separate packages (libasan, libubsan).
+    dnf install -y gcc gcc-c++ libasan libubsan make git autoconf automake libtool pkgconf-pkg-config yasm zeromq-devel libsodium-devel openssl-devel libcap python3 jq curl ca-certificates libcurl jansson systemd shadow-utils
     ;;
 esac
+# The Stratum V2 interop leg needs cargo. Distro cargo packages lag the crate
+# graph (Ubuntu 24.04 ships 1.75), so install rustup's toolchain. The pin is the
+# release the rust:1-slim image carried when this test was wired (1.99.1); bump
+# it deliberately, never float it, so a new stable cannot change the result.
+curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.99.1
+export PATH="$HOME/.cargo/bin:$PATH"
+cargo --version
 mkdir /src
 cp -a /checkout/. /src/
 cd /src
@@ -235,9 +244,11 @@ make DESTDIR=/stage uninstall
 test ! -e /stage/usr/local/bin/cashstratum
 test ! -e /stage/usr/local/bin/csproxy
 make distclean
-./configure --enable-sv2
+./configure --enable-sv2 --enable-sv2-interop
 make -j"$(nproc)"
 make -C test check
+# A skipped interop test (no cargo, crates.io unreachable) must fail the harness.
+grep -q ':test-result: PASS' test/sv2_interop.trs
 make DESTDIR=/sv2-stage install
 test -x /sv2-stage/usr/local/bin/csproxy
 echo "PASS: $ID exact-checkout builds, unit tests and installations"

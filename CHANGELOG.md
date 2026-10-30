@@ -7,6 +7,91 @@ says so rather than implying one.
 
 ---
 
+## 1.3.0 — 2026-10-30
+
+Adds per-user and per-worker reject statistics, a cap on the difficulty credited to rejected shares,
+a recorded reason for every client disconnect, and a filtered `monitor.sh`. The accepted-share path
+is unchanged. The cap changes what the pool-wide `rejected` counter reports: read the second bullet
+before upgrading dashboards.
+
+- **Per-user and per-worker reject statistics.** Each user object in `logs/users/<address>` and each
+  `worker[]` entry gains `rejected` (summed credited difficulty), `rejectedcount`,
+  `rejects{stale,duplicate,lowdiff,ntime,badjob,malformed,worker}`, `lastreject`,
+  `lastrejectreason` and `rejectrate1m`/`rejectrate5m`/`rejectrate1hr` (hashrate format).
+  - Every SV1 reject reason is counted, plus the SV2 reject returns, including reasons the
+    pool-wide counter never saw.
+  - The counters persist across restarts; older files load as zero.
+  - The sum of `rejected` over all users can exceed the pool-wide `rejected`, because the per-user
+    counters see reasons the pool-wide one does not.
+  - Documented in `api/README.md` under "Reject statistics on /user-file".
+- **Behaviour change: reject difficulty is capped.** A rejected share is credited at the
+  connection's pool-assigned starting difficulty until the connection has an accepted share, and
+  afterwards at most the highest difficulty it has actually met. Counters saturate instead of
+  overflowing. The cap applies to the pool `rejected` in `pool.status` and the `Pool:` log line, and
+  to the new per-worker counters. Ports upstream CKPool `47a61470` and `e9b66549`.
+  - Consequence: a miner that ignores the assigned difficulty no longer inflates `rejected` by the
+    difficulty it asked for, so graphs of the pool `rejected` counter grow much more slowly after
+    upgrading.
+  - Alert on `rejectedcount` and on the reject percentage, not on summed difficulty.
+- **Disconnect reasons.** `Dropped client …` log lines now end with
+  ` reason=<reason>[ errno=<n>] age=<seconds>`; everything before that suffix is unchanged.
+  Reasons are lower-case names, among them `peer_eof`, `peer_reset`, `epollhup`, `epollrdhup`,
+  `epollerr`, `bad_json`, `msg_oversize`, `buf_overload`, `sv2_proto`, `sv2_encrypt`,
+  `not_subscribed`, `role_refused`, `write_err`, `blocked_60s`, `sendq_limit`,
+  `pre_session_idle`, `auth_timeout`, `idle_drop`, `invalid_shares`, `upstream_reject`,
+  `auth_rejected_upstream`, `reconnect_ignored`, `dropall`, `mining_term`, `smsg_err` and `other`.
+  - Each `worker[]` entry gains `connects`, `disconnects`, `lastdisconnect` and
+    `lastdisconnectreason`. A pool-wide dropall is not counted as a disconnect.
+- **API.** `/shares` now fills `reject-reason` from the share log's `error` field; it was always
+  null before. `api/README.md` now documents the real route table, the typed `/shares` fields and
+  the new `/user-file` keys. An absent key means an older pool, not zero. The API must be rebuilt
+  to pick up the `/shares` change.
+- **Build:** clean builds with and without `--enable-sv2` produce zero compiler warnings. Three
+  dead declarations were removed: an unused CashAddr encoding table, an SV2 debug buffer outside
+  Cap'n Proto builds, and an SV2-only variable in non-SV2 builds.
+- **Tests:**
+  - Regtest e2e scenario 15 (`testing/reject_stats_regression.py`) checks the reject counters,
+    buckets, `Dropped` reasons and connect counts.
+  - New unit test `test/reject_stats.c`.
+  - The code-extracting regression harnesses were updated for the new counters.
+  - The Stratum V2 Noise handshake is now checked against an independent initiator built on the
+    reference implementation's `noise_sv2` crate (2.0.0), with a negative control that must reject
+    a version 1 certificate. It runs as an opt-in automake test (`--enable-sv2-interop`), in the
+    clean-host harness, and as a hosted CI job.
+- **Proofs:** 16 additional mainnet block proofs (heights 972548 → 975091) are mirrored under
+  `docs/proofs/`, bringing the verified total to 97.
+- `monitor.sh` now shows a filtered view by default; `--all` keeps the previous every-line view.
+  - **Miners:** active miners get one compact row each (address without the network prefix,
+    1m/5m/1h hashrate, workers, best share). Users with no current hashrate and no rejects are
+    hidden.
+  - **Pool:** the three per-minute `Pool:` lines fold into one POOL row, which flags any rise in
+    the pool `rejected` counter.
+  - **Connects and drops:** each is one `+`/`-` line with the session length. A connect line also
+    shows where its difficulty came from: the NiceHash/MiningRigRentals floor, a password `d=`,
+    or a worker-name pattern.
+  - **Hidden:** the pool's own `cashstratum-api` probes from 127.0.0.1.
+  - **Flapping:** two or more sessions shorter than 5 s within a minute fold into one FLAP line
+    with a count. The threshold is set by `CS_MONITOR_FLAP_SECS`.
+  - **Highlighted:** blocks, submit failures and errors.
+  - **Colours:** each address has a stable colour. An optional groups file (`--groups`,
+    `CS_MONITOR_GROUPS`, or `monitor-groups.txt` in the install dir) gives chosen addresses a
+    label and colour. `NO_COLOR` is honoured.
+  - **How it works:** a single POSIX awk pass, where the old script forked up to 20 `grep`
+    processes per log line. Log text is no longer passed through `echo -e`.
+  - **Evidence:** `testing/monitor_regression.py` runs it over a synthetic log. On a live log it
+    produced identical output under gawk and mawk.
+- `post-install.sh` installs the repository's `monitor.sh` in place of an embedded copy, so
+  reinstalls and upgrades no longer bring the old monitor back.
+
+Operator note: restart the pool to load the new engine; miners reconnect. Restart the connector and
+stratifier together, as they are one binary. The new counters start at zero. Builds configured with
+`--disable-sv2` do not contain the SV2 counting.
+
+Validation: Linux default build, `make check` 7/7, zero warnings. `--enable-sv2` build,
+`make check` 16/16, zero warnings. `testing/regtest-e2e.sh`: 139/139 assertions, scenarios 1–15.
+`go vet` and `go test ./...` in `api/` pass. The PR gate passes: build, unit and API tests including
+the Python regression discovery; the self-hosted regtest money gate; SV2 build and interop.
+
 ## 1.2.5 — 2026-10-16
 
 Engine release limited to the Stratum V2 Noise handshake. Builds configured with `--disable-sv2`
@@ -14,8 +99,8 @@ are functionally identical to 1.2.4.
 
 - Stratum V2 Noise certificates now carry format version **0**, as the SV2 specification requires.
   The listener previously signed version **1**. Initiators that enforce the specification, such as
-  SRI `noise_sv2` **2.0.0** and later, rejected the handshake with `InvalidCertificate`; they can now
-  complete it. The wire observation and the SRI rejection are documented in
+  SRI `noise_sv2` **2.0.0** and later, rejected the handshake with `InvalidCertificate`; they should
+  now complete it (see Validation). The wire observation and the SRI rejection are documented in
   cashstratum/cashstratum#3. Upstream CKPool fixed the same defect in `528b9baf`.
 - CashStratum's own SV2 client (ckproxy and the job-declarator client) now rejects any certificate
   version other than 0 before it checks the signature.
@@ -27,6 +112,12 @@ Operator note: restart the pool server to serve the new certificate. It is signe
 authority key, so published `stratum2+tcp://host:port/<key>` URLs do not change. Roll out pool
 servers before proxies and job-declarator clients: an updated client refuses an upstream that still
 serves version 1.
+
+Validation: an SV2-enabled Linux build passes `make check` (15/15), including the new negative
+test that refuses correctly signed certificates with versions 1, 0x0100 and 0xffff and the
+long-uptime renewal test. Interoperability with an SRI `noise_sv2` 2.0.0+ initiator was verified by
+reading the SRI source, not by running an SRI client; a report from an operator on SRI is welcome
+on cashstratum/cashstratum#3.
 
 ## 1.2.4 — 2026-10-12
 

@@ -1,4 +1,4 @@
-AC_INIT([cashstratum],[1.2.5],[https://github.com/cashstratum/cashstratum])
+AC_INIT([cashstratum],[1.3.0],[https://github.com/cashstratum/cashstratum])
 
 dnl Must come before anything that expands AC_PROG_CC/AC_PROG_CXX, which is as
 dnl early as AC_USE_SYSTEM_EXTENSIONS below. Autoconf fills in a bare "-g -O2"
@@ -185,6 +185,24 @@ AC_SUBST(SV2_CFLAGS)
 AC_SUBST(SV2_LIBS)
 AM_CONDITIONAL([HAVE_SV2], [test x$SV2 = xyes])
 
+dnl Optional Stratum V2 interoperability test: runs the Noise handshake of an
+dnl independent initiator (testing/sv2-interop, a Rust crate) against the SV2
+dnl responder. Off by default because the crate is fetched from crates.io at
+dnl test time. cargo is located here for the summary only; when it is absent
+dnl the test reports SKIP at run time rather than failing configure.
+AC_ARG_ENABLE([sv2-interop],
+  [AS_HELP_STRING([--enable-sv2-interop],
+    [run the Stratum V2 interoperability test in make check; needs cargo and network access (default: no)])],
+  [enable_sv2_interop=$enableval], [enable_sv2_interop=no])
+if test "x$enable_sv2_interop" = "xyes"; then
+  if test "x$SV2" != "xyes"; then
+    AC_MSG_ERROR([--enable-sv2-interop requires Stratum V2 support (--enable-sv2)])
+  fi
+  AC_PATH_PROG([CARGO], [cargo])
+fi
+AC_SUBST(CARGO)
+AM_CONDITIONAL([HAVE_SV2_INTEROP], [test x$enable_sv2_interop = xyes])
+
 AC_CONFIG_FILES([Makefile src/Makefile test/Makefile])
 
 AC_OUTPUT
@@ -210,6 +228,15 @@ else
   else
     echo "    requires...........: libsodium; src/secp256k1 with ellswift+schnorrsig"
   fi
+fi
+if test "x$enable_sv2_interop" = "xyes"; then
+  if test -n "$CARGO"; then
+    echo "  SV2 interop test.....: yes (cargo: $CARGO)"
+  else
+    echo "  SV2 interop test.....: yes (cargo: not found, test will SKIP)"
+  fi
+else
+  echo "  SV2 interop test.....: no"
 fi
 echo "  CPPFLAGS.............: $CPPFLAGS"
 echo "  CFLAGS...............: $CFLAGS"

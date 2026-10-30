@@ -151,6 +151,43 @@ up the shared regtest node and wallet that `bch_wallet getnewaddress` (used
 throughout scenarios 11-14) depends on, and `write_diffpolicy_conf` /
 `start_diffpolicy_pool` must run before them.
 
+### Scenario 15 — reject counters and disconnect reasons
+
+Runs `testing/reject_stats_regression.py` against the same difficulty-policy
+pool as scenarios 11-14. It speaks raw stratum V1 (no hashing; a random nonce
+is always below the assigned difficulty) and then reads what the pool
+publishes: `<logdir>/users/<address>` and the main log's `Dropped client` lines.
+
+- **Reject counters.** Five low-diff submits raise `rejectedcount`,
+  `rejects.lowdiff` and `rejected` (by 5 x the assigned difficulty) on both the
+  worker entry and the user object, with `lastrejectreason == "Above target"`.
+  Replaying a low-diff share counts as a second `lowdiff` (the duplicate check
+  only runs for shares that meet the target). One each of bad ntime, unknown
+  job id, short params and wrong workername then raise their own bucket by
+  exactly 1. The reject worker and user show all eight reject keys and all
+  seven buckets, with the never-hit `stale` bucket at 0.
+- **Disconnect reasons.** A client that authorises, submits one low-diff
+  share (so the pool stores the user) and closes cleanly is logged as
+  `Dropped client ... reason=peer_eof ... age=<s>` and the worker shows
+  `disconnects` +1 with `lastdisconnectreason == "peer_eof"`; invalid JSON is
+  logged as `reason=bad_json`; three such cycles raise `connects` and
+  `disconnects` by 3, with a last reason of `peer_eof` or `peer_reset`.
+
+The users file is rewritten on the stats cycle, so each file check polls for
+up to 90 s (`--poll-timeout`); the scenario adds a few minutes at most. The
+probe prints one `PASS:`/`FAIL:` line per check, and the harness turns each
+line into an assertion. Run it by hand against a running pool with:
+
+```bash
+python3 testing/reject_stats_regression.py --port 3336 \
+    --logdir <logdir> --log <logdir>/e2e-diff.log \
+    --reject-addr <addr1> --conn-addr <addr2>
+```
+
+Like the other scenarios it needs Linux (`epoll`) and BCHN; on macOS only the
+static checks apply: `python3 -m py_compile testing/reject_stats_regression.py`
+and `bash -n testing/regtest-e2e.sh`.
+
 ## Installer and retention regression fixtures
 
 Run `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s testing -p '*regression*.py' -v`.
@@ -171,7 +208,9 @@ Docker and Python 3 are required. The harness snapshots tracked files including
 uncommitted edits and new nonignored files, records their SHA-256 hashes, and mounts
 that snapshot read-only. It fetches the pinned secp256k1 revision, then builds and
 checks both `--disable-sv2` and `--enable-sv2`, including staged installation and
-uninstallation. `make distcheck --disable-sv2` also builds and tests the generated
+uninstallation. The `--enable-sv2` leg also enables `--enable-sv2-interop` and runs the
+Stratum V2 interop test (see below), with a pinned Rust toolchain installed inside the
+container. `make distcheck --disable-sv2` also builds and tests the generated
 source archive outside Git. Any Docker, build, test or installer failure returns nonzero.
 
 `CLEANHOST_BCHN_DIR` must contain `bin/bitcoind` and `bin/bitcoin-cli`. With this mount,
@@ -191,3 +230,55 @@ binary is launched with the generated unit arguments and must serve a Stratum
 subscription. A real-systemd smoke test
 remains a separate release check; inspect the generated unit and verify helper socket
 access under its actual service account before deploying.
+
+## Stratum V2 interop proof
+
+This check shows that the Noise handshake certificate served by the CashStratum
+responder (`src/sv2_conn.c`, `src/sv2_noise.c`) is accepted by an independent
+initiator. The initiator is built on the reference Stratum V2 implementation's
+`noise_sv2` crate (version 2.0.0), with `key-utils` 1.2.0 for parsing the Base58Check
+authority key. The same initiator must reject a certificate that carries version 1.
+That rejection is the negative control: without it, a pass would not show that the
+certificate was actually checked.
+
+Components:
+
+- `testing/sv2-interop/` — Rust crate that builds the binary `sv2-noise-probe`.
+  It exits 0 and prints `OK` when the handshake is accepted. It exits 1 when the
+  certificate is rejected, printing the decoded `InvalidCertificate` (version,
+  `valid_from`, `not_valid_after`). It exits 2 for any other error.
+- `test/sv2_interop_responder` — stand-alone responder on loopback. It prints one
+  line, `stratum2+tcp://127.0.0.1:<port>/<authority>`, on stdout once it is listening.
+  With `-V <version>`, it serves a correctly signed certificate carrying that version.
+- `testing/sv2-interop/sv2_interop.sh` — the automake test. It builds the crate with
+  `cargo build --release --locked` and runs both legs: a version 0 certificate must
+  be accepted, and a version 1 certificate must be rejected.
+
+To run it:
+
+```bash
+./configure --enable-sv2 --enable-sv2-interop && make -j && make -C test check
+```
+
+The result appears as `sv2_interop` in the test summary. Details are in
+`test/sv2_interop.log`. The flag is off by default, and `configure` refuses it
+without SV2 support.
+
+The test needs `cargo` and access to crates.io at test time. When `cargo` is not
+executable, or the crate does not build, the test reports SKIP (exit 77) and prints
+the reason first. The other SV2 tests still run. A SKIP is not a pass. `make distcheck`
+never runs this test.
+
+Clock caveat: the initiator checks the certificate's validity window with a 10 second
+leeway, and the responder's window starts when the certificate is generated. A probe
+host whose clock lags the responder host by more than that fails with the same
+`InvalidCertificate` error as a wrong version. The printed `valid_from` value tells the
+two cases apart. Running both on the same host, as the test does, cannot hit this.
+
+Where it runs automatically:
+
+- The hosted `sv2-interop` job in `.github/workflows/pr-gate.yml` runs on every
+  non-draft pull request to the development repository. It uses an Ubuntu 24.04
+  runner with cargo preinstalled.
+- The clean-host Docker harness's `--enable-sv2` leg (see above) also enables and
+  runs the interop test.

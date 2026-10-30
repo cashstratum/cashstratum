@@ -383,3 +383,52 @@ func TestSharesSurfacesVersionMask(t *testing.T) {
 		t.Errorf("re-encoded share has no version_mask key: %s", b)
 	}
 }
+
+// The pool writes a rejected share's text under "error" and never emits a
+// "reject-reason" key. /shares must surface that text as reject-reason for a
+// rejected line, and leave it null for an accepted one. Both lines are raw
+// sharelog JSON so the test does not depend on the struct tags.
+func TestSharesRejectReasonFilledFromError(t *testing.T) {
+	base := useTempSharelogDir(t)
+	resetShareCache(t)
+
+	const rejected = `{"workinfoid":1,"clientid":1,"enonce1":"deadbeef",` +
+		`"nonce2":"0000000000000000","nonce":"11223344","ntime":"6a9b65bc",` +
+		`"diff":1.0,"sdiff":0.5,"hash":"abc","result":false,"error":"Above target",` +
+		`"errn":23,"createdate":"1735689600,1","createby":"code",` +
+		`"createcode":"parse_submit","createinet":"127.0.0.1:3333",` +
+		`"workername":"alice.w1","username":"alice","address":"127.0.0.1",` +
+		`"agent":"cpuminer/2.5.1"}`
+	const accepted = `{"workinfoid":2,"clientid":1,"enonce1":"deadbeef",` +
+		`"nonce2":"0000000000000000","nonce":"55667788","ntime":"6a9b65bd",` +
+		`"diff":1.0,"sdiff":3.5,"hash":"def","result":true,"error":"Valid",` +
+		`"errn":0,"createdate":"1735689601,1","createby":"code",` +
+		`"createcode":"parse_submit","createinet":"127.0.0.1:3333",` +
+		`"workername":"alice.w1","username":"alice","address":"127.0.0.1",` +
+		`"agent":"cpuminer/2.5.1"}`
+
+	writeSharelog(t, base, 500, 1, []string{rejected, accepted}, true)
+
+	resp := getShares(t, map[string]string{"limit": "10"})
+	if resp.Error != "" {
+		t.Fatalf("unexpected error: %q", resp.Error)
+	}
+	if len(resp.Shares) != 2 {
+		t.Fatalf("want 2 shares, got %d", len(resp.Shares))
+	}
+	for _, s := range resp.Shares {
+		switch s.WorkinfoID {
+		case 1:
+			if s.RejectReason == nil || *s.RejectReason != "Above target" {
+				t.Errorf("rejected share: reject-reason = %v, want %q", s.RejectReason, "Above target")
+			}
+			if s.Errn != 23 {
+				t.Errorf("rejected share: errn = %d, want 23", s.Errn)
+			}
+		case 2:
+			if s.RejectReason != nil {
+				t.Errorf("accepted share: reject-reason = %q, want null", *s.RejectReason)
+			}
+		}
+	}
+}

@@ -14,8 +14,8 @@ Run your pool. Choose direct payouts or username-based mining. Inspect the work 
   <img alt="CashStratum — Your pool. Your rules. Direct payouts, native CashAddr and verifiable blocks." src=".github/assets/readme/hero-light.webp" width="100%">
 </picture>
 
-[![Release v1.2.5](.github/assets/readme/badge-release.svg)](https://github.com/cashstratum/cashstratum/releases/tag/v1.2.5)
-[![81 verified BCH blocks](.github/assets/readme/badge-proofs.svg)](docs/proofs/)
+[![Release v1.3.0](.github/assets/readme/badge-release.svg)](https://github.com/cashstratum/cashstratum/releases/tag/v1.3.0)
+[![97 verified BCH blocks](.github/assets/readme/badge-proofs.svg)](docs/proofs/)
 [![Regtest and testnet before engine releases](.github/assets/readme/badge-validation.svg)](#release-validation)
 [![License: GPL v3 or later](.github/assets/readme/badge-license.svg)](COPYING)
 
@@ -23,10 +23,10 @@ Run your pool. Choose direct payouts or username-based mining. Inspect the work 
 
 [Releases](https://github.com/cashstratum/cashstratum/releases) · [Documentation](#documentation) · [Contribute](CONTRIBUTING.md) · [cashstratum.com](https://cashstratum.com)
 
-| BCH mainnet blocks | Gross block rewards | Historical value | On the released build |
+| BCH mainnet blocks | Gross block rewards | Historical value (81-block collection) | On the released build |
 |:---:|:---:|:---:|:---:|
-| **[81](docs/proofs/)** | **[253.31946287 BCH](docs/proofs/VALUATION.md)** | **[≈ $132,752.44](docs/proofs/VALUATION.md)** | **[12 blocks on v1.2.1](#production-proof)** |
-| Every hash checked on chain | Includes transaction fees | 72 saved + 2 screenshots + 7 fallbacks | 2026-10-06 → 2026-10-12 |
+| **[97](docs/proofs/)** | **[303.33459759 BCH](docs/proofs/)** | **[≈ $132,752.44](docs/proofs/VALUATION.md)** | **[21 blocks on v1.2.1](#production-proof)** |
+| Every hash checked on chain | Includes transaction fees | 72 saved + 2 screenshots + 7 fallbacks | 2026-10-06 → 2026-10-29 |
 
 Proof snapshot: **2026-10-12 UTC**. [Methodology and limitations](#production-proof).
 
@@ -51,7 +51,7 @@ The [proof index](docs/proofs/) contains the full hash, explorer link and excerp
 Clone a release on Linux, then run the guided installer:
 
 ```bash
-git clone --branch v1.2.5 --depth 1 https://github.com/cashstratum/cashstratum.git
+git clone --branch v1.3.0 --depth 1 https://github.com/cashstratum/cashstratum.git
 cd cashstratum
 bash install-cashstratum.sh
 ```
@@ -71,10 +71,11 @@ they do not provision a node or automatically enable SV2.
 
 ### Release status
 
-**[v1.2.5](https://github.com/cashstratum/cashstratum/releases/tag/v1.2.5)** (2026-10-16) fixes the
-Stratum V2 Noise certificate version (now 0, as the specification requires) and renews
-certificates on long uptime; builds without SV2 are unchanged from v1.2.4. **v1.2.2** introduced
-BCHD and Flowee compatibility. See [CHANGELOG.md](CHANGELOG.md) for release details and
+**[v1.3.0](https://github.com/cashstratum/cashstratum/releases/tag/v1.3.0)** (2026-10-30) adds
+per-user and per-worker reject statistics, caps the difficulty credited to rejected shares, records
+a reason for every disconnect, and ships a filtered `monitor.sh`. **v1.2.5** fixed the Stratum V2
+Noise certificate version and **v1.2.2** introduced BCHD and Flowee compatibility. See
+[CHANGELOG.md](CHANGELOG.md) for release details and
 deployment evidence. This tree includes the C engine, Go services, installers, unit tests
 and the regtest mining gate.
 
@@ -229,8 +230,9 @@ Other operators can build their own branded experience.
 
 ## Production proof
 
-**81 BCH mainnet blocks from this engine's lineage, every one verified against public chain
-data** — from the EloPool deployment in 2025 to the released CashStratum build today.
+**97 BCH mainnet blocks from this engine's lineage, every one verified against public chain
+data** — from the EloPool deployment in 2025 to the released CashStratum build today. The
+81-block collection is fixed; the 16 blocks found since it are kept in a separate file.
 
 | Era | Software | Blocks | Dates (UTC) | Gross BCH | Solve excerpts |
 |---|---|---:|---|---:|---:|
@@ -238,6 +240,9 @@ data** — from the EloPool deployment in 2025 to the released CashStratum build
 | **BlockSniper** | modified CKPool fork | 1 | 2026-09-01 | 3.12542747 | 1 |
 | **CashStratum** | **release v1.2.1** | **12** | **2026-10-06 → 2026-10-12** | **37.51657353** | **12** |
 | | | **81** | | **253.31946287** | **48** |
+| **CashStratum**, since the collection | **release v1.2.5** (7), **release v1.2.1** (2) | **9** | **2026-10-12 → 2026-10-23** | **28.13832975** | **9** |
+| **CashStratum**, since the collection | **release v1.2.1** | **7** | **2026-10-27 → 2026-10-29** | **21.87680497** | **7** |
+| | | **97** | | **303.33459759** | **64** |
 
 **The 12 blocks of October 2026 are the first found by a tagged CashStratum release**, running
 on the reference deployment: heights
@@ -256,15 +261,21 @@ on the reference deployment: heights
 showing the candidate, the submission, `BLOCK ACCEPTED!` and the ZMQ tip change, with SHA-256
 checksums for the excerpt and its source.
 
+**16 more blocks have been found since the collection**, heights 972548 → 975091
+(2026-10-12 → 2026-10-29): seven on release v1.2.5 and nine on release v1.2.1, for
+**21 blocks on v1.2.1** in total. They are listed with their
+redacted solve excerpts in [`recent-blocks.json`](docs/proofs/recent-blocks.json); see the
+[proof index](docs/proofs/#16-additional-blocks-since-this-collection).
+
 Every record in the **[proof index](docs/proofs/)** carries the height, hash, UTC block date,
 coinbase transaction and script, recognised coinbase tag and verification time, plus an
-explorer link. The **[valuation](docs/proofs/VALUATION.md)** prices each block's gross coinbase
+explorer link. For the 81-block collection, the **[valuation](docs/proofs/VALUATION.md)** prices each block's gross coinbase
 reward using its saved BlockSniper price: **72 database snapshots, two separately marked
 BlockSniper screenshot prices, and 7 historical Coinbase fallbacks**. The independent Coinbase/Bitstamp calculation is retained
 for comparison. No current-price repricing is used.
 
 > **What this proves, and what it does not.** It proves the blocks exist on the BCH main chain
-> and carry this deployment's coinbase tags, and that solve-time logs exist for 48 of them. A
+> and carry this deployment's coinbase tags, and that solve-time logs exist for 64 of them. A
 > coinbase tag is self-declared: it does not cryptographically attest a software build. The
 > `software` field on the CashStratum-era records comes from the operator's deployment record.
 > None of this establishes hashrate, luck, or a performance advantage over other engines.
@@ -274,14 +285,15 @@ the engine under their own pool name and branding.
 
 ### Verify it yourself
 
-Everything needed is in [`docs/proofs/`](docs/proofs/), and both scripts use only the Python 3
+Everything needed is in [`docs/proofs/`](docs/proofs/), and every script uses only the Python 3
 standard library:
 
 ```bash
 git clone https://github.com/cashstratum/cashstratum && cd cashstratum/docs/proofs
 
 python3 verify.py --offline   # record structure + SHA-256 of every solve excerpt
-python3 verify.py             # re-fetch all 81 blocks and coinbases from a public BCH API
+python3 verify.py             # re-fetch all 81 collection blocks and coinbases from a public BCH API
+python3 verify-recent.py      # re-fetch the 16 blocks found since the collection
 python3 verify-values.py      # re-do every reward sum and price-boundary check (offline)
 ```
 

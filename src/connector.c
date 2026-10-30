@@ -22,6 +22,7 @@
 #include "utlist.h"
 #include "stratifier.h"
 #include "generator.h"
+#include "dropreason.h"
 #ifdef HAVE_SV2
 #include "sv2_conn.h"
 #include "sv2_strat.h"
@@ -536,17 +537,18 @@ out:
 	return ret;
 }
 
-static void stratifier_drop_id(const int64_t id)
+static void stratifier_drop_id(const int64_t id, const int reason, const int err)
 {
 	char buf[256];
 
-	sprintf(buf, "dropclient=%"PRId64, id);
+	sprintf(buf, "dropclient=%"PRId64",%d,%d", id, reason, err);
 	send_proc(ckpool.stratifier, buf);
 }
 
 /* Complete the side effects after __drop_client has atomically invalidated and
  * unhashed a client under cdata->lock. Client must hold a reference count. */
-static int finish_drop_client(cdata_t *cdata, client_instance_t *client, int fd)
+static int finish_drop_client(cdata_t *cdata, client_instance_t *client, int fd,
+			      const int reason, const int err)
 {
 	bool passthrough = client->passthrough, remote = client->remote;
 	char address_name[INET6_ADDRSTRLEN];
@@ -562,7 +564,7 @@ static int finish_drop_client(cdata_t *cdata, client_instance_t *client, int fd)
 				   client_id, address_name);
 		}
 		LOGDEBUG("Connector dropped fd %d", fd);
-		stratifier_drop_id(client_id);
+		stratifier_drop_id(client_id, reason, err);
 #ifdef HAVE_SV2
 		sv2_strat_drop_client(client_id);
 		sv2_jd_drop_client(client_id);
@@ -583,9 +585,10 @@ static void generator_drop_client(const client_instance_t *client)
 	generator_add_send(doc);
 }
 
-static void stratifier_drop_client(const client_instance_t *client)
+static void stratifier_drop_client(const client_instance_t *client, const int reason,
+				   const int err)
 {
-	stratifier_drop_id(client->id);
+	stratifier_drop_id(client->id, reason, err);
 }
 
 /* Invalidate this instance. Remove them from the hashtables we look up
@@ -593,13 +596,13 @@ static void stratifier_drop_client(const client_instance_t *client)
  * drops to zero when we can remove them lazily. Client must hold a reference
  * count. */
 static int finish_invalidate_client(cdata_t *cdata, client_instance_t *client,
-				    int ret)
+				    int ret, const int reason, const int err)
 {
 	client_instance_t *dead, *tmp;
 
-	ret = finish_drop_client(cdata, client, ret);
+	ret = finish_drop_client(cdata, client, ret, reason, err);
 	if ((!ckpool.passthrough || ckpool.node) && !client->passthrough)
-		stratifier_drop_client(client);
+		stratifier_drop_client(client, reason, err);
 	if (ckpool.passthrough)
 		generator_drop_client(client);
 
@@ -623,14 +626,15 @@ static int finish_invalidate_client(cdata_t *cdata, client_instance_t *client,
 	return ret;
 }
 
-static int invalidate_client(cdata_t *cdata, client_instance_t *client)
+static int invalidate_client(cdata_t *cdata, client_instance_t *client,
+			     const int reason, const int err)
 {
 	int ret;
 
 	ck_wlock(&cdata->lock);
 	ret = __drop_client(cdata, client);
 	ck_wunlock(&cdata->lock);
-	return finish_invalidate_client(cdata, client, ret);
+	return finish_invalidate_client(cdata, client, ret, reason, err);
 }
 
 static void drop_all_clients(cdata_t *cdata)
@@ -656,7 +660,7 @@ static void drop_all_clients(cdata_t *cdata)
 	ck_wunlock(&cdata->lock);
 
 	for (i = 0; i < n; i++) {
-		stratifier_drop_id(ids[i]);
+		stratifier_drop_id(ids[i], DR_DROPALL, 0);
 #ifdef HAVE_SV2
 		sv2_strat_drop_client(ids[i]);
 		sv2_jd_drop_client(ids[i]);
@@ -775,7 +779,8 @@ static client_instance_t *ref_client_by_id(cdata_t *cdata, int64_t id);
 
 /* SV2 binary path: Noise reassembly, decrypt, stratifier handle, encrypt reply.
  * Returns false to drop. */
-static bool parse_client_msg_sv2(cdata_t *cdata, client_instance_t *client)
+static bool parse_client_msg_sv2(cdata_t *cdata, client_instance_t *client, int *reason,
+				 int *err)
 {
 	uint8_t rdbuf[8192];
 	int ret;
@@ -789,8 +794,15 @@ static bool parse_client_msg_sv2(cdata_t *cdata, client_instance_t *client)
 	if (ret < 1) {
 		if (ret < 0 && likely(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
 			return true;
+		const int read_errno = errno;
+
 		LOGINFO("SV2 client id %"PRId64" fd %d disconnected - recv fail ret %d errno %d",
-			client->id, client->fd, ret, errno);
+			client->id, client->fd, ret, read_errno);
+		if (ret < 0) {
+			*reason = DR_PEER_RESET;
+			*err = read_errno;
+		} else
+			*reason = DR_PEER_EOF;
 		return false;
 	}
 	if (!sv2_conn_feed(client->sv2c, rdbuf, (size_t)ret, &reply, &reply_len,
@@ -801,6 +813,7 @@ static bool parse_client_msg_sv2(cdata_t *cdata, client_instance_t *client)
 			dealloc(frames[i]);
 		dealloc(frames);
 		dealloc(frame_lens);
+		*reason = DR_SV2_PROTO;
 		return false;
 	}
 	if (sv2_conn_ready(client->sv2c)) {
@@ -929,7 +942,7 @@ void connector_sv2_send_plain(int64_t client_id, uint8_t *plain, size_t plainlen
 
 /* Client is holding a reference count from being on the epoll list. Returns
  * true if we will still be receiving messages from this client. */
-static bool parse_client_msg(cdata_t *cdata, client_instance_t *client)
+static bool parse_client_msg(cdata_t *cdata, client_instance_t *client, int *reason, int *err)
 {
 	yyjson_doc *sdoc;
 	int buflen, ret;
@@ -937,7 +950,7 @@ static bool parse_client_msg(cdata_t *cdata, client_instance_t *client)
 
 #ifdef HAVE_SV2
 	if (client->sv2)
-		return parse_client_msg_sv2(cdata, client);
+		return parse_client_msg_sv2(cdata, client, reason, err);
 #endif
 
 retry:
@@ -946,11 +959,13 @@ retry:
 		if (unlikely(!client->remote || client->bufofs > MAX_REMOTE_MSGSIZE)) {
 			LOGNOTICE("Client id %"PRId64" fd %d overloaded buffer without EOL, disconnecting",
 				client->id, client->fd);
+			*reason = DR_BUF_OVERLOAD;
 			return false;
 		}
 		char *newbuf = realloc(client->buf, round_up_page(client->bufofs + MAX_MSGSIZE + 1));
 		if (unlikely(!newbuf)) {
 			LOGERR("Client id %"PRId64" failed to grow remote recv buffer", client->id);
+			*reason = DR_BUF_OVERLOAD;
 			return false;
 		}
 		client->buf = newbuf;
@@ -960,8 +975,16 @@ retry:
 	if (ret < 1) {
 		if (ret < 0 && likely(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
 			return true;
+		const int read_errno = errno;
+
 		LOGINFO("Client id %"PRId64" fd %d disconnected - recv fail with bufofs %lu ret %d errno %d %s",
-			client->id, client->fd, client->bufofs, ret, errno, ret && errno ? strerror(errno) : "");
+			client->id, client->fd, client->bufofs, ret, read_errno,
+			ret && read_errno ? strerror(read_errno) : "");
+		if (ret < 0) {
+			*reason = DR_PEER_RESET;
+			*err = read_errno;
+		} else
+			*reason = DR_PEER_EOF;
 		return false;
 	}
 	client->bufofs += ret;
@@ -980,6 +1003,7 @@ reparse:
 	if (unlikely(buflen > MAX_MSGSIZE &&
 		     (!client->remote || buflen > MAX_REMOTE_MSGSIZE))) {
 		LOGNOTICE("Client id %"PRId64" fd %d message oversize, disconnecting", client->id, client->fd);
+		*reason = DR_MSG_OVERSIZE;
 		return false;
 	}
 
@@ -992,6 +1016,7 @@ reparse:
 
 		LOGINFO("Client id %"PRId64" sent invalid json message %s", client->id, client->buf);
 		send_client(cdata, client->id, buf);
+		*reason = DR_BAD_JSON;
 		return false;
 	} else {
 		yyjson_mut_doc *doc = yyjson_doc_mut_copy(sdoc, &ckyyalc);
@@ -1077,13 +1102,14 @@ static client_instance_t *ref_client_by_id(cdata_t *cdata, int64_t id)
 
 /* Safely drop a client from a context that does not already hold a reference
  * to it, taking one for the duration. */
-static void drop_client_by_id(cdata_t *cdata, const int64_t id)
+static void drop_client_by_id(cdata_t *cdata, const int64_t id, const int reason,
+			      const int err)
 {
 	client_instance_t *client = ref_client_by_id(cdata, id);
 
 	if (unlikely(!client))
 		return;
-	invalidate_client(cdata, client);
+	invalidate_client(cdata, client, reason, err);
 	dec_instance_ref(cdata, client);
 }
 
@@ -1142,8 +1168,10 @@ static void client_event_processor(struct epoll_event *event)
 	if (likely(events & EPOLLIN)) {
 		/* Rearm the client for epoll events if we have successfully
 		 * parsed a message from it */
-		if (unlikely(!parse_client_msg(cdata, client))) {
-			invalidate_client(cdata, client);
+		int drop_reason = DR_OTHER, drop_err = 0;
+
+		if (unlikely(!parse_client_msg(cdata, client, &drop_reason, &drop_err))) {
+			invalidate_client(cdata, client, drop_reason, drop_err);
 			goto out;
 		}
 	}
@@ -1161,15 +1189,15 @@ static void client_event_processor(struct epoll_event *event)
 			LOGINFO("Client id %"PRId64" fd %d epollerr HUP in epoll with errno %d: %s",
 				client->id, client->fd, error, strerror(error));
 		}
-		invalidate_client(cdata, client);
+		invalidate_client(cdata, client, DR_EPOLLERR, error);
 	} else if (unlikely(events & EPOLLHUP)) {
 		/* Client connection reset by peer */
 		LOGINFO("Client id %"PRId64" fd %d HUP in epoll", client->id, client->fd);
-		invalidate_client(cdata, client);
+		invalidate_client(cdata, client, DR_EPOLLHUP, 0);
 	} else if (unlikely(events & EPOLLRDHUP)) {
 		/* Client disconnected by peer */
 		LOGINFO("Client id %"PRId64" fd %d RDHUP in epoll", client->id, client->fd);
-		invalidate_client(cdata, client);
+		invalidate_client(cdata, client, DR_EPOLLRDHUP, 0);
 	}
 out:
 	if (likely(!client->invalid)) {
@@ -1276,7 +1304,7 @@ static void reap_idle_clients(cdata_t *cdata)
 		}
 		LOGNOTICE("Reaping client id %"PRId64" %s idle %s for %d seconds",
 			  client->id, client->address_name, why, timeout);
-		finish_invalidate_client(cdata, client, fd);
+		finish_invalidate_client(cdata, client, fd, DR_PRE_SESSION_IDLE, 0);
 		dec_instance_ref(cdata, client);
 	}
 }
@@ -1403,7 +1431,7 @@ static bool send_sender_send(cdata_t *cdata, sender_send_t *sender_send)
 			LOGINFO("SV2 encrypt failed client %"PRId64" on sender shard, dropping",
 				client->id);
 			sender_send->sv2_encrypt = false;
-			invalidate_client(cdata, client);
+			invalidate_client(cdata, client, DR_SV2_ENCRYPT, 0);
 			goto out_true;
 		}
 		dealloc(sender_send->buf);
@@ -1423,11 +1451,13 @@ static bool send_sender_send(cdata_t *cdata, sender_send_t *sender_send)
 		int ret = write(client->fd, sender_send->buf + sender_send->ofs, sender_send->len);
 
 		if (ret < 1) {
+			const int write_errno = errno;
+
 			/* Invalidate clients that block for more than 60 seconds */
 			if (unlikely(client->blocked_time && now_t - client->blocked_time >= 60)) {
 				LOGNOTICE("Client id %"PRId64" fd %d blocked for >60 seconds, disconnecting",
 					  client->id, client->fd);
-				invalidate_client(cdata, client);
+				invalidate_client(cdata, client, DR_BLOCKED_60S, 0);
 				goto out_true;
 			}
 			if (errno == EAGAIN || errno == EWOULDBLOCK || !ret) {
@@ -1437,7 +1467,7 @@ static bool send_sender_send(cdata_t *cdata, sender_send_t *sender_send)
 			}
 			LOGINFO("Client id %"PRId64" fd %d disconnected with write errno %d:%s",
 				client->id, client->fd, errno, strerror(errno));
-			invalidate_client(cdata, client);
+			invalidate_client(cdata, client, DR_WRITE_ERR, write_errno);
 			goto out_true;
 		}
 		sender_send->ofs += ret;
@@ -1568,7 +1598,7 @@ static void queue_sender_send(cdata_t *cdata, client_instance_t *client,
 		LOGNOTICE("Client id %"PRId64" fd %d %s exceeded send queue limit with %"PRId64
 			  " bytes queued, disconnecting", client->id, client->fd,
 			  client->address_name, queued);
-		drop_client_by_id(cdata, client->id);
+		drop_client_by_id(cdata, client->id, DR_SENDQ_LIMIT, 0);
 	}
 }
 
@@ -1738,10 +1768,10 @@ static void send_client(cdata_t *cdata, const int64_t id, char *buf)
 			/* Now see if the subclient exists */
 			client = ref_client_by_id(cdata, client_id);
 			if (client) {
-				invalidate_client(cdata, client);
+				invalidate_client(cdata, client, DR_OTHER, 0);
 				dec_instance_ref(cdata, client);
 			} else
-				stratifier_drop_id(id);
+				stratifier_drop_id(id, DR_OTHER, 0);
 			free(buf);
 			return;
 		}
@@ -1749,7 +1779,7 @@ static void send_client(cdata_t *cdata, const int64_t id, char *buf)
 		client = ref_client_by_id(cdata, id);
 		if (unlikely(!client)) {
 			LOGINFO("Connector failed to find client id %"PRId64" to send to", id);
-			stratifier_drop_id(id);
+			stratifier_drop_id(id, DR_OTHER, 0);
 			free(buf);
 			return;
 		}
@@ -2241,7 +2271,10 @@ retry:
 	} else if (cmdmatch(buf, "dropclient")) {
 		client_instance_t *client;
 
-		ret = sscanf(buf, "dropclient=%"PRId64, &client_id);
+		int drop_reason = DR_OTHER;
+
+		/* The stratifier may append the reason it is dropping for. */
+		ret = sscanf(buf, "dropclient=%"PRId64",%d", &client_id, &drop_reason);
 		if (ret < 0) {
 			LOGDEBUG("Connector failed to parse dropclient command: %s", buf);
 			goto retry;
@@ -2256,7 +2289,9 @@ retry:
 			LOGINFO("Connector failed to find client id %"PRId64" to drop", client_id);
 			goto retry;
 		}
-		ret = invalidate_client(cdata, client);
+		if (drop_reason < 0 || drop_reason >= DR_MAX)
+			drop_reason = DR_OTHER;
+		ret = invalidate_client(cdata, client, drop_reason, 0);
 		dec_instance_ref(cdata, client);
 		if (ret >= 0)
 			LOGINFO("Connector dropped client id: %"PRId64, client_id);
@@ -2269,7 +2304,7 @@ retry:
 		if (client_exists(cdata, client_id))
 			goto retry;
 		LOGINFO("Connector detected non-existent client id: %"PRId64, client_id);
-		stratifier_drop_id(client_id);
+		stratifier_drop_id(client_id, DR_OTHER, 0);
 	} else if (cmdmatch(buf, "ping")) {
 		LOGDEBUG("Connector received ping request");
 		send_unix_msg(umsg->sockd, "pong");

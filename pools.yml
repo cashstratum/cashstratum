@@ -15,7 +15,7 @@ pools:
     since: 2025
     formerly: elopool.cloud
     notes: >-
-      Reference production deployment. 81 BCH mainnet blocks found, 12 of them on the CashStratum v1.2.1 release. Historical coinbase tags
+      Reference production deployment. 97 verified BCH mainnet blocks found, 21 of them on the CashStratum v1.2.1 release. Historical coinbase tags
       reading "elopool.cloud" refer to this same pool under its previous name.
     verified: 2026-10-12
     evidence:

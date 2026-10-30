@@ -40,6 +40,25 @@ its own 60 requests/minute budget and no response cache.
 | `GET /metrics` | service-level counters |
 | `GET /ping` | **unauthenticated** round-trip-time probe for a browser — see [below](#get-ping) |
 
+### Route table
+
+Routes are registered on a plain `http.ServeMux`. No HTTP method is enforced
+except on `/ping` (GET/HEAD). No `/` route exists, so `GET /` returns 404.
+
+| Path | Auth | Source | Top-level response keys |
+|---|---|---|---|
+| `/tail?lines=` | Bearer | main log, `tail -n` (default 100, max 1000) | `lines`, `timestamp`, `error?` |
+| `/grep?pattern=` | Bearer | main log, grep of the last 500 lines, cached | `lines`, `pattern`, `timestamp` |
+| `/find-block?height=` | Bearer | main log, three patterns with `-C 5` | `found`, `lines`, `height`, `timestamp`, `error?` |
+| `/user-file?user=` | Bearer | `<userLogPath>/<addr>`, up to 1 MB | `username`, `content` (the file's JSON), `raw?`, `error?` |
+| `/stats` | Bearer | regex scrape of the last 200 main-log lines plus node `getblockchaininfo` | `hashrate`, `workers`, `users`, `transactions`, `block_height`, `node?`, `timestamp`, `error?` |
+| `/user-log?user=` | Bearer | `tail -n` of the user file | `lines`, `exists`, `username?`, `timestamp` |
+| `/coinbase?user=&candidate_height=` | Bearer | live stratum probe | see [COINBASE_API.md](COINBASE_API.md) |
+| `/shares?user=&limit=&since=` | Bearer, own limiter | `<logdir>/<%08x height>/*.sharelog` | `shares[]`, `height`, `next_cursor?`, `timestamp`, `error?` |
+| `/health` | Bearer | stat of the log file | `status`, `timestamp`, `log_exists`, `log_size`, `uptime`, `version` |
+| `/metrics` | Bearer | in-process counters | `uptime`, `requests_total`, `errors_total`, `rate_limit_entries`, `cache_entries`, `timestamp` |
+| `/ping` | none, own limiter | — | 204, empty |
+
 `/user-log` and `/user-file` resolve both CashAddr forms of a username: the pool
 names each stats file after the exact string the miner authorized with, so a
 query for `qzxq…` also finds `bitcoincash:qzxq…` (and `bchtest:`/`bchreg:`), and
@@ -68,6 +87,69 @@ never taken from the sharelog line even if one somehow carries that key. A
 miner who authorised with a bare address gets `""` rather than the address
 echoed back, so a single unnamed rig can be rendered without re-matching the
 identity.
+
+### Reject statistics on `/user-file`
+
+`/user-file` decodes the status file into a generic JSON value, so every key the
+pool writes reaches the caller unchanged at both user and worker level. The
+reject statistics are additive keys:
+
+- **User object and each `worker[]` entry:** `rejected` (credited difficulty of
+  rejected shares), `rejectedcount` (number of rejected shares), `rejects`
+  (per-reason counts: `stale`, `duplicate`, `lowdiff`, `ntime`, `badjob`,
+  `malformed`, `worker`), `lastreject` (unix time), `lastrejectreason`, and
+  `rejectrate1m` / `rejectrate5m` / `rejectrate1hr` (hashrate-suffix strings).
+- **Each `worker[]` entry only:** `connects`, `disconnects`, `lastdisconnect`,
+  `lastdisconnectreason`.
+
+The `worker` key inside `rejects` is a reason bucket (worker-name mismatch). It
+is not the per-entry `worker` short name this API derives on each `worker[]`
+entry (see [Worker names](#worker-names)).
+
+```json
+GET /user-file?user=bitcoincash:q...
+{
+  "username": "bitcoincash:q...",
+  "content": {
+    "hashrate1m": "1.41P",
+    "shares": 123456789012,
+    "rejected": 287309824,
+    "rejectedcount": 274,
+    "rejects": {"stale": 3, "duplicate": 0, "lowdiff": 268, "ntime": 0, "badjob": 2, "malformed": 1, "worker": 0},
+    "lastreject": 1793327788,
+    "lastrejectreason": "Above target",
+    "rejectrate1m": "1.21P", "rejectrate5m": "402T", "rejectrate1hr": "33.5T",
+    "worker": [
+      {
+        "workername": "bitcoincash:q....4",
+        "worker": "4",
+        "hashrate1m": "350T",
+        "shares": 30000000000,
+        "rejected": 287309824, "rejectedcount": 274,
+        "rejects": {"stale": 3, "duplicate": 0, "lowdiff": 268, "ntime": 0, "badjob": 2, "malformed": 1, "worker": 0},
+        "lastreject": 1793327788, "lastrejectreason": "Above target",
+        "rejectrate1m": "1.21P", "rejectrate5m": "402T", "rejectrate1hr": "33.5T",
+        "connects": 61, "disconnects": 60,
+        "lastdisconnect": 1793327788, "lastdisconnectreason": "peer_eof"
+      }
+    ]
+  }
+}
+```
+
+**An absent key means "this pool version predates the field", not zero.**
+Consumers must not treat a missing `rejectedcount` as `0`.
+
+Notes for consumers:
+
+- `rejected` is a sum of credited difficulty. Summed over all users it is at
+  least the pool-level `rejected` figure, because the pool total does not count
+  every reject the per-user counters see.
+- Alerting should key on `rejectedcount` and on a reject percentage, never on
+  the summed difficulty, which is dominated by a few high-difficulty shares.
+- Derived percentages are the consumer's job: for a window,
+  `rejectrate / (hashrate + rejectrate)` after parsing both suffix strings with
+  the same parser; for lifetime, `rejected / (shares + rejected)`.
 
 ### Probe worker filtering on `/user-file`
 
@@ -190,15 +272,24 @@ resumable stream, rather than a fixed snapshot.
 }
 ```
 
-Each entry in `shares` is a raw CashStratum sharelog record — field names are kept
-**verbatim** from `src/stratifier.c`'s own JSON output rather than
-Go/JSON-cased, so the response matches the on-disk `.sharelog` line exactly
-— with the single exception of `worker`, which CashStratum does not write and this
-API derives (see [Worker names](#worker-names)).
-Beyond the ones shown above, every field CashStratum writes is passed through
-(`workinfoid`, `clientid`, `nonce`, `ntime`, `diff`, `errn`, `reject-reason`,
-etc.) — a rejected share carries `"result": false` with a `reject-reason`
-string explaining why.
+Each entry in `shares` is a **typed** record (`ShareRecord` in
+`ckpool_api_server.go`), not a raw passthrough of the sharelog line. Field names
+are kept verbatim from the pool's own JSON output rather than Go/JSON-cased, so
+they match the on-disk `.sharelog` line. The fields kept are:
+
+`workinfoid`, `clientid`, `enonce1`, `nonce2`, `nonce`, `ntime`, `diff`, `sdiff`,
+`hash`, `result`, `reject-reason`, `error`, `errn`, `createdate`, `createby`,
+`createcode`, `createinet`, `workername`, `worker`, `username`, `address`,
+`agent`, `version_mask`.
+
+Any other key on a sharelog line is dropped. `worker` is not written by the pool;
+this API derives it (see [Worker names](#worker-names)). `version_mask` is `""`
+on lines written before the pool recorded it.
+
+**`reject-reason`.** The pool writes the reject text in `error` (the share-error
+string, for example `"Above target"`) and its numeric code in `errn`; it never
+writes a `reject-reason` key. For a rejected share (`"result": false`) the API
+copies `error` into `reject-reason`. An accepted share has `"reject-reason": null`.
 
 **Cursor semantics:** poll again with the exact `next_cursor` value from the
 last response to receive each share exactly once, in order — never a repeat,

@@ -1423,6 +1423,37 @@ scenario_14_suggest_difficulty() {
 }
 
 # ---------------------------------------------------------------------------
+# Scenario 15: per-worker reject counters and disconnect reasons.
+#
+# Runs testing/reject_stats_regression.py against the difficulty-policy pool
+# (low mindiff/startdiff, so random-nonce submits are reliable rejects and a
+# short update_interval keeps the users-file polls quick). The probe prints
+# one PASS:/FAIL: line per check; each line becomes one harness assertion.
+# ---------------------------------------------------------------------------
+scenario_15_reject_stats() {
+	log "=== Scenario 15: reject counters and disconnect reasons ==="
+	local reject_addr conn_addr out="$WORKDIR/reject-stats.out" rc=0 line
+	reject_addr=$(bch_wallet getnewaddress "scenario15-reject")
+	conn_addr=$(bch_wallet getnewaddress "scenario15-conn")
+
+	python3 "$SCRIPT_DIR/reject_stats_regression.py" \
+		--host 127.0.0.1 --port "$DIFFPOLICY_STRATUM_PORT" \
+		--logdir "$DIFFLOGDIR" --log "$DIFFLOGDIR/e2e-diff.log" \
+		--reject-addr "$reject_addr" --conn-addr "$conn_addr" \
+		>"$out" 2>"$out.err" || rc=$?
+	cat "$out.err" >&2
+
+	while IFS= read -r line; do
+		case "$line" in
+			PASS:*) check "scenario15: ${line#PASS: }" true ;;
+			FAIL:*) check "scenario15: ${line#FAIL: }" false ;;
+		esac
+	done <"$out"
+	check "scenario15: reject_stats_regression.py exited 0 (rc=$rc)" \
+		"$([[ "$rc" -eq 0 ]] && echo true || echo false)"
+}
+
+# ---------------------------------------------------------------------------
 main() {
 	prereq_check
 	WORKDIR=$(mktemp -d "${TMPDIR:-/tmp}/ckpool-e2e.XXXXXX")
@@ -1452,6 +1483,7 @@ main() {
 	scenario_12_password_diff_table
 	scenario_13_override_lookup
 	scenario_14_suggest_difficulty
+	scenario_15_reject_stats
 
 	echo
 	echo "===================================================================="

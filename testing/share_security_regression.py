@@ -82,6 +82,11 @@ static struct { int64_t mindiff, maxdiff; sdata_t *sdata; } ckpool;
 static stratum_instance_t client;
 static bool unique_share, last_valid, last_submit;
 static double credited;
+enum reject_bucket { RB_STALE, RB_DUPLICATE, RB_LOWDIFF, RB_NTIME, RB_BADJOB, RB_MALFORMED, RB_WORKER, RB_MAX };
+static int rejects[RB_MAX], reject_total;
+static const char *last_reject_reason;
+static void account_reject(stratum_instance_t *c, const double d, enum reject_bucket b, const char *reason) { (void)c;(void)d;rejects[b]++;reject_total++;last_reject_reason=reason; }
+static void reset_rejects(void) { memset(rejects,0,sizeof(rejects)); reject_total=0; last_reject_reason=NULL; }
 static int diff_sent;
 static void ck_rlock(int *l) { (void)l; }
 static void ck_runlock(int *l) { (void)l; }
@@ -132,19 +137,22 @@ int main(void) {
     assert(client.diff==64);
     ckpool.maxdiff=0; assert(clamp_requested_diff(1000000)==1000000);
     /* Even meeting upstream/network work cannot make a duplicate count. */
-    unique_share=false;
+    unique_share=false; reset_rejects();
     assert(stale_accounting(&data,hash,100,64,64,true,true,true));
     assert(!stale_accounting(&data,hash,100,1000000,64,true,true,false));
     assert(!stratifier_sv2_account_share(1,100,hash,1000000,err,sizeof(err),&network));
     assert(!strcmp(err,"duplicate-share") && !last_valid && !last_submit && credited==0 && !network);
+    assert(reject_total==1 && rejects[RB_DUPLICATE]==1 && !strcmp(last_reject_reason,"duplicate-share"));
     /* Meeting workbase difficulty but missing the client's target cannot count. */
-    unique_share=true;
+    unique_share=true; reset_rejects();
     assert(!stale_accounting(&data,hash,100,1,64,true,true,false));
     assert(stale_accounting(&data,hash,100,64,64,true,true,false));
     assert(!stratifier_sv2_account_share(1,100,hash,1,err,sizeof(err),&network));
     assert(!strcmp(err,"difficulty-too-low") && !last_submit && credited==0);
+    assert(reject_total==1 && rejects[RB_LOWDIFF]==1 && !strcmp(last_reject_reason,"difficulty-too-low"));
+    reset_rejects();
     assert(stratifier_sv2_account_share(1,100,hash,64,err,sizeof(err),&network));
-    assert(last_valid && credited==64);
+    assert(last_valid && credited==64 && reject_total==0);
     /* Retarget grace must credit the lower difficulty used for validation. */
     client.diff=128;client.old_diff=64;client.diff_change_job_id=101;
     assert(stratifier_sv2_account_share(1,100,hash,64,err,sizeof(err),&network));

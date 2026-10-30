@@ -1446,7 +1446,10 @@ static uint8_t *finalize_declare_check(struct sv2_jd_pending *pend, size_t *repl
 	uint8_t thash[32];
 	unsigned ti;
 	int valid = 0;
-	char reason[256] = "", debug[512] = "";
+	char reason[256] = "";
+#ifdef HAVE_CAPNP
+	char debug[512] = "";
+#endif
 	bool any_ipc = false;
 	time_t now = time(NULL);
 

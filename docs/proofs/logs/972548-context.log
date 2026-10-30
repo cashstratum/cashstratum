@@ -1,0 +1,11 @@
+[2026-10-12 10:32:14.768] ZMQ block hash 0000000000000000022d8d673784ddf464163494d843c4f832df67830ff39a0d from endpoint 0
+[2026-10-12 10:32:14.768] BLOCK ACCEPTED!
+[2026-10-12 10:32:14.768] Stored local workbase with 1 transactions
+[2026-10-12 10:32:14.768] [redacted non-event log line]
+[2026-10-12 10:32:14.769] [redacted non-event log line]
+[2026-10-12 10:32:15.022] Solved and confirmed block 972548 by [redacted]
+[2026-10-12 10:32:15.022] [redacted non-event log line]
+[2026-10-12 10:32:15.022] [redacted non-event log line]
+[2026-10-12 10:32:15.022] Block solved after 1581782698597 shares at 328.8% diff
+[2026-10-12 10:32:15.022] Submitting possible block solve share diff 504832736524.372803 !
+[2026-10-12 10:32:22.455] [redacted non-event log line]

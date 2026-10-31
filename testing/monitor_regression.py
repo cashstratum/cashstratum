@@ -14,7 +14,7 @@ IDLE = 'qzexampleiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii'
 
 def user(ts, addr, h1, extra=''):
     return (f'[2026-01-01 {ts}.000] User bitcoincash:{addr}:{{"hashrate1m":"{h1}",'
-            f'"hashrate5m":"2P","hashrate1hr":"3P","workers":2,"bestshare":1978744860.9{extra}}}')
+            f'"hashrate5m":"2P","hashrate1hr":"3P","workers":2,"bestshare":1978744860.9,"luck":1.4174988{extra}}}')
 
 
 LOG = '\n'.join([
@@ -25,7 +25,7 @@ LOG = '\n'.join([
     user('00:00:02', B, '0', ',"rejectedcount":7'),
     '[2026-01-01 00:00:02.000] Pool:{"runtime":10,"lastupdate":1,"Users":3,"Workers":4,"Idle":1,"Disconnected":0}',
     '[2026-01-01 00:00:02.000] Pool:{"hashrate1m":"5P","hashrate5m":"4P","hashrate15m":"4P","hashrate1hr":"6P"}',
-    '[2026-01-01 00:00:02.000] Pool:{"diff":1.0,"accepted":10,"rejected":100,"SPS1m":2.5}',
+    '[2026-01-01 00:00:02.000] Pool:{"diff":9.92,"luck":9.92,"accepted":10,"rejected":100,"SPS1m":2.5}',
     '[2026-01-01 00:00:03.000] Authorised client 1 127.0.0.1 worker bitcoincash:'
     f'{A}.cashstratum-api as user bitcoincash:{A} with diff 20000',
     f'[2026-01-01 00:00:04.000] Dropped client 1 127.0.0.1 user bitcoincash:{A} worker '
@@ -84,6 +84,7 @@ class MonitorRegression(unittest.TestCase):
         self.assertIn('1.4P', rows[0])
         self.assertIn('2w', rows[0])
         self.assertIn('best 1.98G', rows[0])
+        self.assertIn('luck 1.42%', rows[0])
         self.assertNotIn('bitcoincash:', out)
 
     def test_idle_user_hidden_but_user_with_rejects_kept(self):
@@ -97,6 +98,9 @@ class MonitorRegression(unittest.TestCase):
         self.assertEqual(len(pool), 2, out)
         self.assertIn('5P / 4P / 6P', pool[0])
         self.assertIn('users 3', pool[0])
+        self.assertIn('luck 9.92%', pool[0])
+        # an older pool line without a luck field shows no luck at all
+        self.assertNotIn('luck', pool[1])
         self.assertIn('rejected +5.00M', pool[1])
         # a minute without hashrate/runtime lines must not repeat stale values
         self.assertIn('(hashrate not logged)', pool[1])
@@ -153,6 +157,29 @@ class MonitorRegression(unittest.TestCase):
     def test_all_mode_passes_every_line(self):
         out = self.run_monitor('--all')
         self.assertEqual(out, LOG)
+
+    def test_split_long_line_is_rejoined(self):
+        # The pool logs a message over 510 bytes as several lines; the clock can
+        # tick a millisecond between them.
+        stamp = '[2026-01-01 00:02:02.517] '
+        stamp2 = '[2026-01-01 00:02:02.518] '
+        msg = user('00:02:02', B, '7.05P', ',"pad":"' + 'x' * 450 + '","rejectedcount":3')
+        msg = msg[len(stamp):]
+        self.assertGreater(len(msg), 510)
+        head, tail = msg[:510], msg[510:]
+        self.assertIn('rejectedcount', tail)
+        log = (f'{stamp}{head}\n{stamp2}{tail}\n'
+               '[2026-01-01 00:02:03.000] Stored local workbase with 5 transactions\n')
+        (self.root / 'logs' / 'cashstratum.log').write_text(log)
+        out = self.run_monitor()
+        rows = out.splitlines()
+        self.assertEqual(len(rows), 2, out)
+        self.assertTrue(rows[0].startswith('00:02:02 ' + B), out)
+        self.assertIn('7.05P', rows[0])
+        self.assertIn('rej 3', rows[0])
+        self.assertIn('Stored local workbase with 5 transactions', rows[1])
+        self.assertEqual(self.run_monitor('--all'),
+                         f'{stamp}{msg}\n[2026-01-01 00:02:03.000] Stored local workbase with 5 transactions\n')
 
     def test_groups_file_labels_address(self):
         groups = self.root / 'groups.txt'

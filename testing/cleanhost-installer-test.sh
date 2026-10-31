@@ -110,6 +110,17 @@ for executable in cashstratum csproxy ckpmsg notifier; do
 done
 /stage/usr/local/bin/cashstratum --help > /tmp/daemon-help.txt 2>&1
 grep -q -- '--name NAME' /tmp/daemon-help.txt
+# install-cashstratum.sh builds cashtop under the same Go gate as the API.
+bash -n install-cashstratum.sh post-install.sh
+grep -q -- 'go build -ldflags="-s -w" -o "$API_DIR/cashtop" ./cmd/cashtop' install-cashstratum.sh
+grep -q -- 'ln -sfn "$API_DIR/cashtop" "$USER_CASHTOP"' post-install.sh
+if command -v go >/dev/null; then
+  (cd /src/api && go build -ldflags="-s -w" -o /tmp/cashtop-check ./cmd/cashtop)
+  test -x /tmp/cashtop-check
+else
+  # Without Go the installer warns and skips the Go components, cashtop included.
+  grep -q 'Go not installed - skipping Go components' install-cashstratum.sh
+fi
 if [[ -x /opt/bchn/bin/bitcoind ]]; then
   export PATH="/opt/bchn/bin:$PATH"
   /opt/bchn/bin/bitcoind --version

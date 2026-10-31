@@ -14,8 +14,8 @@ Run your pool. Choose direct payouts or username-based mining. Inspect the work 
   <img alt="CashStratum — Your pool. Your rules. Direct payouts, native CashAddr and verifiable blocks." src=".github/assets/readme/hero-light.webp" width="100%">
 </picture>
 
-[![Release v1.3.0](.github/assets/readme/badge-release.svg)](https://github.com/cashstratum/cashstratum/releases/tag/v1.3.0)
-[![97 verified BCH blocks](.github/assets/readme/badge-proofs.svg)](docs/proofs/)
+[![Release v1.3.1](.github/assets/readme/badge-release.svg)](https://github.com/cashstratum/cashstratum/releases/tag/v1.3.1)
+[![98 verified BCH blocks](.github/assets/readme/badge-proofs.svg)](docs/proofs/)
 [![Regtest and testnet before engine releases](.github/assets/readme/badge-validation.svg)](#release-validation)
 [![License: GPL v3 or later](.github/assets/readme/badge-license.svg)](COPYING)
 
@@ -25,8 +25,8 @@ Run your pool. Choose direct payouts or username-based mining. Inspect the work 
 
 | BCH mainnet blocks | Gross block rewards | Historical value (81-block collection) | On the released build |
 |:---:|:---:|:---:|:---:|
-| **[97](docs/proofs/)** | **[303.33459759 BCH](docs/proofs/)** | **[≈ $132,752.44](docs/proofs/VALUATION.md)** | **[21 blocks on v1.2.1](#production-proof)** |
-| Every hash checked on chain | Includes transaction fees | 72 saved + 2 screenshots + 7 fallbacks | 2026-10-06 → 2026-10-29 |
+| **[98](docs/proofs/)** | **[306.45989629 BCH](docs/proofs/)** | **[≈ $132,752.44](docs/proofs/VALUATION.md)** | **[21 blocks on v1.2.1, 1 on v1.3.0](#production-proof)** |
+| Every hash checked on chain | Includes transaction fees | 72 saved + 2 screenshots + 7 fallbacks | 2026-10-06 → 2026-10-31 |
 
 Proof snapshot: **2026-10-12 UTC**. [Methodology and limitations](#production-proof).
 
@@ -51,7 +51,7 @@ The [proof index](docs/proofs/) contains the full hash, explorer link and excerp
 Clone a release on Linux, then run the guided installer:
 
 ```bash
-git clone --branch v1.3.0 --depth 1 https://github.com/cashstratum/cashstratum.git
+git clone --branch v1.3.1 --depth 1 https://github.com/cashstratum/cashstratum.git
 cd cashstratum
 bash install-cashstratum.sh
 ```
@@ -71,9 +71,10 @@ they do not provision a node or automatically enable SV2.
 
 ### Release status
 
-**[v1.3.0](https://github.com/cashstratum/cashstratum/releases/tag/v1.3.0)** (2026-10-30) adds
-per-user and per-worker reject statistics, caps the difficulty credited to rejected shares, records
-a reason for every disconnect, and ships a filtered `monitor.sh`. **v1.2.5** fixed the Stratum V2
+**[v1.3.1](https://github.com/cashstratum/cashstratum/releases/tag/v1.3.1)** (2026-10-31) adds
+`cashtop`, a read-only terminal dashboard, and leaves the stratum server unchanged from v1.3.0.
+**v1.3.0** added per-user and per-worker reject statistics, capped the difficulty credited to
+rejected shares, recorded a reason for every disconnect, and shipped a filtered `monitor.sh`. **v1.2.5** fixed the Stratum V2
 Noise certificate version and **v1.2.2** introduced BCHD and Flowee compatibility. See
 [CHANGELOG.md](CHANGELOG.md) for release details and
 deployment evidence. This tree includes the C engine, Go services, installers, unit tests
@@ -116,7 +117,7 @@ and [detailed chain coverage](README-CASHSTRATUM.md#what-has-actually-been-prove
 | **Node choice and resilience** | [BCHN, BCHD or Flowee the Hub](#choose-your-node); multi-node RPC, ZMQ where configured, polling and failover handling. |
 | **Go operator API** | Read-only access to pool statistics, miner records, shares, coinbase details and block-find logs. |
 | **Browser latency probe** | Expose `/ping` at each regional pool host so visitors can compare browser-to-region HTTP round-trip times and choose a location. |
-| **Terminal monitoring** | A custom [`monitor.sh`](monitor.sh) view highlighting pool events, shares, hashrate and block discoveries. |
+| **Terminal monitoring** | [`cashtop`](#cashtop-a-terminal-dashboard-for-your-pool), a read-only dashboard for the pool host, plus the zero-dependency [`monitor.sh`](monitor.sh) log view. |
 
 The API's latency probe measures the HTTP path. It is not a measurement of Stratum job-delivery
 latency, ASIC performance or block-propagation speed.
@@ -126,6 +127,39 @@ latency, ASIC performance or block-propagation speed.
 Rental clients receive the configured difficulty immediately after authorization. Regional
 `/ping` endpoints measure browser-to-host HTTP round trips; operators supply the regional
 deployment and comparison interface. See the [API guide](docs/operator-api.md).
+
+## cashtop: a terminal dashboard for your pool
+
+`cashtop` runs on the pool host over SSH and reads the pool's own files and the node's read-only
+RPC. It never writes inside the pool install and never calls a mutating RPC method. The installer
+builds it on the host when Go is available and puts it on `PATH`, so you just run `cashtop`.
+
+<img alt="cashtop dashboard: pool hashrate, round effort and odds, the Block Meter, best shares since the last block and recent blocks." src=".github/assets/cashtop/dashboard.webp" width="100%">
+
+- **Dashboard.** Pool hashrate, round effort and odds, time since the last network block, and the
+  difficulty change. The Block Meter shows the best share against network difficulty, with the
+  round effort measured against past blocks.
+- **Workers and addresses.** Rig types, live and stale state, and per-address round work. Each
+  share is listed with its difficulty against the network.
+- **Blocks.** Block history with effort, confirmations and reward. Enter on a block opens the
+  sharelog for that height, with the winning share highlighted.
+- **Feed.** The filtering rules of `monitor.sh`, in a scrollable pane.
+- **Block found.** A full-screen celebration, the terminal bell and desktop notifications where
+  the terminal supports them. `--quiet` turns it off.
+
+<table>
+  <tr>
+    <td><img alt="Blocks tab with effort, confirmations and rewards" src=".github/assets/cashtop/blocks.webp"></td>
+    <td><img alt="Sharelog drill-down for a solved height with the winning share" src=".github/assets/cashtop/drilldown.webp"></td>
+  </tr>
+  <tr>
+    <td><img alt="Workers tab with rig types and live or stale state" src=".github/assets/cashtop/workers.webp"></td>
+    <td><img alt="Block-found celebration" src=".github/assets/cashtop/celebration.webp"></td>
+  </tr>
+</table>
+
+Screenshots use `cashtop --demo=showcase`, which generates synthetic data. Try it without a pool:
+`cd api && go run ./cmd/cashtop --demo=showcase`.
 
 ## Choose your node
 
@@ -230,9 +264,9 @@ Other operators can build their own branded experience.
 
 ## Production proof
 
-**97 BCH mainnet blocks from this engine's lineage, every one verified against public chain
+**98 BCH mainnet blocks from this engine's lineage, every one verified against public chain
 data** — from the EloPool deployment in 2025 to the released CashStratum build today. The
-81-block collection is fixed; the 16 blocks found since it are kept in a separate file.
+81-block collection is fixed; the 17 blocks found since it are kept in a separate file.
 
 | Era | Software | Blocks | Dates (UTC) | Gross BCH | Solve excerpts |
 |---|---|---:|---|---:|---:|
@@ -242,7 +276,8 @@ data** — from the EloPool deployment in 2025 to the released CashStratum build
 | | | **81** | | **253.31946287** | **48** |
 | **CashStratum**, since the collection | **release v1.2.5** (7), **release v1.2.1** (2) | **9** | **2026-10-12 → 2026-10-23** | **28.13832975** | **9** |
 | **CashStratum**, since the collection | **release v1.2.1** | **7** | **2026-10-27 → 2026-10-29** | **21.87680497** | **7** |
-| | | **97** | | **303.33459759** | **64** |
+| **CashStratum**, since the collection | **release v1.3.0** | **1** | **2026-10-31** | **3.12529870** | **1** |
+| | | **98** | | **306.45989629** | **65** |
 
 **The 12 blocks of October 2026 are the first found by a tagged CashStratum release**, running
 on the reference deployment: heights
@@ -261,11 +296,11 @@ on the reference deployment: heights
 showing the candidate, the submission, `BLOCK ACCEPTED!` and the ZMQ tip change, with SHA-256
 checksums for the excerpt and its source.
 
-**16 more blocks have been found since the collection**, heights 972548 → 975091
-(2026-10-12 → 2026-10-29): seven on release v1.2.5 and nine on release v1.2.1, for
-**21 blocks on v1.2.1** in total. They are listed with their
+**17 more blocks have been found since the collection**, heights 972548 → 975301
+(2026-10-12 → 2026-10-31): seven on release v1.2.5, nine on release v1.2.1 and one on release
+v1.3.0, for **21 blocks on v1.2.1** in total. They are listed with their
 redacted solve excerpts in [`recent-blocks.json`](docs/proofs/recent-blocks.json); see the
-[proof index](docs/proofs/#16-additional-blocks-since-this-collection).
+[proof index](docs/proofs/#17-additional-blocks-since-this-collection).
 
 Every record in the **[proof index](docs/proofs/)** carries the height, hash, UTC block date,
 coinbase transaction and script, recognised coinbase tag and verification time, plus an
@@ -275,7 +310,7 @@ BlockSniper screenshot prices, and 7 historical Coinbase fallbacks**. The indepe
 for comparison. No current-price repricing is used.
 
 > **What this proves, and what it does not.** It proves the blocks exist on the BCH main chain
-> and carry this deployment's coinbase tags, and that solve-time logs exist for 64 of them. A
+> and carry this deployment's coinbase tags, and that solve-time logs exist for 65 of them. A
 > coinbase tag is self-declared: it does not cryptographically attest a software build. The
 > `software` field on the CashStratum-era records comes from the operator's deployment record.
 > None of this establishes hashrate, luck, or a performance advantage over other engines.
@@ -293,7 +328,7 @@ git clone https://github.com/cashstratum/cashstratum && cd cashstratum/docs/proo
 
 python3 verify.py --offline   # record structure + SHA-256 of every solve excerpt
 python3 verify.py             # re-fetch all 81 collection blocks and coinbases from a public BCH API
-python3 verify-recent.py      # re-fetch the 16 blocks found since the collection
+python3 verify-recent.py      # re-fetch the 17 blocks found since the collection
 python3 verify-values.py      # re-do every reward sum and price-boundary check (offline)
 ```
 

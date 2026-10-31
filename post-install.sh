@@ -557,6 +557,34 @@ else
     echo -e "${RED}Warning: monitor.sh not found at $MONITOR_SCRIPT or $SCRIPT_DIR${NC}"
 fi
 
+# cashtop (interactive terminal dashboard): built by install-cashstratum.sh when
+# Go is present. No systemd unit -- only expose the binary in the user's home.
+CASHTOP_LINKED=false
+CASHTOP_ON_PATH=false
+if [ -x "$API_DIR/cashtop" ]; then
+    USER_CASHTOP="/home/$ACTUAL_USER/cashtop"
+    if ! [ "$API_DIR/cashtop" -ef "$USER_CASHTOP" ]; then
+        ln -sfn "$API_DIR/cashtop" "$USER_CASHTOP"
+        chown -h "$ACTUAL_USER:$ACTUAL_USER" "$USER_CASHTOP"
+    fi
+    CASHTOP_LINKED=true
+    echo -e "${GREEN}✓ cashtop linked at $USER_CASHTOP${NC}"
+
+    # Put it on PATH so `cashtop` works from any directory. Never replace a
+    # real file someone else installed there; only (re)point our own symlink.
+    PATH_CASHTOP="/usr/local/bin/cashtop"
+    if [ -L "$PATH_CASHTOP" ] || ! [ -e "$PATH_CASHTOP" ]; then
+        if ln -sfn "$API_DIR/cashtop" "$PATH_CASHTOP" 2>/dev/null; then
+            CASHTOP_ON_PATH=true
+            echo -e "${GREEN}✓ cashtop on PATH at $PATH_CASHTOP${NC}"
+        else
+            echo -e "${YELLOW}Warning: could not link $PATH_CASHTOP; use ~/cashtop${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Warning: $PATH_CASHTOP exists and is not a symlink; left it alone, use ~/cashtop${NC}"
+    fi
+fi
+
 # Setup cleanup script with solve-index protection
 CLEANUP_SCRIPT="$INSTALL_DIR/clean-old-blocks.sh"
 
@@ -613,6 +641,8 @@ echo
 echo "Scripts configured:"
 echo "  • $INSTALL_DIR/monitor.sh"
 echo "  • /home/$ACTUAL_USER/monitor.sh (shortcut)"
+[ "$CASHTOP_LINKED" = true ] && echo "  • /home/$ACTUAL_USER/cashtop (terminal dashboard shortcut)"
+[ "$CASHTOP_ON_PATH" = true ] && echo "  • /usr/local/bin/cashtop (on PATH)"
 echo "  • $INSTALL_DIR/clean-old-blocks.sh (with solve-index protection)"
 echo
 echo "Firewall ports opened:"
@@ -642,6 +672,11 @@ if [ -n "$TESTNET_SERVICE_FILE" ]; then
 fi
 echo "Monitoring commands:"
 echo "  ~/monitor.sh                            # Run colorized log monitor"
+if [ "$CASHTOP_ON_PATH" = true ]; then
+    echo "  cashtop                                 # Run the read-only terminal dashboard"
+elif [ "$CASHTOP_LINKED" = true ]; then
+    echo "  ~/cashtop                               # Run the read-only terminal dashboard"
+fi
 echo "  sudo journalctl -u cashstratum -f       # View systemd logs"
 echo
 echo "Maintenance:"

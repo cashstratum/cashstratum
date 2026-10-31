@@ -1,0 +1,36 @@
+ cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network  ▸  height 899963                          ● 12:00:00 UTC 
+ Height 899963  sharelog dir 000dbb7b · net diff 4.50T · 3 jobs · 12 shares · 1 winning                                 
+                                                                                                                        
+      time (UTC)   worker                   agent                diff    sdiff   of net result                          
+ job dbb7b0  4 shares                                                                                                   
+      05:47:00.000 user1.rig01              bmminer/2.0.0       1.02K    1.02K  <0.001% accepted                        
+      05:47:41.000 user1.rig02              cgminer/4.12.1      2.05K    12.3K  <0.001% accepted                        
+      05:48:22.000 user1.rig03              bitaxe/BM1370/v2    2.05K    8.19K  <0.001% accepted                        
+      05:49:03.000 user2.rig01              NiceHash/1.0.0      1.02K    2.05K  <0.001% accepted                        
+ job dbb7b1  4 shares                                                                                                   
+      05:49:44.000 user2.rig02              bosminer/24.05        512    3.58K  <0.001% accepted                        
+      05:50:25.000 user2.rig03              cpuminer/2.5.1      1.02K    5.12K  <0.001% accepted                        
+      05:51:06.000 user3.rig01              bmminer/2.0.0         512    1.54K  <0.001% Stale                           
+      05:51:47.000 user3.rig02              cgminer/4.12.1        512      512  <0.001% accepted                        
+ job dbb7b2  4 shares                                                                                                   
+      05:52:28.000 user3.rig03              bitaxe/BM1370/v2      512    3.07K  <0.001% accepted                        
+      05:53:09.000 user4.rig01              NiceHash/1.0.0        512    2.05K  <0.001% accepted                        
+      05:53:50.000 user4.rig02              bosminer/24.05        512    1.02K  <0.001% accepted                        
+ ▲WIN 05:56:00.000 qpl4x3…up5nff.rig01      bmminer/2.0.0       1.02K    4.61T   102.4% accepted                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+ esc back · j/k scroll · ? help · q quit                                                                      cashgreen 

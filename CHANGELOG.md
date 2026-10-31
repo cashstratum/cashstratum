@@ -7,6 +7,59 @@ says so rather than implying one.
 
 ---
 
+## Unreleased
+
+## 1.3.1 — 2026-10-31
+
+Adds `cashtop`, a read-only terminal dashboard, plus `monitor.sh` improvements and new block
+proofs. **The stratum server is unchanged:** nothing under `src/` or the C build differs from
+1.3.0, so a running 1.3.0 pool needs no rebuild or restart. Rebuild the API directory (or re-run
+the installer) to get `cashtop`.
+
+- **`cashtop`, a terminal dashboard for the pool host.** A Go program (`api/cmd/cashtop`) that reads
+  the pool's own log, `pool.status`, user files and sharelogs, plus the node's RPC.
+  - **Read-only by construction.** It never writes inside the pool install. It calls only an
+    allowlist of read-only node RPC methods, and a disallowed method fails before any network I/O.
+    It keeps a small index under `$XDG_CACHE_HOME/cashtop/`, so restarts resume without rescanning
+    the log.
+  - **Tabs:** Dashboard (hashrate, round effort and odds, the Block Meter, best shares since the
+    last block, recent blocks), Workers, Blocks (history with rewards, plus the sharelog behind each
+    block), Feed (the `monitor.sh` view) and Network. An address view shows one miner's live
+    submits and its share of the work in each round.
+  - **On a block:** a full-screen celebration, the terminal bell and a desktop notification where
+    the terminal supports one. `--quiet` turns these off; `--replay-last-block` shows it again.
+  - **Health:** the dashboard flags a stopped pool (no log activity for 150s, or nothing listening
+    on the configured port), shows the age of the last network block (red past 10 minutes) and an
+    arrow on difficulty changes.
+  - **Rewards** come from the block's coinbase transaction alone, so large blocks don't hit the
+    RPC response cap.
+  - **Install:** `install-cashstratum.sh` builds it next to the API when Go is present.
+    `post-install.sh` links it as `/usr/local/bin/cashtop` and `~/cashtop`, so `cashtop` runs from
+    any directory. An existing non-symlink file at `/usr/local/bin/cashtop` is left alone.
+  - **Try it without a pool:** `cd api && go run ./cmd/cashtop --demo=showcase`. The README
+    screenshots come from that demo data.
+  - **Evidence:** unit, golden and fuzz tests under `api/cmd/cashtop/` and the new shared packages
+    (`go test ./...`), a parity test of its feed rules against `monitor.sh`, and the installer
+    regression. It ran on a production pool host through block 975301: rewards, stale detection,
+    the cache across restarts and the block celebration.
+- **Shared Go packages.** The log tailer, ZMQ subscriber, block-event parsing and node RPC client
+  moved out of the notifier into `api/internal/`, and the API's response types into
+  `api/internal/apitypes`. Notifier webhook payloads are byte-identical on the existing fixtures.
+- `monitor.sh` shows round luck on every miner row and on the POOL row, e.g. `luck 1.63%`.
+  - It is the pool's own `luck` field: work since the last block found, as a percent of network
+    difficulty, so 100% is one expected block of work.
+  - Older logs that carry no `luck` field show none.
+- **`monitor.sh` rejoins split log lines.** The pool writes any message over 510 bytes as several
+  lines, stamped up to a millisecond apart. A user's stats line has passed that size since 1.3.0, so
+  the filtered view printed its tail as a raw JSON fragment (`…"lastrejectreason":"",…`) every
+  minute. Fields cut into that tail, such as `rejectedcount`, were also invisible to the miner row.
+  A join stage now glues the pieces back together before any other rule runs.
+  - **Evidence:** a new `testing/monitor_regression.py` case splits a user line at 510 bytes, 1 ms
+    apart, with `rejectedcount` in the tail. One formatted row comes out, showing `rej 3`. On a live
+    v1.3.0 pool following the log (mawk 1.3.4), no fragments printed after the change.
+- **Proofs:** 17 additional mainnet block proofs (heights 972548 → 975301) are mirrored under
+  `docs/proofs/`, bringing the verified total to 98.
+
 ## 1.3.0 — 2026-10-30
 
 Adds per-user and per-worker reject statistics, a cap on the difficulty credited to rejected shares,

@@ -20,11 +20,13 @@ import (
 	"time"
 
 	"cashstratumapi/internal/ckconf"
+	"cashstratumapi/internal/noderpc"
+	"cashstratumapi/internal/zmqsub"
 )
 
 // eventSink is how a built event leaves the pipeline -- Deliverer.Enqueue
 // in production. A function value rather than a fixed call site so
-// zmqsub.go/tail.go/heartbeat.go stay decoupled from the delivery
+// the zmqsub, tail and heartbeat producers stay decoupled from the delivery
 // implementation.
 type eventSink func(event any)
 
@@ -108,7 +110,7 @@ func main() {
 	log.Printf("notifier: subscribing to ZMQ hashblock at %s", zmqEndpoint)
 
 	btcdRPC := ckconf.LoadBtcdRPC(confPath)
-	rpcClient := newNodeRPCClient(btcdRPC)
+	rpcClient := noderpc.New(btcdRPC)
 
 	if cfg.dryRun {
 		log.Printf("notifier: NOTIFY_DRY_RUN=true -- deliveries are logged as \"WOULD POST\", nothing is sent to %s", safeURL(cfg.notifyURL))
@@ -132,7 +134,7 @@ func main() {
 	// enrichment (up to 2s) before it is ready to hand to sink.
 	events := make(chan any, 16)
 
-	sub := NewZMQSubscriber(zmqEndpoint, func(hashHex string) {
+	sub := zmqsub.New(zmqEndpoint, func(hashHex string) {
 		select {
 		case events <- newNetworkBlockEvent(hashHex):
 		default:

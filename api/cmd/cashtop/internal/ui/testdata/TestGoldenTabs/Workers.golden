@@ -1,0 +1,36 @@
+ cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network                                            ● 12:00:00 UTC 
+ Workers  11 live · 0 stale · 1 off   stale = no share for 6x the expected interval                                     
+                                                                                                                        
+   rig     worker               address        agent                    1m         1h    diff last share state          
+ ▸ ◆ axe   user1.rig03          qpl4x3…up5nff  bitaxe/BM1370/v2    743GH/s    728GH/s   2.05K        17s ● live         
+   ◆ asic  user1.rig02          qpl4x3…up5nff  cgminer/4.12.1      675GH/s    661GH/s   2.05K        23s ● live         
+   ◆ asic  user1.rig01          qpl4x3…up5nff  bmminer/2.0.0       597GH/s    585GH/s   1.02K         1s ● live         
+   ◇ soft  user2.rig03          qpezh2…84svfp  cpuminer/2.5.1      395GH/s    387GH/s   1.02K         2s ● live         
+   ◇ rent  user2.rig01          qpezh2…84svfp  NiceHash/1.0.0      337GH/s    330GH/s   1.02K        14s ● live         
+   ◆ asic  user2.rig02          qpezh2…84svfp  bosminer/24.05      276GH/s    271GH/s     512         4s ● live         
+   ◆ asic  user3.rig01          qp9vt4…0nwsdc  bmminer/2.0.0       193GH/s    190GH/s     512        19s ● live         
+   ◇ rent  user4.rig01          qqzf5s…mq46dh  NiceHash/1.0.0      191GH/s    187GH/s     512         7s ● live         
+   ◆ axe   user3.rig03          qp9vt4…0nwsdc  bitaxe/BM1370/v2    182GH/s    179GH/s     512         3s ● live         
+   ◆ asic  user4.rig02          qqzf5s…mq46dh  bosminer/24.05      180GH/s    177GH/s     512        16s ● live         
+   ◆ asic  user3.rig02          qp9vt4…0nwsdc  cgminer/4.12.1      179GH/s    176GH/s     512        16s ● live         
+   ◇ soft  user4.rig03          qqzf5s…mq46dh  cpuminer/2.5.1            -          -       -      1d 6h ○ off          
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+ 1-5 tabs · / search · enter open · ? help · q quit                                                           cashgreen 

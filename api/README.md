@@ -475,6 +475,24 @@ go build -mod=vendor -ldflags="-s -w" -o cashstratum-api .
 Binaries are **not** committed — they are built on demand and copied to the pool
 host.
 
+### cashtop
+
+`cashtop` is a **read-only terminal dashboard** for the pool host. It renders pool
+state in the terminal and does not write to the pool or its logs. It is interactive,
+so it has no systemd unit.
+
+Build it on the host with Go ≥ 1.26.1 (the version in `go.mod`):
+
+```bash
+cd api
+go build -ldflags="-s -w" -o cashtop ./cmd/cashtop
+```
+
+`install-cashstratum.sh` builds it next to the API when Go is present, and skips it
+with a warning otherwise. `post-install.sh` then links `/usr/local/bin/cashtop` and
+`~/cashtop` to the installed binary, so `cashtop` runs from any directory on the pool
+host. An existing non-symlink file at `/usr/local/bin/cashtop` is left alone.
+
 ### Cross-compiling
 
 Install the toolchain required by `go.mod`. Vendored dependencies avoid module downloads,

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="174" height="40" viewBox="0 0 174 40" role="img" aria-labelledby="title desc">
-<title id="title">97 verified blocks</title><desc id="desc">BCH mainnet proof snapshot, 29 October 2026</desc>
+<title id="title">98 verified blocks</title><desc id="desc">BCH mainnet proof snapshot, 31 October 2026</desc>
 <rect x=".5" y=".5" width="173" height="39" rx="12" fill="#edf7f1" stroke="#a7cdb8"/>
 <g transform="translate(12 9)" fill="none" stroke="#087d50" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m10 2 8 4.5v9L10 20l-8-4.5v-9zM2 6.5l8 4.5 8-4.5M10 11v9"/></g>
-<text x="42" y="25" fill="#174b35" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="14" font-weight="600">97 verified blocks</text>
+<text x="42" y="25" fill="#174b35" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="14" font-weight="600">98 verified blocks</text>
 </svg>

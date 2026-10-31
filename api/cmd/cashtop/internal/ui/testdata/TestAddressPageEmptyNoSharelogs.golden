@@ -1,0 +1,34 @@
+ Address bitcoincash:qpl4x33qjsnmdaydjdyy2vw6pnrdxngvzyz9up5nff                                                         
+ 2 workers · 3.00TH/s · best -                                                                                          
+                                                                                                                        
+ since last network block         -  work of this address at height -, resets at each new block                         
+ pool round since our last block  25.0%  whole pool, resets only when the pool finds a block                            
+                                                                                                                        
+ Rigs   stale = no share for 6x the expected interval                                                                   
+ rig     worker               agent                    1m         1h    diff last share state                           
+ ◇ ?     rig01                Miner/1.0          2.00TH/s   2.00TH/s   65.5K         5s ● live                          
+ ◇ ?     rig02                Miner/1.0          1.00TH/s   1.00TH/s   65.5K     40m 0s ◐ stale                         
+                                                                                                                        
+ Live submits                                                                                                           
+ Sharelogs are off or unreadable: enable logshares in the pool configuration to see submits.                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        

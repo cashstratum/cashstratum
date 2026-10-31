@@ -372,6 +372,16 @@ NOTIFYEOF
             echo -e "${RED}✗ CashStratum Notifier build failed - continuing without it${NC}"
         fi
     fi
+
+    # cashtop: read-only terminal dashboard. Interactive, so no unit or env file --
+    # post-install.sh only links it into the operator's home directory.
+    if (cd "$CURRENT_DIR/api" && go build -ldflags="-s -w" -o "$API_DIR/cashtop" ./cmd/cashtop); then
+        chmod +x "$API_DIR/cashtop"
+        cp "$API_DIR/cashtop" "$INSTALL_DIR/" 2>/dev/null || true
+        echo -e "${GREEN}✓ Built $API_DIR/cashtop${NC}"
+    else
+        echo -e "${RED}✗ cashtop build failed - continuing without it${NC}"
+    fi
 fi
 fi
 

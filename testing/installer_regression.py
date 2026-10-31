@@ -352,4 +352,24 @@ sleep() { :; }
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(config.read_text(), 'operator owned bytes\n')
 
+    def test_cashtop_is_built_inside_the_go_gate_and_linked_for_the_operator(self):
+        installer = (REPO/'install-cashstratum.sh').read_text()
+        post = (REPO/'post-install.sh').read_text()
+        build = 'go build -ldflags="-s -w" -o "$API_DIR/cashtop" ./cmd/cashtop'
+        self.assertEqual(installer.count(build), 1)
+        # Built after the Go/openssl skip warning and inside the API build block,
+        # so a host without Go skips it exactly as it skips the API and notifier.
+        self.assertLess(installer.index('Go not installed - skipping Go components'), installer.index(build))
+        self.assertLess(installer.index('mkdir -p "$API_DIR"'), installer.index(build))
+        self.assertLess(installer.index(build), installer.index('Installation Complete'))
+        # post-install.sh only links the existing binary; it never builds or runs a unit.
+        self.assertIn('if [ -x "$API_DIR/cashtop" ]; then', post)
+        self.assertIn('USER_CASHTOP="/home/$ACTUAL_USER/cashtop"', post)
+        self.assertIn('ln -sfn "$API_DIR/cashtop" "$USER_CASHTOP"', post)
+        self.assertIn('PATH_CASHTOP="/usr/local/bin/cashtop"', post)
+        self.assertIn('if [ -L "$PATH_CASHTOP" ] || ! [ -e "$PATH_CASHTOP" ]; then', post)
+        self.assertIn('ln -sfn "$API_DIR/cashtop" "$PATH_CASHTOP"', post)
+        self.assertIn('chown -h "$ACTUAL_USER:$ACTUAL_USER" "$USER_CASHTOP"', post)
+        self.assertNotIn('cashtop.service', post)
+
 if __name__ == '__main__': unittest.main(verbosity=2)

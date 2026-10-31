@@ -1,0 +1,27 @@
+[2026-01-01 00:00:00.000] cashstratum stratifier ready
+[2026-01-01 00:00:01.000] Stored local workbase with 12 transactions
+[2026-01-01 00:00:02.000] User bitcoincash:qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:{"hashrate1m":"1.4P","hashrate5m":"2P","hashrate1hr":"3P","workers":2,"bestshare":1978744860.9,"luck":1.4174988}
+[2026-01-01 00:00:02.000] User bitcoincash:qzexampleiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii:{"hashrate1m":"0","hashrate5m":"2P","hashrate1hr":"3P","workers":2,"bestshare":1978744860.9,"luck":1.4174988}
+[2026-01-01 00:00:02.000] User bitcoincash:qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:{"hashrate1m":"0","hashrate5m":"2P","hashrate1hr":"3P","workers":2,"bestshare":1978744860.9,"luck":1.4174988,"rejectedcount":7}
+[2026-01-01 00:00:02.000] Pool:{"runtime":10,"lastupdate":1,"Users":3,"Workers":4,"Idle":1,"Disconnected":0}
+[2026-01-01 00:00:02.000] Pool:{"hashrate1m":"5P","hashrate5m":"4P","hashrate15m":"4P","hashrate1hr":"6P"}
+[2026-01-01 00:00:02.000] Pool:{"diff":9.92,"luck":9.92,"accepted":10,"rejected":100,"SPS1m":2.5}
+[2026-01-01 00:00:03.000] Authorised client 1 127.0.0.1 worker bitcoincash:qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.cashstratum-api as user bitcoincash:qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa with diff 20000
+[2026-01-01 00:00:04.000] Dropped client 1 127.0.0.1 user bitcoincash:qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa worker bitcoincash:qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.cashstratum-api
+[2026-01-01 00:00:05.000] NiceHash detected from useragent 'NiceHash/1.0.0' for client 2, applied difficulty 500000
+[2026-01-01 00:00:05.000] Client 2 set difficulty to 10000000 via password parameter
+[2026-01-01 00:00:05.000] Authorised client 2 192.0.2.10 worker qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.rig1 as user bitcoincash:qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa with diff 10000000
+[2026-01-01 00:00:10.000] Authorised client 3 192.0.2.20 worker qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.rig9 as user bitcoincash:qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb with diff 1048576
+[2026-01-01 00:00:11.000] Dropped client 3 192.0.2.20 user bitcoincash:qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb worker qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.rig9
+[2026-01-01 00:00:12.000] Authorised client 4 192.0.2.20 worker qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.rig9 as user bitcoincash:qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb with diff 1048576
+[2026-01-01 00:00:13.000] Dropped client 4 192.0.2.20 user bitcoincash:qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb worker qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.rig9
+[2026-01-01 00:00:14.000] Authorised client 5 192.0.2.20 worker qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.rig9 as user bitcoincash:qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb with diff 1048576
+[2026-01-01 00:00:15.000] Dropped client 5 192.0.2.20 user bitcoincash:qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb worker qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.rig9
+[2026-01-01 00:01:02.000] User bitcoincash:qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:{"hashrate1m":"1.5P","hashrate5m":"2P","hashrate1hr":"3P","workers":2,"bestshare":1978744860.9,"luck":1.4174988}
+[2026-01-01 00:01:02.000] Pool:{"diff":1.0,"accepted":20,"rejected":5000100,"SPS1m":2.5}
+[2026-01-01 04:00:05.000] Dropped client 2 192.0.2.10 user bitcoincash:qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa worker qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.rig1
+[2026-01-01 04:00:06.000] ZMQ block hash 00000000000000000001 from endpoint 0
+[2026-01-01 04:00:06.000] Block hash changed to 00000000000000000001
+[2026-01-01 04:00:07.000] BLOCK ACCEPTED!
+[2026-01-01 04:00:08.000] SUBMIT BLOCK RETURNED: inconclusive
+[2026-01-01 04:00:09.000] Generator returned failure in update_base, retry #1

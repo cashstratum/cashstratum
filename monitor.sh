@@ -164,6 +164,13 @@ function addr_color(a,   h, i, n) {
     return "38;5;" PALETTE[h % NPAL + 1]
 }
 function label(a) { return (a in GLABEL) ? " [" GLABEL[a] "]" : "" }
+# "luck" in User/Pool lines is round effort: work since the last block found,
+# as a percent of network difficulty (100 = one expected block of work).
+function luck(v) {
+    if (v == "") return ""
+    v += 0
+    return "  luck " sprintf(v < 10 ? "%.2f%%" : (v < 1000 ? "%.1f%%" : "%.0f%%"), v)
+}
 function jget(s, key,   i, rest, j) {
     i = index(s, "\"" key "\":")
     if (!i) return ""
@@ -253,6 +260,7 @@ msg ~ /^(User|Worker) [^ ]+:\{/ {
     row = sprintf("%s %s%s  %6s %6s %6s", hms, name, label(a), h1, jget(js, "hashrate5m"), jget(js, "hashrate1hr"))
     if (kind == "User") row = row sprintf("  %sw", jget(js, "workers"))
     row = row "  best " si(jget(js, "bestshare"))
+    if (kind == "User") row = row luck(jget(js, "luck"))
     if (rc != "" && rc + 0 > 0) row = row "  rej " rc
     out(addr_color(a), row)
     next
@@ -267,7 +275,7 @@ msg ~ /^Pool:\{"diff"/ {
     row = hms " POOL "
     row = row (P_hr_at == hms ? sprintf(" %s / %s / %s", P_h1, P_h5, P_h60) : "  (hashrate not logged)")
     if (P_rt_at == hms) row = row sprintf("  users %s  workers %s  idle %s", P_users, P_workers, P_idle)
-    row = row "  SPS " jget(msg, "SPS1m")
+    row = row "  SPS " jget(msg, "SPS1m") luck(jget(msg, "luck"))
     code = "36"
     if (P_rej != "" && rej > P_rej) { row = row "  rejected +" si(rej - P_rej); code = "1;31" }
     P_rej = rej
@@ -341,12 +349,47 @@ msg ~ /[Rr]eject|[Ee]rror|ERROR|[Ff]ail|CRITICAL|Unable|[Ii]nvalid|rate limited/
 { out("", (hms != "" ? hms " " : "") msg) }
 '
 
+# The pool's logger writes a message longer than DEFLOGBUFSIZ - 2 (510) bytes as
+# several lines stamped within a millisecond or two; long User/Worker stats lines
+# get split this way. Rejoin them so every later rule sees the whole message.
+# shellcheck disable=SC2016  # the awk program is single-quoted on purpose
+JOIN_PROG='
+function stamp(s,   rb) {
+    if (substr(s, 1, 1) != "[" || !(rb = index(s, "] "))) return ""
+    return substr(s, 1, rb)
+}
+# "[YYYY-MM-DD HH:MM:SS.mmm]" -> milliseconds since the start of the day
+function ms(t) {
+    return ((substr(t, 13, 2) * 60 + substr(t, 16, 2)) * 60 + substr(t, 19, 2)) * 1000 + substr(t, 22, 3)
+}
+function emit(s) { print s; fflush() }
+{
+    ts = stamp($0)
+    if (PEND != "") {
+        gap = ts != "" ? ms(ts) - ms(PTS) : -1
+        if (gap >= 0 && gap <= 50) {
+            PTS = ts
+            c = substr($0, length(ts) + 2)
+            PEND = PEND c
+            if (length(c) == CHUNK) next
+            emit(PEND); PEND = ""
+            next
+        }
+        emit(PEND); PEND = ""
+    }
+    if (ts != "" && length($0) - length(ts) - 1 == CHUNK) { PEND = $0; PTS = ts; next }
+    emit($0)
+}
+END { if (PEND != "") emit(PEND) }
+'
+
 if [ "${CS_MONITOR_FOLLOW:-1}" = 0 ]; then
     INPUT=(cat -- "$LOG_FILE")
 else
     INPUT=(tail -n 10 -F -- "$LOG_FILE")
 fi
 
-"${INPUT[@]}" 2>/dev/null | awk "${AWK_OPTS[@]}" \
+# LC_ALL=C: the chunk size is in bytes, and gawk counts characters under UTF-8.
+"${INPUT[@]}" 2>/dev/null | LC_ALL=C awk "${AWK_OPTS[@]}" -v CHUNK=510 "$JOIN_PROG" | awk "${AWK_OPTS[@]}" \
     -v MODE="$MODE" -v COLOR="$COLOR" -v FLAP="$FLAP_SECS" -v GROUPS="$GROUPS_FILE" \
     "$AWK_PROG"

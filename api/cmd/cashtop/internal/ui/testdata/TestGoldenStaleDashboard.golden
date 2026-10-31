@@ -1,0 +1,36 @@
+ cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network                                            ● 12:00:00 UTC 
+ POOL NOT RUNNING · log idle since 11:52:00 UTC (8m ago)                                                                
+┌─ Hashrate ──────────────────────────┐ ┌─ Round & odds ──────────────────────┐ ┌─ Pool ───────────────────────────────┐
+│1m   -          1h  -                │ │round effort   41.7%                 │ │workers    0 live · 0 stale · 12 off  │
+│5m   -          6h  -                │ │best share     96.3G (2.14% of net)  │ │reported   - total · - idle · - disc  │
+│15m  -          1d  -                │ │net diff       4.50T                 │ │users      -                          │
+│                7d  -                │ │P(block 24h)   -                     │ │uptime     -                          │
+│                                     │ │P(block 7d)    -                     │ │all alive  -                          │
+│no live data                         │ │expected every -                     │ │longest    -                          │
+│                                     │ │last net block -                     │ │height     900000                     │
+│shares/s  - 1m  - 5m                 │ │last block     6h 4m ago             │ │rejected   0.000224%                  │
+│                                     │ │blocks 7d/30d  5 / 5  (all 5)        │ │                                      │
+└─────────────────────────────────────┘ └─────────────────────────────────────┘ └──────────────────────────────────────┘
+┌─ Block Meter ────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│██████████████████████████████████████████████████████████████████████████████░░░░░░░░░░░░ best 96.3G (2.14% of net)  │
+│1 … 4.50T  log scale                                                                                                  │
+│░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░╎░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ effort -         │
+│········┃···┃·····┃·································┃··········┃···································· past blocks (5)  │
+│0                               100% due                                                        300%                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+ ● node ok · tip 899999 · rpc 3ms · zmq 4m · template 10s 1840 tx · mempool 1,840 tx                                    
+┌─ Best shares since last block ──────────────────────────┐ ┌─ Recent blocks ──────────────────────────────────────────┐
+│#  worker                          best    of net    when│ │height   when      finder                 effort status   │
+│1  user2.rig01                    96.3G     2.14%     13m│ │899963   6h 4m     qpl4x3…up5nff.rig01     24.3% confirmed│
+│2  user3.rig01                    86.8G     1.93%   1h 0m│ │899926   12h 14m   qpezh2…84svfp.rig02    156.4% confirmed│
+│3  user4.rig01                    77.4G     1.72%  1h 47m│ │899889   18h 24m   qp9vt4…0nwsdc.rig03     36.5% confirmed│
+│4  user1.rig02                    67.9G     1.51%  2h 34m│ │899852   1d 0h     qqzf5s…mq46dh.rig01     55.6% confirmed│
+│5  user2.rig02                    58.5G     1.30%  3h 21m│ │899815   1d 6h     qpl4x3…up5nff.rig02    191.7% confirmed│
+│6  user3.rig02                    49.0G     1.09%   4h 8m│ │                                                          │
+│7  user4.rig02                    39.6G     0.88%  4h 55m│ │                                                          │
+│8  user1.rig03                    30.1G     0.67%  5h 42m│ │                                                          │
+│                                                         │ │                                                          │
+│                                                         │ │                                                          │
+│                                                         │ │                                                          │
+└─────────────────────────────────────────────────────────┘ └──────────────────────────────────────────────────────────┘
+ 1-5 tabs · / search · enter open · ? help · q quit                                                           cashgreen 

@@ -1,0 +1,24 @@
+ cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network    ● 12:00:00 UTC 
+┌─ Hashrate ─────────────┐ ┌─ Round & odds ─────────┐ ┌─ Pool ─────────────────┐
+│1m   3.95TH/s   1h  3.95│ │round effort   41.7%    │ │workers    11 live · 0 s│
+│5m   3.99TH/s   6h  3.83│ │best share     96.3G (2.│ │reported   11 total · 1 │
+│15m  3.91TH/s   1d  3.87│ │net diff       4.50T    │ │users      4            │
+│                7d  3.71│ │P(block 24h)   0.00176% │ │uptime     9d 0h        │
+│                        │ │P(block 7d)    0.0124%  │ │all alive  1d 6h        │
+│⣴⣶⣰⣶⣧⣴⣴⣰⣧⣼⣦⣴⣇⣠⣦⣄⣧⣼⣦⣴⣸⣼  │ │expected every 155y 100d│ │longest    6d 4h user1.r│
+│                        │ │last net block -        │ │height     900000       │
+│shares/s  123 1m  121 5m│ │last block     6h 4m ago│ │rejected   0.000224%    │
+│                        │ │blocks 7d/30d  5 / 5  (a│ │                        │
+└────────────────────────┘ └────────────────────────┘ └────────────────────────┘
+┌─ Block Meter ────────────────────────────────────────────────────────────────┐
+│████████████████████████████████████████████░░░░░░ best 96.3G (2.14% of net)  │
+│██████░░░░░░╎░░░░░░░░░░░░░░░░░░░░░░░ effort 41.7% · median of 5 blocks 55.6%  │
+└──────────────────────────────────────────────────────────────────────────────┘
+ ● node ok · tip 899999 · rpc 3ms · zmq 4m · template 10s 1840 tx · mempool 1,84
+┌─ Best shares since last block ──────┐ ┌─ Recent blocks ──────────────────────┐
+│#  worker      best    of net    when│ │height   when         effort status   │
+│1  user2.r    96.3G     2.14%     13m│ │899963   6h 4m         24.3% confirmed│
+│2  user3.r    86.8G     1.93%   1h 0m│ │899926   12h 14m      156.4% confirmed│
+│3  user4.r    77.4G     1.72%  1h 47m│ │899889   18h 24m       36.5% confirmed│
+└─────────────────────────────────────┘ └──────────────────────────────────────┘
+ 1-5 tabs · / search · enter open · ? help · q quit                   cashgreen 

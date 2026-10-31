@@ -1,0 +1,3 @@
+# synthetic
+bitcoincash:qzexampleaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ours green
+qzexamplebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb watch

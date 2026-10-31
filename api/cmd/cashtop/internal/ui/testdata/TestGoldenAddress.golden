@@ -1,0 +1,36 @@
+ cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network  ▸  address                                ● 12:00:00 UTC 
+ Address bitcoincash:qpl4x33qjsnmdaydjdyy2vw6pnrdxngvzyz9up5nff                                                         
+ 3 workers · 2.01TH/s · best 67.9G                                                                                      
+                                                                                                                        
+ since last network block         0.00000201%  work of this address at height 900000, resets at each new block          
+ pool round since our last block  41.7%  whole pool, resets only when the pool finds a block                            
+                                                                                                                        
+ Rigs   stale = no share for 6x the expected interval                                                                   
+ rig     worker               agent                    1m         1h    diff last share state                           
+ ◆ axe   rig03                bitaxe/BM1370/v2    743GH/s    728GH/s   2.05K        17s ● live                          
+ ◆ asic  rig02                cgminer/4.12.1      675GH/s    661GH/s   2.05K        23s ● live                          
+ ◆ asic  rig01                bmminer/2.0.0       597GH/s    585GH/s   1.02K         1s ● live                          
+                                                                                                                        
+ Live submits                                                                                                           
+ time     worker             result               diff    sdiff     of net agent                                        
+ 12:00:00 rig03              accepted            2.05K    12.3K    <0.001% bitaxe/BM1370/v2                             
+ 11:59:58 rig01              accepted            1.02K    8.19K    <0.001% bmminer/2.0.0                                
+ 11:59:54 rig01              accepted            2.05K    6.14K    <0.001% bmminer/2.0.0                                
+ 11:59:52 rig02              accepted            1.02K    5.12K    <0.001% cgminer/4.12.1                               
+ 11:59:28 rig03              accepted            1.02K    2.05K    <0.001% bitaxe/BM1370/v2                             
+ 11:59:24 rig03              Above target        2.05K    12.3K    <0.001% bitaxe/BM1370/v2                             
+ 11:59:22 rig01              accepted            1.02K    8.19K    <0.001% bmminer/2.0.0                                
+ 11:59:12 rig03              accepted            2.05K    18.4K    <0.001% bitaxe/BM1370/v2                             
+ 11:59:08 rig03              accepted              512    2.05K    <0.001% bitaxe/BM1370/v2                             
+ 11:59:04 rig02              accepted            1.02K    8.19K    <0.001% cgminer/4.12.1                               
+ 11:58:58 rig02              accepted            1.02K    5.12K    <0.001% cgminer/4.12.1                               
+ 11:58:50 rig01              accepted              512    2.05K    <0.001% bmminer/2.0.0                                
+ 11:58:46 rig01              accepted            1.02K    8.19K    <0.001% bmminer/2.0.0                                
+ 11:58:34 rig03              accepted            1.02K    2.05K    <0.001% bitaxe/BM1370/v2                             
+ 11:58:18 rig01              accepted            2.05K    18.4K    <0.001% bmminer/2.0.0                                
+ 11:58:14 rig01              accepted              512    2.05K    <0.001% bmminer/2.0.0                                
+ 11:57:56 rig02              accepted              512    2.05K    <0.001% cgminer/4.12.1                               
+ 11:57:48 rig03              accepted            2.05K    6.14K    <0.001% bitaxe/BM1370/v2                             
+ 11:57:42 rig01              accepted            2.05K    18.4K    <0.001% bmminer/2.0.0                                
+ 11:57:32 rig02              accepted              512      512    <0.001% cgminer/4.12.1                               
+ esc back · j/k scroll · ? help · q quit                                                                      cashgreen 

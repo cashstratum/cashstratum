@@ -1,0 +1,36 @@
+ cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network                                            ● 12:00:00 UTC 
+                                                                                                                        
+            ┌─ Help ───────────────────────────────────────────────────────────────────────────────────────┐            
+            │1 2 3 4 5     Dashboard, Workers, Blocks, Feed, Network                                       │            
+            │tab / h l     next / previous tab                                                             │            
+            │j k / arrows  move selection, scroll                                                          │            
+            │g G           first / last (Feed: G follows new events)                                       │            
+            │enter         Blocks: sharelog jobs for the height; Workers: address view                     │            
+            │/             search: a height, an address or a worker name                                   │            
+            │:             command: test-celebrate replays the newest block, q quits                       │            
+            │esc           close search, help or a detail view                                             │            
+            │r             Feed: toggle share rain                                                         │            
+            │?             this help                                                                       │            
+            │q  ctrl+c     quit                                                                            │            
+            │                                                                                              │            
+            │Numbers                                                                                       │            
+            │round effort  accepted share difficulty / network difficulty x 100                            │            
+            │P(block t)    1 - exp(-H t / (D 2^32)), H pool hashrate, D difficulty                         │            
+            │expected      D 2^32 / H                                                                      │            
+            │stale         no share for 6x the expected interval at the worker's difficulty (min 1m)       │            
+            │rig badges    ◆ own hardware (asic, axe)  ◇ rental, proxy, software or unknown                │            
+            └──────────────────────────────────────────────────────────────────────────────────────────────┘            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+ 1-5 tabs · / search · enter open · ? help · q quit                                                           cashgreen 

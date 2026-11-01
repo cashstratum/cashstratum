@@ -141,22 +141,24 @@ func TestShowcaseSnapshot(t *testing.T) {
 	if hr := s.Pool.Hashrate1m; hr < 4e15 || hr > 6e15 {
 		t.Fatalf("pool hashrate %g outside 4-6 PH/s", hr)
 	}
-	if s.Pool.Users != 5 || len(s.Workers) != 12 || len(s.Blocks) != 30 || len(s.Hashrates) != 60 {
+	if s.Pool.Users != 5 || len(s.Workers) != 13 || len(s.Blocks) != 30 || len(s.Hashrates) != 60 {
 		t.Fatalf("shape: %d users %d workers %d blocks %d points", s.Pool.Users, len(s.Workers), len(s.Blocks), len(s.Hashrates))
 	}
-	live, stale, off := 0, 0, 0
+	live, stale, idle, off := 0, 0, 0, 0
 	for _, w := range s.Workers {
 		switch ui.Classify(w, fixedNow) {
 		case ui.StateLive:
 			live++
 		case ui.StateStale:
 			stale++
+		case ui.StateIdle:
+			idle++
 		default:
 			off++
 		}
 	}
-	if stale < 1 || stale > 2 || off != 1 || live < 8 {
-		t.Fatalf("states live=%d stale=%d off=%d", live, stale, off)
+	if stale < 1 || stale > 2 || idle != 1 || off != 1 || live < 8 {
+		t.Fatalf("states live=%d stale=%d idle=%d off=%d", live, stale, idle, off)
 	}
 	last := s.Blocks[0]
 	if s.Pool.LastBlock != last.Time {

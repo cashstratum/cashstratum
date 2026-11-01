@@ -9,6 +9,48 @@ says so rather than implying one.
 
 ## Unreleased
 
+## 1.4.0 — 2026-11-01
+
+Fixes round-best data the stratum server could carry over from 1.3.1, and makes the `cashtop`
+display say what the daemon actually counts. **The stratum server changed:** `src/stratifier.c`
+differs from 1.3.1, so a running pool needs a rebuild and restart. Rebuild the API directory (or
+re-run the installer) to get the updated `cashtop`.
+
+- **Restored round bests are clamped at start.** Releases up to 1.3.1 could keep the share that
+  solved a block as the finder's round best, so a users file could carry a `bestshare` at or above
+  the network difficulty. On the first workbase after start, the daemon now drops any such value for
+  every user and worker, and for the pool-wide round best restored from `pool.status`, and writes
+  one log line per dropped value. `bestever` is untouched.
+  - **Evidence:** the regtest end-to-end suite's scenario 8 now asserts that the finder's post-solve
+    round best is below the network difficulty, and a new scenario restarts the daemon over a
+    hand-edited users file.
+  - To also start every round afresh, run the one-off `resetshares` command once after the upgrade.
+    See [After upgrading from 1.3.1 or earlier](docs/installation.md#after-upgrading-from-131-or-earlier).
+- **`cashtop` Network tab: pool share on the difficulty basis.** The pool's share of network
+  hashrate is shown as a percentage with two decimals (parts per million below 0.01%), so share × 144
+  equals the printed blocks per day. The help text names the pool-rate window.
+- **`cashtop` Dashboard: pool counts say what the daemon counts.** `conn · idle · resum` replaces
+  `total · idle · disc`. The help defines each count and states that they are not comparable to the
+  live, stale, idle and off worker states.
+- **`cashtop`: a fourth worker state, idle.** A worker that is connected with no recent shares shows
+  its own glyph, is counted in the header on Workers and Dashboard, and sorts between stale and off.
+  A dropped worker stays `off`.
+- **`cashtop`: no decayed rates on idle and off rows.** The 1h and 1d rates on Workers, and the 1h
+  rate on the address page, show a dash for idle and off rows. Best share and last share stay.
+- **`cashtop`: workers keep their rig glyph and agent across heights.** The index remembers each
+  worker's agent and last difficulty. A last-known agent renders dimmed.
+- **`cashtop`: zmq state is spelled out.** `off` means not configured, `down` means the endpoint is
+  unreachable, and `waiting` means connected with no block yet. Otherwise the age of the last block
+  is shown.
+- **`cashtop`: the last network block colours at 20 and 40 minutes** (previously 7 and 10). Amber
+  and red mark a possibly stale chain view, not a late block.
+- **`cashtop` Blocks tab uses wide terminals.** The hash column grows to the full 64 characters when
+  there is room. A new `round` column shows the time since the previous accepted block.
+- **`cashtop` help documents the Feed line columns:** the 1m, 5m and 1h decayed rates, `<n>w`
+  connections, best, luck and rej.
+- **Evidence:** `go test -race ./cmd/cashtop/...` passes. On the Linux test host, the daemon build,
+  `make -C test check` and the regtest end-to-end suite passed (145/145 assertions).
+
 ## 1.3.1 — 2026-10-31
 
 Adds `cashtop`, a read-only terminal dashboard, plus `monitor.sh` improvements and new block

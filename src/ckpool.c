@@ -1377,7 +1377,7 @@ static void parse_btcds(yyjson_val *arr_val, const int arr_size)
 	ckpool.btcdurl = ckzalloc(sizeof(char *) * arr_size);
 	ckpool.btcdauth = ckzalloc(sizeof(char *) * arr_size);
 	ckpool.btcdpass = ckzalloc(sizeof(char *) * arr_size);
-	ckpool.btcdnotify = ckzalloc(sizeof(bool *) * arr_size);
+	ckpool.btcdnotify = ckzalloc(sizeof(bool) * arr_size);
 	ckpool.btcdzmq = ckzalloc(sizeof(char *) * arr_size);
 	ckpool.btcdzmq_count = 0;
 
@@ -2504,7 +2504,7 @@ int main(int argc, char **argv)
 	ckpool.main.processname = strdup("main");
 	ckpool.main.sockname = strdup("listener");
 	name_process_sockname(&ckpool.main.us, &ckpool.main);
-	ckpool.oldconnfd = ckzalloc(sizeof(int *) * ckpool.serverurls);
+	ckpool.oldconnfd = ckzalloc(sizeof(int) * ckpool.serverurls);
 	manage_old_instance(&ckpool.main);
 	if (ckpool.handover) {
 		const char *path = ckpool.main.us.path;

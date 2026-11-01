@@ -26,6 +26,7 @@ import (
 	"cashstratumapi/cmd/cashtop/internal/termcap"
 	"cashstratumapi/cmd/cashtop/internal/ui"
 	"cashstratumapi/internal/poolfmt"
+	"cashstratumapi/internal/zmqsub"
 )
 
 // Config configures an App.
@@ -68,6 +69,7 @@ type App struct {
 	node     *rpc.Client
 	enricher events.Node // reward and hash lookups; the node client unless replaced
 	zmqEP    string
+	zmqSub   atomic.Pointer[zmqsub.Subscriber]
 	kick     chan struct{}
 	netBlks  atomic.Int64
 
@@ -262,6 +264,14 @@ func (a *App) event(text string, off int64, out *[]tea.Msg) {
 				}
 			}
 			go a.enrich(o.Height)
+		case events.BlockUpdate:
+			if out != nil {
+				*out = append(*out, ui.BlockUpdateMsg{
+					Height: int(o.Height),
+					Hash:   o.Hash,
+					Luck:   o.LuckPct,
+				})
+			}
 		case events.NetworkBlock:
 			a.netBlks.Add(1)
 			if m, ok := a.noteNetworkBlock(o.Hash, o.Time); ok && out != nil {
@@ -446,7 +456,8 @@ func Deliver(msgs []tea.Msg, send func(tea.Msg)) {
 
 func hasBlock(msgs []tea.Msg) bool {
 	for _, m := range msgs {
-		if _, ok := m.(ui.BlockFoundMsg); ok {
+		switch m.(type) {
+		case ui.BlockFoundMsg, ui.BlockUpdateMsg:
 			return true
 		}
 	}

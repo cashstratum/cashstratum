@@ -1,14 +1,14 @@
  cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network                                            ● 12:00:00 UTC 
  POOL NOT RUNNING · log idle since 11:52:00 UTC (8m ago)                                                                
 ┌─ Hashrate ──────────────────────────┐ ┌─ Round & odds ──────────────────────┐ ┌─ Pool ───────────────────────────────┐
-│1m   -          1h  -                │ │round effort   41.7%                 │ │workers    0 live · 0 stale · 12 off  │
-│5m   -          6h  -                │ │best share     96.3G (2.14% of net)  │ │reported   - total · - idle · - disc  │
-│15m  -          1d  -                │ │net diff       4.50T                 │ │users      -                          │
-│                7d  -                │ │P(block 24h)   -                     │ │uptime     -                          │
-│                                     │ │P(block 7d)    -                     │ │all alive  -                          │
-│no live data                         │ │expected every -                     │ │longest    -                          │
-│                                     │ │last net block -                     │ │height     900000                     │
-│shares/s  - 1m  - 5m                 │ │last block     6h 4m ago             │ │rejected   0.000224%                  │
+│1m   -          1h  -                │ │round effort   41.7%                 │ │workers   0 live·0 stale·0 idle·12 off│
+│5m   -          6h  -                │ │best share     96.3G (2.14% of net)  │ │reported  - conn·- idle·- resum       │
+│15m  -          1d  -                │ │net diff       4.50T                 │ │users     -                           │
+│                7d  -                │ │P(block 24h)   -                     │ │uptime    -                           │
+│                                     │ │P(block 7d)    -                     │ │all alive -                           │
+│no live data                         │ │expected every -                     │ │longest   -                           │
+│                                     │ │last net block -                     │ │height    900000                      │
+│shares/s  - 1m  - 5m                 │ │last block     6h 4m ago             │ │rejected  0.000224%                   │
 │                                     │ │blocks 7d/30d  5 / 5  (all 5)        │ │                                      │
 └─────────────────────────────────────┘ └─────────────────────────────────────┘ └──────────────────────────────────────┘
 ┌─ Block Meter ────────────────────────────────────────────────────────────────────────────────────────────────────────┐

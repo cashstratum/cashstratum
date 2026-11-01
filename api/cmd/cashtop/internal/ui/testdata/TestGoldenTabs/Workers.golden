@@ -1,5 +1,5 @@
  cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network                                            ● 12:00:00 UTC 
- Workers  11 live · 0 stale · 1 off   stale = no share for 6x the expected interval                                     
+ Workers  11 live · 0 stale · 1 idle · 0 off   stale = no share for 6x the expected interval                            
                                                                                                                         
    rig     worker               address        agent                    1m         1h    diff last share state          
  ▸ ◆ axe   user1.rig03          qpl4x3…up5nff  bitaxe/BM1370/v2    743GH/s    728GH/s   2.05K        17s ● live         
@@ -13,7 +13,7 @@
    ◆ axe   user3.rig03          qp9vt4…0nwsdc  bitaxe/BM1370/v2    182GH/s    179GH/s     512         3s ● live         
    ◆ asic  user4.rig02          qqzf5s…mq46dh  bosminer/24.05      180GH/s    177GH/s     512        16s ● live         
    ◆ asic  user3.rig02          qp9vt4…0nwsdc  cgminer/4.12.1      179GH/s    176GH/s     512        16s ● live         
-   ◇ soft  user4.rig03          qqzf5s…mq46dh  cpuminer/2.5.1            -          -       -      1d 6h ○ off          
+   ◇ soft  user4.rig03          qqzf5s…mq46dh  cpuminer/2.5.1            -          -       -      1d 6h ◌ idle         
                                                                                                                         
                                                                                                                         
                                                                                                                         

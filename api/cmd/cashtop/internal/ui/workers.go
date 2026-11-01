@@ -48,10 +48,10 @@ var workerCols = []column{
 func renderWorkers(ctx *Context, w, h, sel int) []string {
 	t := ctx.Theme
 	ws := sortedWorkers(ctx.Snap.Workers, ctx.Now)
-	live, stale, off := ctx.countStates(ws)
+	live, stale, idle, off := ctx.countStates(ws)
 	sep := " " + ctx.sym.Sep + " "
 	out := []string{
-		" " + t.Title.Render("Workers") + "  " + t.Good.Render(itoa(live)+" live") + sep + t.Warn.Render(itoa(stale)+" stale") + sep + t.Dim.Render(itoa(off)+" off") +
+		" " + t.Title.Render("Workers") + "  " + t.Good.Render(itoa(live)+" live") + sep + t.Warn.Render(itoa(stale)+" stale") + sep + t.Dim.Render(itoa(idle)+" idle") + sep + t.Dim.Render(itoa(off)+" off") +
 			t.Dim.Render("   stale = no share for "+itoa(StaleK)+"x the expected interval"),
 		"",
 	}
@@ -75,15 +75,15 @@ func renderWorkers(ctx *Context, w, h, sel int) []string {
 			last = fmtDur(ctx.Now.Sub(r.LastShare))
 		}
 		cells := []string{
-			cur, badge + " " + tag, r.Name, shortAddr(r.Address, ctx.sym.Ellipsis), agentShort(r.UserAgent),
-			ctx.hash(r.Hashrate1m), ctx.hash(r.Hashrate1h), ctx.hash(r.Hashrate1d),
+			cur, badge + " " + tag, shortWorker(r.Name, ctx.sym.Ellipsis), shortAddr(r.Address, ctx.sym.Ellipsis), agentCell(ctx, r),
+			ctx.hash(r.Hashrate1m), ctx.longHash(r, r.Hashrate1h), ctx.longHash(r, r.Hashrate1d),
 			fmtDiff(r.Diff), fmtDiff(r.BestShare), last, stateLabel(ctx, st),
 		}
 		row := tableRow(workerCols, keep, cells)
 		switch {
 		case i == sel:
 			row = t.Selected.Render(row)
-		case st == StateOff:
+		case st == StateOff || st == StateIdle:
 			row = t.Dim.Render(row)
 		}
 		out = append(out, " "+row)
@@ -97,8 +97,19 @@ func stateLabel(ctx *Context, s WorkerState) string {
 		return ctx.sym.Live + " live"
 	case StateStale:
 		return ctx.sym.Stale + " stale"
+	case StateIdle:
+		return ctx.sym.Idle + " idle"
 	}
 	return ctx.sym.Off + " off"
+}
+
+// agentCell is the agent of a row, dimmed when it is only the last one known.
+func agentCell(ctx *Context, r WorkerRow) string {
+	a := agentShort(r.UserAgent)
+	if r.AgentStale && r.UserAgent != "" {
+		return ctx.Theme.Dim.Render(a)
+	}
+	return a
 }
 
 func agentShort(a string) string {

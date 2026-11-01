@@ -12,12 +12,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"cashstratumapi/internal/poolevents"
 )
 
 // recordedRequest captures what the httptest server actually received, for
@@ -310,5 +313,217 @@ func TestDeliver_DryRunSendsNoHTTPRequests(t *testing.T) {
 	}
 	if !strings.Contains(out, evt.Hash) {
 		t.Fatalf("log output missing the event body: %s", out)
+	}
+}
+
+func TestDeliver_PersistedQueueSurvivesRestartAndDeliversWhenOnline(t *testing.T) {
+	dir := t.TempDir()
+	queuePath := filepath.Join(dir, "notifier.state.queue.json")
+
+	var online atomic.Bool
+	var mu sync.Mutex
+	var delivered []recordedRequest
+	attempt1Seen := make(chan struct{}, 1)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if !online.Load() {
+			select {
+			case attempt1Seen <- struct{}{}:
+			default:
+			}
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		mu.Lock()
+		delivered = append(delivered, recordedRequest{headers: r.Header.Clone(), body: body})
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	// Phase 1: Target webhook is offline (503). Enqueue 2 events into d1,
+	// let the first attempt fail and enter retry backoff, then cancel ctx1
+	// to simulate a notifier restart during an outage.
+	d1 := newDelivererWithClock(srv.URL, "persist-secret", false, nil, []time.Duration{500 * time.Millisecond, 500 * time.Millisecond})
+	if err := d1.SetQueuePath(queuePath); err != nil {
+		t.Fatalf("d1.SetQueuePath() error = %v", err)
+	}
+
+	evt1 := newNetworkBlockEvent("hash-persisted-1")
+	rig := "rig1"
+	evt2 := poolevents.NewPoolBlockEvent("solve-persisted-2", 900100, "addr.rig1", "addr", &rig)
+	d1.Enqueue(evt1)
+	d1.Enqueue(evt2)
+
+	ctx1, cancel1 := context.WithCancel(context.Background())
+	done1 := make(chan struct{})
+	go func() {
+		d1.Run(ctx1)
+		close(done1)
+	}()
+
+	select {
+	case <-attempt1Seen:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for d1 first delivery attempt")
+	}
+
+	cancel1()
+	select {
+	case <-done1:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for d1.Run to stop")
+	}
+
+	// Verify the queue file exists on disk with mode 0600, no .tmp file
+	// remains, and both events (in-flight evt1 + queued evt2) are persisted.
+	info, err := os.Stat(queuePath)
+	if err != nil {
+		t.Fatalf("os.Stat(%s) error = %v", queuePath, err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("queue file permissions = %04o, want 0600", perm)
+	}
+	if _, err := os.Stat(queuePath + ".tmp"); !os.IsNotExist(err) {
+		t.Errorf("temp file %s.tmp should not exist after atomic rename", queuePath)
+	}
+
+	rawPersisted, err := os.ReadFile(queuePath)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%s) error = %v", queuePath, err)
+	}
+	var persistedSlice []json.RawMessage
+	if err := json.Unmarshal(rawPersisted, &persistedSlice); err != nil {
+		t.Fatalf("json.Unmarshal(persisted) error = %v", err)
+	}
+	if len(persistedSlice) != 2 {
+		t.Fatalf("persisted queue has %d items, want 2: %s", len(persistedSlice), rawPersisted)
+	}
+
+	// Phase 2: Target webhook comes back online. Create a new Deliverer d2
+	// pointing at the same queuePath and verify both events are delivered
+	// in FIFO order and the persisted queue file is emptied.
+	online.Store(true)
+
+	d2 := newDelivererWithClock(srv.URL, "persist-secret", false, nil, []time.Duration{5 * time.Millisecond})
+	if err := d2.SetQueuePath(queuePath); err != nil {
+		t.Fatalf("d2.SetQueuePath() error = %v", err)
+	}
+	if got := d2.queueLen(); got != 2 {
+		t.Fatalf("d2.queueLen() after load = %d, want 2", got)
+	}
+
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	defer cancel2()
+	done2 := make(chan struct{})
+	go func() {
+		d2.Run(ctx2)
+		close(done2)
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for d2.EventsSent() < 2 {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for d2 to deliver 2 persisted events (sent=%d)", d2.EventsSent())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel2()
+	<-done2
+
+	mu.Lock()
+	gotReqs := append([]recordedRequest(nil), delivered...)
+	mu.Unlock()
+
+	if len(gotReqs) != 2 {
+		t.Fatalf("webhook received %d online deliveries, want 2", len(gotReqs))
+	}
+	if got := gotReqs[0].headers.Get("X-CashStratum-Delivery"); got != evt1.EventID {
+		t.Errorf("delivery[0] EventID = %q, want %q", got, evt1.EventID)
+	}
+	if got := gotReqs[1].headers.Get("X-CashStratum-Delivery"); got != evt2.EventID {
+		t.Errorf("delivery[1] EventID = %q, want %q", got, evt2.EventID)
+	}
+
+	// Verify persisted queue file is now emptied ([]).
+	afterBytes, err := os.ReadFile(queuePath)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%s) after drain error = %v", queuePath, err)
+	}
+	var afterSlice []json.RawMessage
+	if err := json.Unmarshal(afterBytes, &afterSlice); err != nil {
+		t.Fatalf("json.Unmarshal(afterBytes) error = %v", err)
+	}
+	if len(afterSlice) != 0 {
+		t.Fatalf("persisted queue after delivery has %d items, want 0 (%s)", len(afterSlice), afterBytes)
+	}
+}
+
+func TestDeliver_PersistQueueRoundTripsAllEventTypes(t *testing.T) {
+	dir := t.TempDir()
+	queuePath := filepath.Join(dir, "queue.json")
+
+	d1 := newDelivererWithClock("http://127.0.0.1:0", "secret", true, nil, nil)
+	if err := d1.SetQueuePath(queuePath); err != nil {
+		t.Fatalf("d1.SetQueuePath() error = %v", err)
+	}
+
+	rig := "worker1"
+	reason := "high-hash"
+	netEvt := newNetworkBlockEvent("000000000000000001")
+	subEvt := poolevents.NewPoolBlockSubmittedEvent("solve-123")
+	poolEvt := poolevents.NewPoolBlockEvent("solve-123", 888888, "user.worker1", "user", &rig)
+	rejEvt := poolevents.NewPoolBlockRejectedEvent("solve-456", 888889, &reason)
+
+	d1.Enqueue(netEvt)
+	d1.Enqueue(subEvt)
+	d1.Enqueue(poolEvt)
+	d1.Enqueue(rejEvt)
+
+	d2 := newDelivererWithClock("http://127.0.0.1:0", "secret", true, nil, nil)
+	if err := d2.SetQueuePath(queuePath); err != nil {
+		t.Fatalf("d2.SetQueuePath() error = %v", err)
+	}
+
+	queued := d2.queuedEvents()
+	if len(queued) != 4 {
+		t.Fatalf("len(queued) = %d, want 4", len(queued))
+	}
+	if got, ok := queued[0].(NetworkBlockEvent); !ok || got.Hash != netEvt.Hash || got.EventID != netEvt.EventID {
+		t.Errorf("queued[0] = %#v, want NetworkBlockEvent %#v", queued[0], netEvt)
+	}
+	if got, ok := queued[1].(PoolBlockSubmittedEvent); !ok || got.SolveID != subEvt.SolveID {
+		t.Errorf("queued[1] = %#v, want PoolBlockSubmittedEvent %#v", queued[1], subEvt)
+	}
+	if got, ok := queued[2].(PoolBlockEvent); !ok || got.Height != poolEvt.Height || got.Username != poolEvt.Username {
+		t.Errorf("queued[2] = %#v, want PoolBlockEvent %#v", queued[2], poolEvt)
+	}
+	if got, ok := queued[3].(PoolBlockRejectedEvent); !ok || got.Height != rejEvt.Height || got.Reason == nil || *got.Reason != reason {
+		t.Errorf("queued[3] = %#v, want PoolBlockRejectedEvent %#v", queued[3], rejEvt)
+	}
+	if d2.LastNetworkBlockAt() == nil {
+		t.Errorf("d2.LastNetworkBlockAt() = nil after restoring NetworkBlockEvent")
+	}
+	if d2.LastPoolBlockAt() == nil {
+		t.Errorf("d2.LastPoolBlockAt() = nil after restoring PoolBlockEvent")
+	}
+}
+
+func TestLoadConfig_QueuePathFromEnvAndStateDirectory(t *testing.T) {
+	t.Setenv("CASHSTRATUM_NOTIFY_QUEUE_PATH", "")
+	t.Setenv("BLOCKSNIPER_NOTIFY_QUEUE_PATH", "")
+	t.Setenv("NOTIFY_QUEUE_PATH", "")
+	t.Setenv("STATE_DIRECTORY", "/var/lib/cashstratum-notifier")
+
+	cfg := loadConfig()
+	if want := filepath.Join("/var/lib/cashstratum-notifier", "queue.json"); cfg.queuePath != want {
+		t.Fatalf("loadConfig().queuePath with STATE_DIRECTORY = %q, want %q", cfg.queuePath, want)
+	}
+
+	t.Setenv("CASHSTRATUM_NOTIFY_QUEUE_PATH", "/custom/path/queue.json")
+	cfg = loadConfig()
+	if cfg.queuePath != "/custom/path/queue.json" {
+		t.Fatalf("loadConfig().queuePath with explicit env = %q, want /custom/path/queue.json", cfg.queuePath)
 	}
 }

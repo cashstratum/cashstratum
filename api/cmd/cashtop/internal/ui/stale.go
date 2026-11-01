@@ -17,6 +17,16 @@ func (c *Context) hash(v float64) string {
 	return fmtHash(v)
 }
 
+// longHash formats a long-window hashrate of a worker. The window may reach
+// back to a time the worker was running, so it is a dash unless the worker is
+// live or stale.
+func (c *Context) longHash(w WorkerRow, v float64) string {
+	if st := c.classify(w); st == StateIdle || st == StateOff {
+		return dash
+	}
+	return c.hash(v)
+}
+
 // count formats a live count, as a dash while the pool is not running.
 func (c *Context) count(n int) string {
 	if c.stale() {
@@ -34,13 +44,15 @@ func (c *Context) classify(w WorkerRow) WorkerState {
 }
 
 // countStates tallies the workers by state under classify.
-func (c *Context) countStates(ws []WorkerRow) (live, stale, off int) {
+func (c *Context) countStates(ws []WorkerRow) (live, stale, idle, off int) {
 	for _, w := range ws {
 		switch c.classify(w) {
 		case StateLive:
 			live++
 		case StateStale:
 			stale++
+		case StateIdle:
+			idle++
 		default:
 			off++
 		}

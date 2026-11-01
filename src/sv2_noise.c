@@ -75,14 +75,14 @@ static bool noise_nonce_has_budget(const struct cipher_state *c, uint64_t need)
 
 static void noise_nonce_watermark_hit(const char *dir, uint64_t n)
 {
-	g_nonce_watermark_hits++;
+	__atomic_add_fetch(&g_nonce_watermark_hits, 1, __ATOMIC_RELAXED);
 	LOGNOTICE("SV2 Noise %s nonce watermark (n=%"PRIu64") — close for re-handshake",
 		  dir, n);
 }
 
 uint64_t sv2_noise_nonce_watermark_hits(void)
 {
-	return g_nonce_watermark_hits;
+	return __atomic_load_n(&g_nonce_watermark_hits, __ATOMIC_RELAXED);
 }
 
 /* Process-wide secp256k1 context (thread-safe for concurrent use after create).
@@ -240,6 +240,7 @@ static void hmac_sha256(const uint8_t *key, size_t keylen,
 	crypto_auth_hmacsha256_init(&st, key, keylen);
 	crypto_auth_hmacsha256_update(&st, data, datalen);
 	crypto_auth_hmacsha256_final(&st, out);
+	sodium_memzero(&st, sizeof(st));
 }
 
 static void hkdf_sha256(const uint8_t chaining_key[32], const uint8_t *ikm, size_t ikm_len,
@@ -259,6 +260,7 @@ static void hkdf_sha256(const uint8_t chaining_key[32], const uint8_t *ikm, size
 	hmac_sha256(temp_key, 32, buf, 33, out2);
 
 	sodium_memzero(temp_key, sizeof(temp_key));
+	sodium_memzero(buf, sizeof(buf));
 }
 
 static void mix_hash(uint8_t h[32], const uint8_t *data, size_t len)
@@ -278,6 +280,7 @@ static void mix_key(sv2_noise_session_t *s, const uint8_t *ikm, size_t ikm_len)
 	hkdf_sha256(s->ck, ikm, ikm_len, ck_new, temp_k);
 	memcpy(s->ck, ck_new, 32);
 	cs_init_key(&s->cs, temp_k);
+	sodium_memzero(ck_new, sizeof(ck_new));
 	sodium_memzero(temp_k, sizeof(temp_k));
 }
 
@@ -389,10 +392,12 @@ static bool read_seckey_file(const char *path, uint8_t sk[32])
 		break;
 	}
 	fclose(f);
-	if (n != 64)
+	sodium_memzero(line, sizeof(line));
+	if (n != 64 || !hex2bin(sk, hex, 32)) {
+		sodium_memzero(hex, sizeof(hex));
 		return false;
-	if (!hex2bin(sk, hex, 32))
-		return false;
+	}
+	sodium_memzero(hex, sizeof(hex));
 	return true;
 }
 
@@ -418,6 +423,7 @@ static bool write_seckey_file(const char *path, const uint8_t sk[32], const char
 	fprintf(f, "# ckpool SV2 Noise %s seckey — keep secret, mode 0600\n",
 		label ? label : "key");
 	fprintf(f, "%s\n", hex);
+	sodium_memzero(hex, sizeof(hex));
 	if (fclose(f)) {
 		LOGERR("SV2 failed writing key file %s", path);
 		return false;
@@ -478,8 +484,11 @@ static bool build_signature_noise_message(const struct sv2_noise_server_keys *ke
 	if (!secp256k1_keypair_create(secp, &keypair, keys->authority_sk))
 		return false;
 	crypto_hash_sha256(mhash, signed_fields, 42);
-	if (!secp256k1_schnorrsig_sign32(secp, out + 10, mhash, &keypair, NULL))
+	if (!secp256k1_schnorrsig_sign32(secp, out + 10, mhash, &keypair, NULL)) {
+		sodium_memzero(&keypair, sizeof(keypair));
 		return false;
+	}
+	sodium_memzero(&keypair, sizeof(keypair));
 	return true;
 }
 
@@ -658,26 +667,26 @@ static bool handshake_act2(sv2_noise_session_t *s, uint8_t **out, size_t *outlen
 
 	/* ee: responder is not the handshake initiator (spec 04 §4.4 initiator=false) */
 	if (!ellswift_ecdh(s->secp, s->e_sk, s->e_ellswift, s->re_ellswift, false, shared))
-		return false;
+		goto fail;
 	mix_key(s, shared, 32);
 
 	/* s encrypted */
 	if (!encrypt_and_hash(s, s->keys->static_ellswift, 64, enc, &enclen))
-		return false;
+		goto fail;
 	memcpy(p, enc, enclen);
 	p += enclen;
 
 	/* es: our static sk, their ephemeral; still responder (initiator=false) */
 	if (!ellswift_ecdh(s->secp, s->keys->static_sk, s->keys->static_ellswift,
 			   s->re_ellswift, false, shared))
-		return false;
+		goto fail;
 	mix_key(s, shared, 32);
 
 	/* SIGNATURE_NOISE_MESSAGE */
 	if (!build_signature_noise_message(s->keys, s->secp, sigmsg))
-		return false;
+		goto fail;
 	if (!encrypt_and_hash(s, sigmsg, SV2_SIG_NOISE_MSG_LEN, enc, &enclen))
-		return false;
+		goto fail;
 	memcpy(p, enc, enclen);
 	p += enclen;
 
@@ -688,6 +697,10 @@ static bool handshake_act2(sv2_noise_session_t *s, uint8_t **out, size_t *outlen
 	cs_init_key(&s->send_cs, k2);
 	sodium_memzero(k1, 32);
 	sodium_memzero(k2, 32);
+	sodium_memzero(shared, sizeof(shared));
+	sodium_memzero(s->e_sk, sizeof(s->e_sk));
+	sodium_memzero(s->ck, sizeof(s->ck));
+	sodium_memzero(&s->cs, sizeof(s->cs));
 
 	s->handshake_done = true;
 	*outlen = (size_t)(p - buf);
@@ -695,6 +708,9 @@ static bool handshake_act2(sv2_noise_session_t *s, uint8_t **out, size_t *outlen
 	memcpy(*out, buf, *outlen);
 	LOGDEBUG("SV2 Noise handshake act2 complete (%zu bytes)", *outlen);
 	return true;
+fail:
+	sodium_memzero(shared, sizeof(shared));
+	return false;
 }
 
 bool sv2_noise_handshake_read(sv2_noise_session_t *s, const uint8_t *in, size_t inlen,
@@ -842,28 +858,26 @@ bool sv2_noise_client_act2(sv2_noise_session_t *s, const uint8_t *in, size_t inl
 
 	/* ee: our ephemeral sk, their ephemeral; initiator=true */
 	if (!ellswift_ecdh(s->secp, s->e_sk, s->e_ellswift, s->re_ellswift, true, shared))
-		return false;
+		goto fail;
 	mix_key(s, shared, 32);
 
 	/* decrypt server static (64 + MAC) into rs_ellswift */
 	if (!decrypt_and_hash(s, p, 64 + SV2_NOISE_MAC_LEN, pt, &ptlen) || ptlen != 64)
-		return false;
+		goto fail;
 	memcpy(s->rs_ellswift, pt, 64);
 	p += 64 + SV2_NOISE_MAC_LEN;
 
 	/* es: our ephemeral sk, their static; initiator=true */
 	if (!ellswift_ecdh(s->secp, s->e_sk, s->e_ellswift, s->rs_ellswift, true, shared))
-		return false;
+		goto fail;
 	mix_key(s, shared, 32);
 
 	/* decrypt SIGNATURE_NOISE_MESSAGE (74 + MAC) and verify the certificate */
 	if (!decrypt_and_hash(s, p, SV2_SIG_NOISE_MSG_LEN + SV2_NOISE_MAC_LEN, pt, &ptlen) ||
 	    ptlen != SV2_SIG_NOISE_MSG_LEN)
-		return false;
-	if (!client_verify_certificate(s, pt)) {
-		sodium_memzero(shared, sizeof(shared));
-		return false;
-	}
+		goto fail;
+	if (!client_verify_certificate(s, pt))
+		goto fail;
 
 	/* Split — initiator encrypts with c1, decrypts with c2 */
 	hkdf_sha256(s->ck, NULL, 0, k1, k2);
@@ -872,10 +886,18 @@ bool sv2_noise_client_act2(sv2_noise_session_t *s, const uint8_t *in, size_t inl
 	sodium_memzero(k1, 32);
 	sodium_memzero(k2, 32);
 	sodium_memzero(shared, sizeof(shared));
+	sodium_memzero(pt, sizeof(pt));
+	sodium_memzero(s->e_sk, sizeof(s->e_sk));
+	sodium_memzero(s->ck, sizeof(s->ck));
+	sodium_memzero(&s->cs, sizeof(s->cs));
 
 	s->handshake_done = true;
 	LOGDEBUG("SV2 Noise client handshake complete, certificate verified");
 	return true;
+fail:
+	sodium_memzero(shared, sizeof(shared));
+	sodium_memzero(pt, sizeof(pt));
+	return false;
 }
 
 int sv2_noise_decrypt_frame(sv2_noise_session_t *s, const uint8_t *in, size_t inlen,
@@ -1191,7 +1213,7 @@ bool sv2_noise_authority_b58_to_xonly(const char *b58, uint8_t xonly[32])
 		return false;
 	crypto_hash_sha256(hash1, payload, 34);
 	crypto_hash_sha256(hash2, hash1, 32);
-	if (memcmp(payload + 34, hash2, 4) != 0)
+	if (sodium_memcmp(payload + 34, hash2, 4) != 0)
 		return false;
 	memcpy(xonly, payload + 2, 32);
 	return true;

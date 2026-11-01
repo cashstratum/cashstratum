@@ -59,7 +59,7 @@ detect_distro() {
         *" fedora "*|*" rhel "*|*" centos "*)
             PKG_MANAGER="dnf"
             INSTALL_CMD="dnf install -y"
-            UPDATE_CMD="dnf check-update || true"
+            UPDATE_CMD="dnf check-update"
             PACKAGES="gcc gcc-c++ make git autoconf automake libtool pkgconf-pkg-config yasm zeromq-devel python3"
             ;;
         *)
@@ -212,7 +212,11 @@ fi
 
 detect_distro
 echo "Installing dependencies..."
-eval $UPDATE_CMD
+if [ "$PKG_MANAGER" = "dnf" ]; then
+    $UPDATE_CMD || true
+else
+    $UPDATE_CMD
+fi
 $INSTALL_CMD $PACKAGES
 
 # Build a disposable copy; leave any existing /opt tree untouched.

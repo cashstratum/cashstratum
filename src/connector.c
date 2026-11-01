@@ -503,7 +503,7 @@ static int accept_client(cdata_t *cdata, const int epfd, const uint64_t server)
 	client->fd = fd;
 	client->accept_time = time(NULL);
 	optlen = sizeof(client->sendbufsize);
-	getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &client->sendbufsize, &optlen);
+	getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &client->sendbufsize, &optlen);
 	LOGDEBUG("Client sendbufsize detected as %d", client->sendbufsize);
 
 	event.data.u64 = client->id;
@@ -2367,7 +2367,7 @@ void *connector(void *arg)
 	ckpool.cdata = cdata;
 
 	/* serverurls always set in main: explicit SV1 and/or SV2, or one default SV1. */
-	cdata->serverfd = ckalloc(sizeof(int *) * ckpool.serverurls);
+	cdata->serverfd = ckalloc(sizeof(int) * ckpool.serverurls);
 
 	for (i = 0; i < ckpool.serverurls; i++) {
 		char oldurl[INET6_ADDRSTRLEN], oldport[8];

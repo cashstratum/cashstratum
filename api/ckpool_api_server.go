@@ -18,7 +18,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"regexp"
@@ -41,25 +40,21 @@ const (
 	DefaultPort              = "8888"
 	DefaultStratumHost       = "127.0.0.1:3333"
 	MaxLines                 = 1000
-	DefaultRateLimitRequests = 20
+	DefaultRateLimitRequests = 600
 	RateLimitWindow          = 60 * time.Second
 	CacheSize                = 100
 	CacheTTL                 = 60 * time.Second
 
 	// DefaultSharesRateLimitRequests is /shares' own per-IP budget, wider than the
-	// default RateLimitRequests. The default 20/60s is sized for many
-	// distinct callers (miners, dashboards); /shares' intended consumer is
-	// ONE Laravel proxy polling every 2-3s (~20-30 req/min) -- right at or
-	// above the default ceiling. Give /shares headroom instead of loosening
-	// the default for every other endpoint. Window is unchanged (still
-	// RateLimitWindow) -- only the request count differs.
-	DefaultSharesRateLimitRequests = 60
+	// default RateLimitRequests. All backend requests come from the single
+	// firewall-allowlisted consumer IP, with /shares polled at high frequency.
+	// Window is unchanged (still RateLimitWindow) -- only the request count differs.
+	DefaultSharesRateLimitRequests = 1200
 
 	// DefaultPingRateLimitRequests is /ping's own per-IP budget. /ping is
 	// unauthenticated (see pingMiddleware) and sampled several times per
-	// visitor page load, so it gets a wider budget than the default rather
-	// than sharing a bucket sized for a handful of authenticated dashboards.
-	DefaultPingRateLimitRequests = 60
+	// visitor page load, so it gets its own budget.
+	DefaultPingRateLimitRequests = 300
 
 	// ProbeWorkerSuffix is the worker segment /coinbase authorises its
 	// phantom probe connections under ("<user>."+ProbeWorkerSuffix), so the
@@ -169,12 +164,19 @@ func parseRateLimitEnv(envVar string, defaultVal int) int {
 }
 
 // parseRateLimitEnvWithFallback reads a rate limit budget checking primary first,
-// falling back to fallback if primary is unset or empty.
+// falling back to fallback if primary is unset or empty (and API_RATE_LIMIT for
+// the general rate limit).
 func parseRateLimitEnvWithFallback(primary, fallback string, defaultVal int) int {
 	if os.Getenv(primary) != "" {
 		return parseRateLimitEnv(primary, defaultVal)
 	}
-	return parseRateLimitEnv(fallback, defaultVal)
+	if os.Getenv(fallback) != "" {
+		return parseRateLimitEnv(fallback, defaultVal)
+	}
+	if primary == "CASHSTRATUM_RATE_LIMIT" && os.Getenv("API_RATE_LIMIT") != "" {
+		return parseRateLimitEnv("API_RATE_LIMIT", defaultVal)
+	}
+	return defaultVal
 }
 
 // RateLimiter tracks request rates per IP against its own maxRequests
@@ -504,6 +506,165 @@ func lastLines(output []byte, n int) []string {
 	return lines
 }
 
+// tailFileLines returns up to the last n newline-delimited lines from path
+// without spawning a child process. For large files (> 256KB) it seeks
+// backwards from EOF in 256KB chunks to locate the start of the last n lines
+// before scanning forward with a 4MB max-token buffer.
+func tailFileLines(path string, n int) ([]string, error) {
+	if n <= 0 {
+		return []string{}, nil
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return []string{}, err
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return []string{}, err
+	}
+	size := fi.Size()
+	if size == 0 {
+		return []string{}, nil
+	}
+
+	const chunkSize int64 = 256 * 1024
+	var startOffset int64
+	if size > chunkSize {
+		newlines := 0
+		pos := size
+		buf := make([]byte, chunkSize)
+		for pos > 0 {
+			readSize := chunkSize
+			if pos < readSize {
+				readSize = pos
+			}
+			pos -= readSize
+			if _, err := f.ReadAt(buf[:readSize], pos); err != nil && err != io.EOF {
+				pos = 0
+				break
+			}
+			for i := int(readSize) - 1; i >= 0; i-- {
+				if buf[i] == '\n' {
+					newlines++
+					if newlines > n {
+						startOffset = pos + int64(i) + 1
+						goto scanForward
+					}
+				}
+			}
+		}
+	}
+
+scanForward:
+	if startOffset > 0 {
+		if _, err := f.Seek(startOffset, io.SeekStart); err != nil {
+			return []string{}, err
+		}
+	}
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	lines := []string{}
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+		if len(lines) >= 2*n {
+			kept := copy(lines, lines[len(lines)-n:])
+			lines = lines[:kept]
+		}
+	}
+	if len(lines) > n {
+		kept := copy(lines, lines[len(lines)-n:])
+		lines = lines[:kept]
+	}
+	if err := scanner.Err(); err != nil {
+		return lines, err
+	}
+	return lines, nil
+}
+
+// grepFileLines streams path line-by-line and returns up to the last maxMatches
+// lines matching pattern (plus optional before/after contextLines, matching
+// grep -C behavior) without spawning a child process. If pattern is not a
+// valid regular expression, it falls back to literal matching via
+// regexp.QuoteMeta.
+func grepFileLines(path string, pattern string, ignoreCase bool, contextLines int, maxMatches int) ([]string, error) {
+	if maxMatches <= 0 {
+		return []string{}, nil
+	}
+	expr := pattern
+	if ignoreCase {
+		expr = "(?i)" + expr
+	}
+	re, err := regexp.Compile(expr)
+	if err != nil {
+		escaped := regexp.QuoteMeta(pattern)
+		if ignoreCase {
+			escaped = "(?i)" + escaped
+		}
+		re, err = regexp.Compile(escaped)
+		if err != nil {
+			return []string{}, err
+		}
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return []string{}, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+
+	results := []string{}
+	emit := func(line string) {
+		results = append(results, line)
+		if len(results) >= 2*maxMatches {
+			kept := copy(results, results[len(results)-maxMatches:])
+			results = results[:kept]
+		}
+	}
+
+	var beforeBuf []string
+	if contextLines > 0 {
+		beforeBuf = make([]string, 0, contextLines)
+	}
+	afterRemaining := 0
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if re.MatchString(line) {
+			for _, prev := range beforeBuf {
+				emit(prev)
+			}
+			beforeBuf = beforeBuf[:0]
+			emit(line)
+			afterRemaining = contextLines
+		} else if afterRemaining > 0 {
+			emit(line)
+			afterRemaining--
+		} else if contextLines > 0 {
+			if len(beforeBuf) < contextLines {
+				beforeBuf = append(beforeBuf, line)
+			} else {
+				copy(beforeBuf, beforeBuf[1:])
+				beforeBuf[len(beforeBuf)-1] = line
+			}
+		}
+	}
+
+	if len(results) > maxMatches {
+		kept := copy(results, results[len(results)-maxMatches:])
+		results = results[:kept]
+	}
+	if err := scanner.Err(); err != nil {
+		return results, err
+	}
+	return results, nil
+}
+
 // Middleware for authentication and rate limiting, against the default
 // per-IP budget (rateLimiter). Routes needing a different budget call
 // authMiddlewareWithLimiter directly instead (see /shares).
@@ -658,17 +819,8 @@ func handleTail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute tail command
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "tail", "-n", strconv.Itoa(numLines), logPath)
-	output, err := cmd.Output()
-
-	var lines []string
-	if err == nil && len(output) > 0 {
-		lines = strings.Split(strings.TrimSpace(string(output)), "\n")
-	} else {
+	lines, err := tailFileLines(logPath, numLines)
+	if err != nil {
 		lines = []string{}
 	}
 
@@ -685,8 +837,19 @@ func handleGrep(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ignoreCase := r.URL.Query().Get("ignore_case") == "true" || r.URL.Query().Get("ignore_case") == "1"
+	numLines := 500
+	if linesParam := r.URL.Query().Get("lines"); linesParam != "" {
+		if n, err := strconv.Atoi(linesParam); err == nil && n > 0 {
+			numLines = min(n, MaxLines)
+		}
+	}
+
 	// Check cache
 	cacheKey := "grep:" + pattern
+	if ignoreCase || numLines != 500 {
+		cacheKey = fmt.Sprintf("grep:%s:%t:%d", pattern, ignoreCase, numLines)
+	}
 	if cached, found := responseCache.Get(cacheKey); found {
 		json.NewEncoder(w).Encode(cached)
 		return
@@ -703,26 +866,13 @@ func handleGrep(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// QuoteMeta escapes REGEX metacharacters, not SHELL ones -- a single quote
-	// is not a regex metacharacter and passed through untouched. The result used
-	// to be interpolated into an `sh -c` string wrapped in single quotes, so
-	//     ?pattern=foo' ; id ; echo '
-	// closed the quoting and ran arbitrary commands as the pool's own user.
-	//
-	// There is no shell here any more. grep receives the pattern as a single
-	// argv element via -e, so there is nothing to quote and nothing to break out
-	// of. QuoteMeta stays because this endpoint has always matched literally,
-	// and `--` stops a log path that begins with a dash being read as a flag.
+	// QuoteMeta escapes REGEX metacharacters so /grep matches literally without
+	// spawning a shell or external grep process.
 	escapedPattern := regexp.QuoteMeta(pattern)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "grep", "-a", "-E", "-e", escapedPattern, "--", logPath)
-	output, _ := cmd.Output()
-
-	// Replaces the old `| tail -500`, which only existed because of the shell.
-	lines := lastLines(output, 500)
+	lines, err := grepFileLines(logPath, escapedPattern, ignoreCase, 0, numLines)
+	if err != nil {
+		lines = []string{}
+	}
 
 	response := GrepResponse{
 		Lines:     lines,
@@ -756,8 +906,59 @@ func handleFindBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if log file exists
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
+	_, logStatErr := os.Stat(logPath)
+	logMissing := os.IsNotExist(logStatErr)
+
+	// Search patterns
+	patterns := []string{
+		fmt.Sprintf("Solved and confirmed block %s", height),
+		fmt.Sprintf("Block %s solved.*accepted on SV2/JD", height),
+		fmt.Sprintf("BLOCK ACCEPTED.*height %s", height),
+		fmt.Sprintf("Found block.*%s", height),
+	}
+
+	uniqueLines := []string{}
+	seen := make(map[string]struct{})
+	appendUnique := func(lines []string) {
+		for _, line := range lines {
+			if _, ok := seen[line]; !ok {
+				seen[line] = struct{}{}
+				uniqueLines = append(uniqueLines, line)
+			}
+		}
+	}
+
+	if !logMissing {
+		for _, pattern := range patterns {
+			if matches, err := grepFileLines(logPath, pattern, false, 5, 50); err == nil {
+				appendUnique(matches)
+			}
+		}
+	}
+
+	// Fallback: if not found in cashstratum.log (e.g. after log rotation),
+	// check preserved solve context files in <poolRoot>/solves/<height>-*.log.
+	if len(uniqueLines) == 0 && logPath != "" {
+		solvesDir := filepath.Join(filepath.Dir(filepath.Dir(logPath)), "solves")
+		if solveFiles, err := filepath.Glob(filepath.Join(solvesDir, height+"-*.log")); err == nil {
+			sort.Strings(solveFiles)
+			for _, solveFile := range solveFiles {
+				beforeCount := len(uniqueLines)
+				for _, pattern := range patterns {
+					if matches, err := grepFileLines(solveFile, pattern, false, 5, 50); err == nil {
+						appendUnique(matches)
+					}
+				}
+				if len(uniqueLines) == beforeCount {
+					if tail, err := tailFileLines(solveFile, 50); err == nil {
+						appendUnique(tail)
+					}
+				}
+			}
+		}
+	}
+
+	if logMissing && len(uniqueLines) == 0 {
 		response := FindBlockResponse{
 			Found:     false,
 			Lines:     []string{},
@@ -769,30 +970,9 @@ func handleFindBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Search patterns
-	patterns := []string{
-		fmt.Sprintf("Solved and confirmed block %s", height),
-		fmt.Sprintf("BLOCK ACCEPTED.*height %s", height),
-		fmt.Sprintf("Found block.*%s", height),
-	}
-
-	// height is validated numeric above, so this was not exploitable the way
-	// /grep was. It is still the same shape -- a caller-derived value
-	// interpolated into a shell string -- and one future edit relaxing that
-	// validation would make it exploitable silently. No shell here either.
-	var allMatches []string
-	for _, pattern := range patterns {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		cmd := exec.CommandContext(ctx, "grep", "-a", "-C", "5", "-e", pattern, "--", logPath)
-		output, _ := cmd.Output()
-		cancel()
-
-		allMatches = append(allMatches, lastLines(output, 50)...)
-	}
-
 	response := FindBlockResponse{
-		Found:     len(allMatches) > 0,
-		Lines:     allMatches,
+		Found:     len(uniqueLines) > 0,
+		Lines:     uniqueLines,
 		Height:    height,
 		Timestamp: time.Now().Unix(),
 	}
@@ -1227,14 +1407,7 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get last 200 lines
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "tail", "-n", "200", logPath)
-	output, err := cmd.Output()
-
-	if err == nil && len(output) > 0 {
-		lines := strings.Split(string(output), "\n")
+	if lines, err := tailFileLines(logPath, 200); err == nil && len(lines) > 0 {
 
 		// Parse lines in reverse order for most recent data
 		for i := len(lines) - 1; i >= 0; i-- {
@@ -1330,17 +1503,8 @@ func handleUserLog(w http.ResponseWriter, r *http.Request) {
 	}
 	username = resolvedName
 
-	// Execute tail command
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "tail", "-n", strconv.Itoa(numLines), userLog)
-	output, err := cmd.Output()
-
-	var logLines []string
-	if err == nil && len(output) > 0 {
-		logLines = strings.Split(strings.TrimSpace(string(output)), "\n")
-	} else {
+	logLines, err := tailFileLines(userLog, numLines)
+	if err != nil {
 		logLines = []string{}
 	}
 

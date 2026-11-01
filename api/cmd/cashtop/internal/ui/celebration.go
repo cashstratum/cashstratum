@@ -51,6 +51,32 @@ func (c *celebration) Update(msg tea.Msg, ctx *Context) tea.Cmd {
 	switch m := msg.(type) {
 	case BlockFoundMsg:
 		c.start(m, ctx)
+	case BlockUpdateMsg:
+		if c.active && c.block.Height == m.Height {
+			if m.Luck > 0 {
+				c.block.Luck = m.Luck
+			}
+			if m.Hash != "" {
+				c.block.Hash = m.Hash
+			}
+		}
+	case SnapshotMsg:
+		if c.active {
+			for _, b := range m.Snapshot.Blocks {
+				if b.Height == c.block.Height {
+					if b.Luck > 0 {
+						c.block.Luck = b.Luck
+					}
+					if b.Reward > 0 {
+						c.block.Reward = b.Reward
+					}
+					if b.Hash != "" {
+						c.block.Hash = b.Hash
+					}
+					break
+				}
+			}
+		}
 	case TickMsg:
 		if c.active {
 			c.advance(ctx)

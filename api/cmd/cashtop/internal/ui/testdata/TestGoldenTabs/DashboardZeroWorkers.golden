@@ -1,13 +1,13 @@
  cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network                                            ● 12:00:00 UTC 
 ┌─ Hashrate ──────────────────────────┐ ┌─ Round & odds ──────────────────────┐ ┌─ Pool ───────────────────────────────┐
-│1m   -          1h  -                │ │round effort   0%                    │ │workers    0 live · 0 stale · 0 off   │
-│5m   -          6h  -                │ │best share     -                     │ │reported   0 total · 0 idle · 0 disc  │
-│15m  -          1d  -                │ │net diff       4.50T                 │ │users      0                          │
-│                7d  -                │ │P(block 24h)   0%                    │ │uptime     9d 0h                      │
-│                                     │ │P(block 7d)    0%                    │ │all alive  -                          │
-│                                     │ │expected every -                     │ │longest    -                          │
-│                                     │ │last net block -                     │ │height     900000                     │
-│shares/s  - 1m  - 5m                 │ │last block     none yet, up 9d 0h    │ │rejected   -                          │
+│1m   -          1h  -                │ │round effort   0%                    │ │workers   0 live·0 stale·0 idle·0 off │
+│5m   -          6h  -                │ │best share     -                     │ │reported  0 conn·0 idle·0 resum       │
+│15m  -          1d  -                │ │net diff       4.50T                 │ │users     0                           │
+│                7d  -                │ │P(block 24h)   0%                    │ │uptime    9d 0h                       │
+│                                     │ │P(block 7d)    0%                    │ │all alive -                           │
+│                                     │ │expected every -                     │ │longest   -                           │
+│                                     │ │last net block -                     │ │height    900000                      │
+│shares/s  - 1m  - 5m                 │ │last block     none yet, up 9d 0h    │ │rejected  -                           │
 │                                     │ │blocks 7d/30d  0 / 0  (all 0)        │ │                                      │
 └─────────────────────────────────────┘ └─────────────────────────────────────┘ └──────────────────────────────────────┘
 ┌─ Block Meter ────────────────────────────────────────────────────────────────────────────────────────────────────────┐

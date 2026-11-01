@@ -11,13 +11,14 @@ var blockCols = []column{
 	{title: "height", width: 8, prio: 0},
 	{title: "found (UTC)", width: 16, prio: 0},
 	{title: "ago", width: 8, prio: 3},
+	{title: "round", width: 8, prio: 7},
 	{title: "finder", width: 22, prio: 0},
 	{title: "proto", width: 5, prio: 5},
 	{title: "effort", width: 8, right: true, prio: 0},
 	{title: "status", width: 9, prio: 0},
 	{title: "conf", width: 5, right: true, prio: 4},
 	{title: "reward", width: 12, right: true, prio: 2},
-	{title: "hash", width: 17, prio: 6},
+	{title: "hash", width: 17, prio: 6, flex: 64},
 }
 
 func renderBlocks(ctx *Context, w, h, sel int) []string {
@@ -42,7 +43,9 @@ func renderBlocks(ctx *Context, w, h, sel int) []string {
 		)
 	}
 	keep := fitColumns(blockCols, w-1)
-	out = append(out, " "+tableHead(ctx, blockCols, keep))
+	cols := growFlex(blockCols, keep, w-1)
+	hashW := cols[len(cols)-1].width
+	out = append(out, " "+tableHead(ctx, cols, keep))
 	lo, hi := window(len(bs), h-len(out), sel)
 	for i := lo; i < hi; i++ {
 		b := bs[i]
@@ -56,10 +59,11 @@ func renderBlocks(ctx *Context, w, h, sel int) []string {
 		}
 		cells := []string{
 			cur, itoa(b.Height), fmtStamp(b.Time), coarseAgo(ctx.Now, b.Time),
+			roundLength(bs, i),
 			shortWorker(b.Finder, ctx.sym.Ellipsis), b.Proto, fmtPct(b.Luck), string(b.Status), conf,
-			fmtBCH(b.Reward), shortHash(b.Hash, 8, ctx.sym.Ellipsis),
+			fmtBCH(b.Reward), blockHash(b.Hash, hashW, ctx.sym.Ellipsis),
 		}
-		row := tableRow(blockCols, keep, cells)
+		row := tableRow(cols, keep, cells)
 		if i == sel {
 			row = t.Selected.Render(row)
 		} else if b.Status == BlockOrphaned || b.Status == BlockRejected {
@@ -68,6 +72,33 @@ func renderBlocks(ctx *Context, w, h, sel int) []string {
 		out = append(out, " "+row)
 	}
 	return out
+}
+
+// blockHash shows the whole hash when the column is wide enough for it,
+// otherwise the head and tail around an ellipsis, as wide as the column allows.
+func blockHash(hash string, width int, ell string) string {
+	if width >= len(hash) {
+		return hash
+	}
+	return shortHash(hash, max((width-1)/2, 8), ell)
+}
+
+// roundLength is how long the round that ended at bs[i] lasted: the time from
+// the previous accepted block to this one. bs is newest first, so the previous
+// block is the nearest later row that was neither orphaned nor rejected (those
+// never extended the chain, so they did not start a round). The oldest row, and
+// any row with no accepted predecessor or an unknown time, shows a dash.
+func roundLength(bs []BlockRow, i int) string {
+	if bs[i].Time.IsZero() {
+		return dash
+	}
+	for j := i + 1; j < len(bs); j++ {
+		if bs[j].Status == BlockOrphaned || bs[j].Status == BlockRejected || bs[j].Time.IsZero() {
+			continue
+		}
+		return fmtDur(bs[i].Time.Sub(bs[j].Time))
+	}
+	return dash
 }
 
 // drillPage lists the sharelog jobs of one height with the winning share

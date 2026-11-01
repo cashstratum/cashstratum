@@ -169,6 +169,48 @@ static void test_entity_rejects(void)
 	assert(credited_reject_diff(&anon, 1e18) == 1024);
 }
 
+/* A block-solving share (sdiff >= network_diff) updates best_ever on user and
+ * worker, but must not overwrite current-round best_diff on client, worker,
+ * user, or pool stats after block_solve() has reset them to zero. */
+static void test_best_diff_block_solve_guard(void)
+{
+	sdata_t sdata = {0};
+	workbase_t wb = {0};
+	user_instance_t user = {0};
+	worker_instance_t worker = {0};
+	stratum_instance_t client = {0};
+
+	mutex_init(&sdata.stats_lock);
+	wb.network_diff = 1000.0;
+	sdata.current_workbase = &wb;
+	client.user_instance = &user;
+	client.worker_instance = &worker;
+
+	/* Normal sub-block share updates all current-round best_diff and best_ever. */
+	record_best_diff(&sdata, &user, &worker, 500.0, &client, NULL, NULL);
+	assert(client.best_diff == 500.0);
+	assert(user.best_ever == 500.0 && worker.best_ever == 500.0);
+	assert(user.best_diff == 500.0 && worker.best_diff == 500.0);
+	assert(sdata.stats.best_diff == 500.0);
+
+	/* Simulate block_solve() resetting current-round best_diff to zero, followed
+	 * immediately by the caller invoking check_best_diff() with the winning share. */
+	reset_pool_bestshares(&sdata);
+	client.best_diff = user.best_diff = worker.best_diff = 0.0;
+	record_best_diff(&sdata, &user, &worker, 2500.0, &client, NULL, NULL);
+	assert(user.best_ever == 2500.0 && worker.best_ever == 2500.0);
+	assert(client.best_diff == 0.0);
+	assert(user.best_diff == 0.0 && worker.best_diff == 0.0);
+	assert(sdata.stats.best_diff == 0.0);
+
+	/* Subsequent normal share in the new round records cleanly. */
+	record_best_diff(&sdata, &user, &worker, 120.0, &client, NULL, NULL);
+	assert(user.best_ever == 2500.0 && worker.best_ever == 2500.0);
+	assert(client.best_diff == 120.0);
+	assert(user.best_diff == 120.0 && worker.best_diff == 120.0);
+	assert(sdata.stats.best_diff == 120.0);
+}
+
 int main(void)
 {
 	int64_t pending = 0, total = 0;
@@ -176,6 +218,7 @@ int main(void)
 
 	test_client_rejects();
 	test_entity_rejects();
+	test_best_diff_block_solve_guard();
 	assert(add_reject_diff(100, 42) == 142);
 	assert(add_reject_diff(100, 42.5) == 142);
 	assert(add_reject_diff(100, 0) == 100);

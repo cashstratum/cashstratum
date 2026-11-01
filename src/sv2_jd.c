@@ -2301,7 +2301,6 @@ static uint8_t *handle_declare(struct sv2_jd_client *c, const uint8_t *payload,
 	uint16_t missing[SV2_MAX_JD_TXNS];
 	uint16_t nmiss = 0;
 	uint32_t req_id = 0;
-	uint8_t pbuf[65536];
 	size_t plen = 0;
 
 	memset(&decl, 0, sizeof(decl));
@@ -2518,19 +2517,27 @@ static uint8_t *handle_declare(struct sv2_jd_client *c, const uint8_t *payload,
 		pm.request_id = req_id;
 		pm.unknown_count = nmiss;
 		pm.unknown_tx_position_list = missing;
-		if (!sv2_encode_provide_missing_transactions(pbuf, sizeof(pbuf), &plen, &pm)) {
-			/* Do not leave orphan pending until TTL. */
-			ensure_lock();
-			mutex_lock(&jd_lock);
-			remove_pending_declare_locked(c->client_id, req_id);
-			mutex_unlock(&jd_lock);
-			return error_declare(req_id, "internal-error", replylen);
+		{
+			uint8_t *pbuf = ckalloc(65536);
+			uint8_t *ret;
+
+			if (!sv2_encode_provide_missing_transactions(pbuf, 65536, &plen, &pm)) {
+				dealloc(pbuf);
+				/* Do not leave orphan pending until TTL. */
+				ensure_lock();
+				mutex_lock(&jd_lock);
+				remove_pending_declare_locked(c->client_id, req_id);
+				mutex_unlock(&jd_lock);
+				return error_declare(req_id, "internal-error", replylen);
+			}
+			JD_STAT_INC(provide_missing);
+			LOGINFO("SV2 JD ProvideMissingTransactions client %"PRId64
+				" req=%u missing=%u (rounds=%"PRIu64")",
+				c->client_id, req_id, nmiss, JD_STAT_GET(provide_missing));
+			ret = reply_frame(SV2_MSG_PROVIDE_MISSING_TRANSACTIONS, pbuf, plen, replylen);
+			dealloc(pbuf);
+			return ret;
 		}
-		JD_STAT_INC(provide_missing);
-		LOGINFO("SV2 JD ProvideMissingTransactions client %"PRId64
-			" req=%u missing=%u (rounds=%"PRIu64")",
-			c->client_id, req_id, nmiss, JD_STAT_GET(provide_missing));
-		return reply_frame(SV2_MSG_PROVIDE_MISSING_TRANSACTIONS, pbuf, plen, replylen);
 	}
 	mutex_unlock(&jd_lock);
 
@@ -2600,7 +2607,8 @@ static uint8_t *handle_provide_missing_success(struct sv2_jd_client *c,
 
 	if (nstill > 0) {
 		struct sv2_provide_missing_transactions pm;
-		uint8_t pbuf[65536];
+		uint8_t *pbuf;
+		uint8_t *ret;
 		size_t plen = 0;
 
 		dealloc(pend_copy.missing);
@@ -2625,8 +2633,10 @@ static uint8_t *handle_provide_missing_success(struct sv2_jd_client *c,
 		pm.request_id = pend_copy.request_id;
 		pm.unknown_count = nstill;
 		pm.unknown_tx_position_list = still;
-		if (!sv2_encode_provide_missing_transactions(pbuf, sizeof(pbuf),
+		pbuf = ckalloc(65536);
+		if (!sv2_encode_provide_missing_transactions(pbuf, 65536,
 							     &plen, &pm)) {
+			dealloc(pbuf);
 			ensure_lock();
 			mutex_lock(&jd_lock);
 			remove_pending_declare_locked(c->client_id,
@@ -2635,8 +2645,10 @@ static uint8_t *handle_provide_missing_success(struct sv2_jd_client *c,
 			return error_declare(pend_copy.request_id, "internal-error",
 					     replylen);
 		}
-		return reply_frame(SV2_MSG_PROVIDE_MISSING_TRANSACTIONS, pbuf, plen,
-				   replylen);
+		ret = reply_frame(SV2_MSG_PROVIDE_MISSING_TRANSACTIONS, pbuf, plen,
+				  replylen);
+		dealloc(pbuf);
+		return ret;
 	}
 
 	{

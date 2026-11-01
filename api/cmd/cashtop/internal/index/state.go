@@ -48,6 +48,10 @@ type Worker struct {
 	Sessions   int       `json:"sessions"`
 	Drops      int       `json:"drops"`
 	Longest    int64     `json:"longest_s"`
+	// Agent and LastDiff come from the newest sharelog line seen for the
+	// worker, at any height; snapshots written before they existed lack them.
+	Agent    string  `json:"agent,omitempty"`
+	LastDiff float64 `json:"last_diff,omitempty"`
 }
 
 // Streak is the length of the current uninterrupted session at now.
@@ -108,8 +112,10 @@ type State struct {
 	LastZMQ    string             `json:"last_zmq,omitempty"`
 	LastReject string             `json:"last_reject,omitempty"`
 	OpenSolve  int64              `json:"open_solve,omitempty"`
-	Solved     time.Time          `json:"solved,omitzero"` // log time of the newest accepted block
-	Tip        int64              `json:"tip,omitempty"`   // last chain height read from the node
+	OpenLuck   *float64           `json:"open_luck,omitempty"`
+	NetDiff    float64            `json:"net_diff,omitempty"` // newest network difficulty seen in the log
+	Solved     time.Time          `json:"solved,omitzero"`    // log time of the newest accepted block
+	Tip        int64              `json:"tip,omitempty"`      // last chain height read from the node
 }
 
 func newState() *State {
@@ -190,8 +196,18 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 		if ev.Pool.HasShares {
 			ix.addPoint(&s.PoolLuck, &d.luckFrom, ev.Time, ev.Pool.Luck)
 		}
+	case poolfmt.KindNetworkDiff:
+		if ev.Diff > 0 && ev.Diff != s.NetDiff {
+			s.NetDiff, d.trans = ev.Diff, true
+		}
 	case poolfmt.KindUser:
+		if nd := ev.Stats.NetworkDiff; nd.OK && nd.V > 0 && nd.V != s.NetDiff {
+			s.NetDiff, d.trans = nd.V, true
+		}
 		if b := ev.Stats.BestShare; b.OK && b.V > 0 && ev.HasTime && ev.Time.After(s.Solved) {
+			if ev.Stats.NetworkDiff.OK && ev.Stats.NetworkDiff.V > 0 && b.V >= ev.Stats.NetworkDiff.V {
+				break
+			}
 			ix.noteBest(poolfmt.NormalizeAddress(ev.Name), b.V, ev.Time)
 		}
 	case poolfmt.KindZMQBlock, poolfmt.KindSV2Hash:
@@ -200,18 +216,31 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 		s.LastReject, d.trans = ev.Message, true
 	case poolfmt.KindSolved, poolfmt.KindSV2Accepted:
 		b := ix.block(ev.Height)
+		luck := b.Luck
+		if luck == nil && s.OpenLuck != nil {
+			luck = s.OpenLuck
+		}
 		*b = Block{Height: ev.Height, Hash: s.LastZMQ, Finder: ev.Worker, Proto: ev.Protocol,
-			Time: ev.Time, Status: StatusAccepted, Offset: off, Reward: b.Reward}
-		if old, ok := ix.carry[ev.Height]; ok && old.Time.Equal(b.Time) {
-			b.Reward = old.Reward
+			Time: ev.Time, Status: StatusAccepted, Offset: off, Reward: b.Reward, Luck: luck}
+		if old, ok := ix.carry[ev.Height]; ok && (old.Time.IsZero() || old.Time.Equal(b.Time)) {
+			if old.Reward > 0 {
+				b.Reward = old.Reward
+			}
 			if old.Hash != "" {
 				b.Hash = old.Hash
+			}
+			if b.Luck == nil && old.Luck != nil {
+				l := *old.Luck
+				b.Luck = &l
+			}
+			if b.Proto == "" && old.Proto != "" {
+				b.Proto = old.Proto
 			}
 		}
 		if prev := ix.orphans[ev.Height]; prev {
 			b.Status = StatusOrphaned
 		}
-		s.OpenSolve, d.trans = ev.Height, true
+		s.OpenSolve, s.OpenLuck, d.trans = ev.Height, nil, true
 		d.blocks[ev.Height] = true
 		if ev.Time.After(s.Solved) {
 			s.Solved = ev.Time
@@ -220,12 +249,14 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 			}
 		}
 	case poolfmt.KindSolveShares:
+		l := ev.Percent
 		if b := s.Blocks[s.OpenSolve]; b != nil {
-			l := ev.Percent
 			b.Luck = &l
 			d.blocks[b.Height] = true
+			s.OpenSolve, s.OpenLuck, d.trans = 0, nil, true
+		} else {
+			s.OpenLuck, d.trans = &l, true
 		}
-		s.OpenSolve, d.trans = 0, true
 	case poolfmt.KindBlockRejected:
 		b := ix.block(ev.Height)
 		if b.Status != StatusAccepted {

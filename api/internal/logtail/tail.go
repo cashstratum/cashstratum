@@ -85,6 +85,7 @@ func (t *Tailer) Run(ctx context.Context) {
 		}
 	}
 
+	var partial string
 	for {
 		if ctx.Err() != nil {
 			return
@@ -103,14 +104,17 @@ func (t *Tailer) Run(ctx context.Context) {
 			file = f
 			reader = bufio.NewReader(file)
 			ino, lastSize = i, sz
+			partial = ""
 			t.healthy.Store(true)
 			continue
 		}
 
 		line, err := reader.ReadString('\n')
 		if err == nil {
+			full := partial + line
+			partial = ""
 			if t.onLine != nil {
-				t.onLine(strings.TrimRight(line, "\r\n"))
+				t.onLine(strings.TrimRight(full, "\r\n"))
 			}
 			continue
 		}
@@ -118,8 +122,12 @@ func (t *Tailer) Run(ctx context.Context) {
 			t.logf("tail: read error on %s (%v), reopening", t.path, err)
 			file.Close()
 			file = nil
+			partial = ""
 			t.healthy.Store(false)
 			continue
+		}
+		if len(line) > 0 {
+			partial += line
 		}
 
 		// Caught up to EOF (or the file is momentarily unreadable) --
@@ -137,6 +145,7 @@ func (t *Tailer) Run(ctx context.Context) {
 			t.logf("tail: %s rotated, reopening from start of the new file", t.path)
 			file.Close()
 			file = nil
+			partial = ""
 			continue
 		}
 
@@ -145,6 +154,7 @@ func (t *Tailer) Run(ctx context.Context) {
 			if _, seekErr := file.Seek(0, io.SeekStart); seekErr == nil {
 				reader.Reset(file)
 				lastSize = 0
+				partial = ""
 			}
 			continue
 		}

@@ -175,8 +175,8 @@ func (a *addressView) Render(ctx *Context, w, h int) []string {
 				last = fmtDur(ctx.Now.Sub(r.LastShare))
 			}
 			row := tableRow(rigCols, keep, []string{badge + " " + tag, rigName(r.Name), agentShort(r.UserAgent),
-				ctx.hash(r.Hashrate1m), ctx.hash(r.Hashrate1h), fmtDiff(r.Diff), last, stateLabel(ctx, ctx.classify(r))})
-			if ctx.classify(r) == StateOff {
+				ctx.hash(r.Hashrate1m), ctx.longHash(r, r.Hashrate1h), fmtDiff(r.Diff), last, stateLabel(ctx, ctx.classify(r))})
+			if st := ctx.classify(r); st == StateOff || st == StateIdle {
 				row = t.Dim.Render(row)
 			}
 			out = append(out, " "+row)

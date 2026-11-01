@@ -353,3 +353,14 @@ func TestGoldenDashboard80x24(t *testing.T) {
 	checkScreen(t, out, 80, 24)
 	golden.RequireEqual(t, out)
 }
+
+func TestGoldenBlocksWide(t *testing.T) {
+	caps := termcap.Detect(utf8Env, termcap.Flags{})
+	m := drive(newModel(demo.Options{}, caps), 200, goldenH, "3", "j")
+	out := ansi.Strip(m.Render())
+	checkScreen(t, out, 200, goldenH)
+	if !strings.Contains(out, "round") {
+		t.Fatal("round column missing at 200 columns")
+	}
+	golden.RequireEqual(t, out)
+}

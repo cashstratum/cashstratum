@@ -150,7 +150,7 @@ func (e *Engine) Feed(ev poolfmt.Event, off int64) []Output {
 	e.n++
 	live := off > e.startOffset
 	switch ev.Kind {
-	case poolfmt.KindZMQBlock:
+	case poolfmt.KindZMQBlock, poolfmt.KindSV2Hash:
 		e.zmq = zmqSeen{hash: ev.Hash, t: ev.Time, has: ev.HasTime, n: e.n}
 	case poolfmt.KindPossibleSolve, poolfmt.KindBlockAccepted:
 		if live {
@@ -164,7 +164,7 @@ func (e *Engine) Feed(ev poolfmt.Event, off int64) []Output {
 		if live {
 			return []Output{BlockRejected{Height: ev.Height, Reason: r, Time: ev.Time}}
 		}
-	case poolfmt.KindSolved:
+	case poolfmt.KindSolved, poolfmt.KindSV2Accepted:
 		return e.solved(ev, live)
 	case poolfmt.KindSolveShares:
 		if p := e.pending; p != nil && e.within(ev.Time, ev.HasTime, p.Time, true, fillWindow, e.n, e.pendingN) {

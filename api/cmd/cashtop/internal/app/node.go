@@ -53,6 +53,7 @@ func (a *App) RefreshNode(ctx context.Context) {
 	if err != nil {
 		a.mu.Lock()
 		a.net.RPCOK = false
+		a.net.ZMQConfigured, a.net.ZMQConnected = a.zmqState()
 		a.mu.Unlock()
 		a.cfg.Log.Printf("node rpc: %v", err)
 		return
@@ -75,6 +76,7 @@ func (a *App) RefreshNode(ctx context.Context) {
 	}
 	a.mu.Lock()
 	n.ZMQLast, n.TemplateTime, n.TemplateTxs = a.net.ZMQLast, a.net.TemplateTime, a.net.TemplateTxs
+	n.ZMQConfigured, n.ZMQConnected = a.zmqState()
 	a.net = n
 	a.mu.Unlock()
 }
@@ -103,6 +105,13 @@ func (a *App) nodeLoop(ctx context.Context, send func(tea.Msg)) {
 	}
 }
 
+// zmqState reports whether a ZMQ endpoint is configured and whether its
+// subscriber is connected right now.
+func (a *App) zmqState() (configured, connected bool) {
+	s := a.zmqSub.Load()
+	return a.zmqEP != "", s != nil && s.Connected()
+}
+
 func (a *App) zmqLoop(ctx context.Context) {
 	sub := zmqsub.New(a.zmqEP, func(string) {
 		a.mu.Lock()
@@ -110,6 +119,7 @@ func (a *App) zmqLoop(ctx context.Context) {
 		a.mu.Unlock()
 		a.poke()
 	})
+	a.zmqSub.Store(sub)
 	sub.Logf = func(format string, args ...any) {
 		if ctx.Err() != nil {
 			return // a clean shutdown is not worth a log line
@@ -155,6 +165,7 @@ func (a *App) enrich(height int64) error {
 	a.rewards[height] = sats
 	delete(a.retries, height)
 	a.mu.Unlock()
+	a.poke()
 	return nil
 }
 

@@ -23,10 +23,10 @@ type fileStats struct {
 	users   map[string]poolfmt.UserFile // keyed by file name (the address)
 
 	shareHeight int64
-	agents      map[string]string  // worker -> useragent, current height
-	diffs       map[string]float64 // worker -> latest share difficulty
-	lastShare   map[string]time.Time
-	recent      []poolfmt.Share // newest sharelog lines of the current height, oldest first
+	agents      map[string]string    // worker -> latest useragent seen, kept across heights
+	diffs       map[string]float64   // worker -> latest share difficulty, kept across heights
+	lastShare   map[string]time.Time // worker -> newest share time, kept across heights
+	recent      []poolfmt.Share      // newest sharelog lines of the current height, oldest first
 	noSharelogs bool
 }
 
@@ -92,7 +92,18 @@ func (a *App) refreshFiles() {
 	st.noSharelogs = dir == ""
 	if dir != "" {
 		st.shareHeight = h
-		st.agents, st.diffs, st.lastShare = map[string]string{}, map[string]float64{}, map[string]time.Time{}
+		// Agent, difficulty and last share are kept across heights: a worker
+		// with no line in the new directory yet is still the same rig. Only
+		// the share window belongs to a single height.
+		if st.agents == nil {
+			st.agents = map[string]string{}
+		}
+		if st.diffs == nil {
+			st.diffs = map[string]float64{}
+		}
+		if st.lastShare == nil {
+			st.lastShare = map[string]time.Time{}
+		}
 		st.recent = nil
 		files, _ := filepath.Glob(filepath.Join(dir, "*.sharelog"))
 		for _, f := range files {

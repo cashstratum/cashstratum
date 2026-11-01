@@ -1,13 +1,13 @@
  cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network    ● 12:00:00 UTC 
 ┌─ Hashrate ─────────────┐ ┌─ Round & odds ─────────┐ ┌─ Pool ─────────────────┐
-│1m   3.95TH/s   1h  3.95│ │round effort   41.7%    │ │workers    11 live · 0 s│
-│5m   3.99TH/s   6h  3.83│ │best share     96.3G (2.│ │reported   11 total · 1 │
-│15m  3.91TH/s   1d  3.87│ │net diff       4.50T    │ │users      4            │
-│                7d  3.71│ │P(block 24h)   0.00176% │ │uptime     9d 0h        │
-│                        │ │P(block 7d)    0.0124%  │ │all alive  1d 6h        │
-│⣴⣶⣰⣶⣧⣴⣴⣰⣧⣼⣦⣴⣇⣠⣦⣄⣧⣼⣦⣴⣸⣼  │ │expected every 155y 100d│ │longest    6d 4h user1.r│
-│                        │ │last net block -        │ │height     900000       │
-│shares/s  123 1m  121 5m│ │last block     6h 4m ago│ │rejected   0.000224%    │
+│1m   3.95TH/s   1h  3.95│ │round effort   41.7%    │ │workers   11 live·0 stal│
+│5m   3.99TH/s   6h  3.83│ │best share     96.3G (2.│ │reported  11 conn·1 idle│
+│15m  3.91TH/s   1d  3.87│ │net diff       4.50T    │ │users     4             │
+│                7d  3.71│ │P(block 24h)   0.00176% │ │uptime    9d 0h         │
+│                        │ │P(block 7d)    0.0124%  │ │all alive 1d 6h         │
+│⣴⣶⣰⣶⣧⣴⣴⣰⣧⣼⣦⣴⣇⣠⣦⣄⣧⣼⣦⣴⣸⣼  │ │expected every 155y 100d│ │longest   6d 4h user1.ri│
+│                        │ │last net block -        │ │height    900000        │
+│shares/s  123 1m  121 5m│ │last block     6h 4m ago│ │rejected  0.000224%     │
 │                        │ │blocks 7d/30d  5 / 5  (a│ │                        │
 └────────────────────────┘ └────────────────────────┘ └────────────────────────┘
 ┌─ Block Meter ────────────────────────────────────────────────────────────────┐

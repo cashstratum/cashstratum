@@ -4,6 +4,8 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	"cashstratumapi/cmd/cashtop/internal/termcap"
 )
 
 func near(a, b, tol float64) bool { return math.Abs(a-b) <= tol }
@@ -73,5 +75,63 @@ func TestClassify(t *testing.T) {
 	}
 	if Classify(WorkerRow{LastShare: now}, now) != StateOff {
 		t.Error("no hashrate is off")
+	}
+}
+
+func TestPoolShareMatchesExpectedPerDay(t *testing.T) {
+	const diff = 529e9
+	for _, rate := range []float64{3.95e12, 1e12, 5e15} {
+		share := poolShare(rate, diff)
+		eta, ok := ETA(rate, diff)
+		if !ok {
+			t.Fatalf("no ETA for %v", rate)
+		}
+		perDay := float64(day) / float64(eta)
+		if !near(share*144, perDay, perDay*1e-9) {
+			t.Fatalf("rate %v: share x 144 = %v, expected/day = %v", rate, share*144, perDay)
+		}
+	}
+	if poolShare(0, diff) != 0 || poolShare(1e12, 0) != 0 {
+		t.Fatal("unknown inputs must give 0")
+	}
+	for f, want := range map[float64]string{0.017: "1.70%", 0.0001: "0.01%", 0.00001: "10.00 ppm", 0: dash} {
+		if got := fmtPoolShare(f); got != want {
+			t.Errorf("fmtPoolShare(%v) = %q, want %q", f, got, want)
+		}
+	}
+}
+
+func TestClassifyIdleVersusOff(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	idle := WorkerRow{Connected: now.Add(-time.Hour), LastShare: now.Add(-20 * time.Minute)}
+	if got := Classify(idle, now); got != StateIdle {
+		t.Errorf("connected with zero rates: %v, want idle", got)
+	}
+	if got := Classify(WorkerRow{LastShare: now.Add(-20 * time.Minute)}, now); got != StateOff {
+		t.Errorf("not connected with zero rates: %v, want off", got)
+	}
+}
+
+func TestLongHashDashesIdleAndOff(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	caps := termcap.Caps{}
+	ctx := &Context{Snap: &Snapshot{}, Now: now, Caps: caps, Theme: ThemeFor(caps), sym: symbolsFor(caps)}
+	idle := WorkerRow{Connected: now.Add(-time.Hour), Hashrate1h: 4}
+	off := WorkerRow{Hashrate1h: 4}
+	live := WorkerRow{Connected: now.Add(-time.Hour), Hashrate1m: 1e12, Hashrate1h: 4, LastShare: now}
+	if got := ctx.longHash(idle, idle.Hashrate1h); got != dash {
+		t.Errorf("idle 1h = %q", got)
+	}
+	if got := ctx.longHash(off, off.Hashrate1h); got != dash {
+		t.Errorf("off 1h = %q", got)
+	}
+	if got := ctx.longHash(live, live.Hashrate1h); got == dash {
+		t.Errorf("live 1h = %q", got)
+	}
+}
+
+func TestWorkerStateOrdering(t *testing.T) {
+	if !(StateLive < StateStale && StateStale < StateIdle && StateIdle < StateOff) {
+		t.Fatal("state order must be live < stale < idle < off")
 	}
 }

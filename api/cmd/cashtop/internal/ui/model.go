@@ -219,6 +219,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.snap.Blocks = append([]BlockRow{msg.Block}, m.snap.Blocks...)
 			m.snap.Pool.LastBlock = msg.Block.Time
 		}
+	case BlockUpdateMsg:
+		for i := range m.snap.Blocks {
+			if m.snap.Blocks[i].Height == msg.Height {
+				if msg.Luck > 0 {
+					m.snap.Blocks[i].Luck = msg.Luck
+				}
+				if msg.Hash != "" {
+					m.snap.Blocks[i].Hash = msg.Hash
+				}
+				break
+			}
+		}
 	case NetworkBlockMsg:
 		if !takeover {
 			m.netBlock, m.netSeen = msg, m.opt.Now()

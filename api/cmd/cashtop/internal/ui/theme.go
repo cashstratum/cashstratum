@@ -82,22 +82,22 @@ func (t Theme) palette(i int) lipgloss.Style {
 
 // symbols are the non-ASCII characters the views use, with ASCII stand-ins.
 type symbols struct {
-	Sep, Bullet, Live, Stale, Off, Cursor, Ellipsis, Up, Down string
-	Beat                                                      []string
-	MeterFull, MeterEmpty, MeterTick, MeterDue                string
-	MeterRug                                                  string
-	MeterRamp                                                 [3]string
+	Sep, Bullet, Live, Stale, Idle, Off, Cursor, Ellipsis, Up, Down string
+	Beat                                                            []string
+	MeterFull, MeterEmpty, MeterTick, MeterDue                      string
+	MeterRug                                                        string
+	MeterRamp                                                       [3]string
 }
 
 var (
 	utf8Symbols = symbols{
-		Sep: "·", Bullet: "•", Live: "●", Stale: "◐", Off: "○", Cursor: "▸", Ellipsis: "…",
+		Sep: "·", Bullet: "•", Live: "●", Stale: "◐", Idle: "◌", Off: "○", Cursor: "▸", Ellipsis: "…",
 		Up: "▲", Down: "▼", Beat: []string{"●", "◉", "○", "◉"},
 		MeterFull: "█", MeterEmpty: "░", MeterTick: "┃", MeterDue: "╎",
 		MeterRug: "·", MeterRamp: [3]string{"┃", "╋", "█"},
 	}
 	asciiSymbols = symbols{
-		Sep: "|", Bullet: "*", Live: "+", Stale: "~", Off: "-", Cursor: ">", Ellipsis: "~",
+		Sep: "|", Bullet: "*", Live: "+", Stale: "~", Idle: ".", Off: "-", Cursor: ">", Ellipsis: "~",
 		Up: "^", Down: "v", Beat: []string{"*"},
 		MeterFull: "#", MeterEmpty: ".", MeterTick: "|", MeterDue: ":",
 		MeterRug: ".", MeterRamp: [3]string{"|", "!", "#"},

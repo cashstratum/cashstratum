@@ -138,10 +138,15 @@ func (a *addressSummary) Render(ctx *Context, w, h int) []string {
 		if !r.LastShare.IsZero() {
 			last = fmtDur(ctx.Now.Sub(r.LastShare))
 		}
-		out = append(out, " "+tableRow(workerCols, keep, []string{" ", badge + " " + tag, r.Name,
-			shortAddr(r.Address, ctx.sym.Ellipsis), agentShort(r.UserAgent), ctx.hash(r.Hashrate1m),
-			ctx.hash(r.Hashrate1h), ctx.hash(r.Hashrate1d), fmtDiff(r.Diff), fmtDiff(r.BestShare), last,
-			stateLabel(ctx, ctx.classify(r))}))
+		st := ctx.classify(r)
+		row := tableRow(workerCols, keep, []string{" ", badge + " " + tag, r.Name,
+			shortAddr(r.Address, ctx.sym.Ellipsis), agentCell(ctx, r), ctx.hash(r.Hashrate1m),
+			ctx.longHash(r, r.Hashrate1h), ctx.longHash(r, r.Hashrate1d), fmtDiff(r.Diff), fmtDiff(r.BestShare), last,
+			stateLabel(ctx, st)})
+		if st == StateOff || st == StateIdle {
+			row = t.Dim.Render(row)
+		}
+		out = append(out, " "+row)
 	}
 	return out
 }

@@ -3,7 +3,7 @@
 # CashStratum Post-Installation Script
 # Sets up systemd service and firewall rules
 
-set -e
+set -euo pipefail
 
 echo "======================================"
 echo "CashStratum Post-Installation Setup"
@@ -23,7 +23,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Get the user who called sudo
-ACTUAL_USER="${SUDO_USER:-$USER}"
+ACTUAL_USER="${SUDO_USER:-${USER:-root}}"
 if [ "$ACTUAL_USER" = "root" ]; then
     echo -e "${RED}Please run this script with sudo as a regular user, not as root directly${NC}"
     exit 1
@@ -75,14 +75,14 @@ extract_ports_from_config() {
         local server_ports
         server_ports=$(grep -o '"serverurl"[[:space:]]*:[[:space:]]*\[[^]]*\]' "$config_file" | \
             grep -o '"[^"]*:[0-9]*"' | \
-            sed 's/.*:\([0-9]*\)"/\1/')
+            sed 's/.*:\([0-9]*\)"/\1/' || true)
 
         for port in $server_ports; do
             ports+=("$port")
         done
     fi
 
-    echo "${ports[@]}"
+    echo "${ports[*]:-}"
 }
 
 # Detect ports from configs: look for cashstratum.conf, then ckpool.conf
@@ -258,6 +258,7 @@ EOF
 echo -e "${GREEN}✓ Systemd service created (cashstratum.service)${NC}"
 
 # Create systemd service file for testnet (optional)
+TESTNET_SERVICE_FILE=""
 if [ -n "$TESTNET_CONF_FILE" ]; then
     echo "Creating testnet systemd service..."
 
@@ -447,6 +448,7 @@ EnvironmentFile=$NOTIFIER_ENV
 Restart=always
 RestartSec=5
 MemoryMax=64M
+MemoryAccounting=true
 CPUQuota=10%
 TasksMax=20
 
@@ -454,6 +456,14 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
+# Persisted delivery queue (CASHSTRATUM_NOTIFY_QUEUE_PATH defaults to
+# $STATE_DIRECTORY/queue.json); the only path the unit may write.
+StateDirectory=cashstratum-notifier
+StateDirectoryMode=0700
+ReadOnlyPaths=$INSTALL_DIR
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
 
 StandardOutput=journal
 StandardError=journal
@@ -620,7 +630,7 @@ if [[ $REPLY =~ ^[Yy]$ ]] && [ -f "$CLEANUP_SCRIPT" ]; then
         CRON_ID=$(printf '%s' "$INSTALL_DIR" | od -An -tx1 | tr -d ' \n')
         CRON_MARKER="# cashstratum-cleanup:$CRON_ID"
         CRON_JOB="0 3 * * * CASHSTRATUM_DIR='$CRON_DIR' bash '$CRON_SCRIPT' $CRON_MARKER"
-        (crontab -u "$ACTUAL_USER" -l 2>/dev/null | grep -vFx "0 3 * * * $CLEANUP_SCRIPT" | grep -vF " $CRON_MARKER"; echo "$CRON_JOB") | crontab -u "$ACTUAL_USER" -
+        ( (crontab -u "$ACTUAL_USER" -l 2>/dev/null || true) | grep -vFx "0 3 * * * $CLEANUP_SCRIPT" | grep -vF " $CRON_MARKER" || true; echo "$CRON_JOB") | crontab -u "$ACTUAL_USER" -
         echo -e "${GREEN}✓ Cron job added (runs clean-old-blocks.sh daily at 3 AM)${NC}"
     else
         echo -e "${YELLOW}Cleanup was not scheduled: initialize the verified index and resolve the dry-run failure first.${NC}"

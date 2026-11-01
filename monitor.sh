@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 # CashStratum Monitor
 #
 # Follows the pool log and shows a filtered, colourised view:
@@ -390,6 +392,6 @@ else
 fi
 
 # LC_ALL=C: the chunk size is in bytes, and gawk counts characters under UTF-8.
-"${INPUT[@]}" 2>/dev/null | LC_ALL=C awk "${AWK_OPTS[@]}" -v CHUNK=510 "$JOIN_PROG" | awk "${AWK_OPTS[@]}" \
+"${INPUT[@]}" 2>/dev/null | LC_ALL=C awk ${AWK_OPTS[@]+"${AWK_OPTS[@]}"} -v CHUNK=510 "$JOIN_PROG" | awk ${AWK_OPTS[@]+"${AWK_OPTS[@]}"} \
     -v MODE="$MODE" -v COLOR="$COLOR" -v FLAP="$FLAP_SECS" -v GROUPS="$GROUPS_FILE" \
     "$AWK_PROG"

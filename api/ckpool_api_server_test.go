@@ -897,3 +897,214 @@ func TestLoadUpdateInterval(t *testing.T) {
 		t.Errorf("malformed conf: got %s, want default %s", got, DefaultUpdateInterval)
 	}
 }
+
+func TestTailFileLines(t *testing.T) {
+	dir := t.TempDir()
+
+	// Empty file
+	emptyPath := filepath.Join(dir, "empty.log")
+	if err := os.WriteFile(emptyPath, nil, 0o644); err != nil {
+		t.Fatalf("writing empty file: %v", err)
+	}
+	if lines, err := tailFileLines(emptyPath, 10); err != nil || len(lines) != 0 {
+		t.Fatalf("empty file: got %v, err=%v; want []", lines, err)
+	}
+
+	// Small file
+	smallPath := filepath.Join(dir, "small.log")
+	if err := os.WriteFile(smallPath, []byte("line-1\nline-2\nline-3\nline-4\nline-5\n"), 0o644); err != nil {
+		t.Fatalf("writing small file: %v", err)
+	}
+	lines, err := tailFileLines(smallPath, 3)
+	if err != nil {
+		t.Fatalf("tailFileLines small: %v", err)
+	}
+	if got, want := strings.Join(lines, ","), "line-3,line-4,line-5"; got != want {
+		t.Errorf("tailFileLines small = %q, want %q", got, want)
+	}
+
+	// Multi-chunk file (> 256KB) to exercise backward chunk seeking
+	largePath := filepath.Join(dir, "large.log")
+	var sb strings.Builder
+	totalLines := 5000
+	padding := strings.Repeat("x", 80)
+	for i := 1; i <= totalLines; i++ {
+		fmt.Fprintf(&sb, "%s-%04d\n", padding, i)
+	}
+	if err := os.WriteFile(largePath, []byte(sb.String()), 0o644); err != nil {
+		t.Fatalf("writing large file: %v", err)
+	}
+	tail5, err := tailFileLines(largePath, 5)
+	if err != nil {
+		t.Fatalf("tailFileLines large: %v", err)
+	}
+	if len(tail5) != 5 {
+		t.Fatalf("len(tail5) = %d, want 5", len(tail5))
+	}
+	for i, wantNum := range []int{4996, 4997, 4998, 4999, 5000} {
+		wantSuffix := fmt.Sprintf("-%04d", wantNum)
+		if !strings.HasSuffix(tail5[i], wantSuffix) {
+			t.Errorf("tail5[%d] = %q, want suffix %q", i, tail5[i], wantSuffix)
+		}
+	}
+}
+
+func TestGrepFileLines(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.log")
+	content := strings.Join([]string{
+		"line 1 alpha",
+		"line 2 beta",
+		"line 3 Solved Block 975301",
+		"line 4 delta",
+		"line 5 epsilon",
+		"line 6 [unclosed bracket literal",
+		"line 7 omega",
+	}, "\n") + "\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("writing test.log: %v", err)
+	}
+
+	// Context lines (-C 1)
+	withContext, err := grepFileLines(path, "Solved Block 975301", false, 1, 50)
+	if err != nil {
+		t.Fatalf("grepFileLines with context: %v", err)
+	}
+	wantContext := []string{
+		"line 2 beta",
+		"line 3 Solved Block 975301",
+		"line 4 delta",
+	}
+	if strings.Join(withContext, "|") != strings.Join(wantContext, "|") {
+		t.Errorf("withContext = %v, want %v", withContext, wantContext)
+	}
+
+	// Case-insensitive search
+	caseInsensitive, err := grepFileLines(path, "solved block", true, 0, 50)
+	if err != nil {
+		t.Fatalf("grepFileLines ignoreCase: %v", err)
+	}
+	if len(caseInsensitive) != 1 || caseInsensitive[0] != "line 3 Solved Block 975301" {
+		t.Errorf("caseInsensitive = %v, want [line 3 Solved Block 975301]", caseInsensitive)
+	}
+
+	// Invalid regex falls back to literal QuoteMeta
+	invalidRegex, err := grepFileLines(path, "[unclosed bracket", false, 0, 50)
+	if err != nil {
+		t.Fatalf("grepFileLines invalid regex fallback: %v", err)
+	}
+	if len(invalidRegex) != 1 || invalidRegex[0] != "line 6 [unclosed bracket literal" {
+		t.Errorf("invalidRegex = %v, want [line 6 [unclosed bracket literal]", invalidRegex)
+	}
+
+	// maxMatches caps returned lines to the most recent matches
+	maxTwo, err := grepFileLines(path, "line ", false, 0, 2)
+	if err != nil {
+		t.Fatalf("grepFileLines maxMatches: %v", err)
+	}
+	if got, want := strings.Join(maxTwo, "|"), "line 6 [unclosed bracket literal|line 7 omega"; got != want {
+		t.Errorf("maxTwo = %q, want %q", got, want)
+	}
+}
+
+func TestHandleFindBlockInMainLogAndSolvesFallback(t *testing.T) {
+	useIsolatedCoinbaseState(t)
+
+	poolRoot := t.TempDir()
+	logsDir := filepath.Join(poolRoot, "logs")
+	solvesDir := filepath.Join(poolRoot, "solves")
+	if err := os.MkdirAll(logsDir, 0o755); err != nil {
+		t.Fatalf("mkdir logs: %v", err)
+	}
+	if err := os.MkdirAll(solvesDir, 0o755); err != nil {
+		t.Fatalf("mkdir solves: %v", err)
+	}
+
+	origLogPath := logPath
+	logPath = filepath.Join(logsDir, "cashstratum.log")
+	t.Cleanup(func() { logPath = origLogPath })
+
+	mainLog := strings.Join([]string{
+		"[2026-10-31 09:11:20.000] Stored local workbase with 20 transactions",
+		"[2026-10-31 09:11:21.755] BLOCK ACCEPTED!",
+		"[2026-10-31 09:11:22.022] Solved and confirmed block 975301 by bitcoincash:qpdap8727zduldlgyk7x94yxq49cu4l7lc29tat3a3.nice on SV1",
+		"[2026-10-31 09:11:22.023] Block solved after 1941986237248 shares at 380.5% diff",
+	}, "\n") + "\n"
+	if err := os.WriteFile(logPath, []byte(mainLog), 0o644); err != nil {
+		t.Fatalf("writing cashstratum.log: %v", err)
+	}
+
+	// 1. Found directly in cashstratum.log
+	req1 := httptest.NewRequest(http.MethodGet, "/find-block?height=975301", nil)
+	rec1 := httptest.NewRecorder()
+	handleFindBlock(rec1, req1)
+
+	var resp1 FindBlockResponse
+	if err := json.Unmarshal(rec1.Body.Bytes(), &resp1); err != nil {
+		t.Fatalf("decode resp1: %v", err)
+	}
+	if !resp1.Found || len(resp1.Lines) == 0 {
+		t.Fatalf("expected block 975301 to be found in main log, got %+v", resp1)
+	}
+
+	// 2. Rotated out of cashstratum.log, preserved in solves/975200-<hash>.log
+	solveFile := filepath.Join(solvesDir, "975200-000000000000000000802c1fea3d53378a3588050eab8b0e4cdb496b9086c978.log")
+	solveContent := strings.Join([]string{
+		"# CashStratum solve context — preserved 2026-10-30 10:00:00 UTC",
+		"# height:   975200",
+		"[2026-10-30 09:59:58.000] Submitting block data!",
+		"[2026-10-30 09:59:59.000] Solved and confirmed block 975200 by bitcoincash:qpdap8727zduldlgyk7x94yxq49cu4l7lc29tat3a3.rig1",
+		"[2026-10-30 10:00:00.000] Block solved after 100000 shares at 10.0% diff",
+	}, "\n") + "\n"
+	if err := os.WriteFile(solveFile, []byte(solveContent), 0o644); err != nil {
+		t.Fatalf("writing solveFile: %v", err)
+	}
+
+	req2 := httptest.NewRequest(http.MethodGet, "/find-block?height=975200", nil)
+	rec2 := httptest.NewRecorder()
+	handleFindBlock(rec2, req2)
+
+	var resp2 FindBlockResponse
+	if err := json.Unmarshal(rec2.Body.Bytes(), &resp2); err != nil {
+		t.Fatalf("decode resp2: %v", err)
+	}
+	if !resp2.Found || len(resp2.Lines) == 0 {
+		t.Fatalf("expected block 975200 to be found via solves/ fallback, got %+v", resp2)
+	}
+	matchedSolveLine := false
+	for _, line := range resp2.Lines {
+		if strings.Contains(line, "Solved and confirmed block 975200") {
+			matchedSolveLine = true
+			break
+		}
+	}
+	if !matchedSolveLine {
+		t.Errorf("resp2.Lines = %v, expected solve line from solves/975200-*.log", resp2.Lines)
+	}
+}
+
+func TestRaisedDefaultAndCustomRateLimit(t *testing.T) {
+	if DefaultRateLimitRequests != 600 {
+		t.Errorf("DefaultRateLimitRequests = %d, want 600", DefaultRateLimitRequests)
+	}
+	if DefaultSharesRateLimitRequests != 1200 {
+		t.Errorf("DefaultSharesRateLimitRequests = %d, want 1200", DefaultSharesRateLimitRequests)
+	}
+	if DefaultPingRateLimitRequests != 300 {
+		t.Errorf("DefaultPingRateLimitRequests = %d, want 300", DefaultPingRateLimitRequests)
+	}
+
+	os.Unsetenv("CASHSTRATUM_RATE_LIMIT")
+	os.Unsetenv("CKPOOL_RATE_LIMIT")
+	os.Unsetenv("API_RATE_LIMIT")
+
+	if got := parseRateLimitEnvWithFallback("CASHSTRATUM_RATE_LIMIT", "CKPOOL_RATE_LIMIT", DefaultRateLimitRequests); got != 600 {
+		t.Errorf("default general rate limit = %d, want 600", got)
+	}
+
+	t.Setenv("API_RATE_LIMIT", "2400")
+	if got := parseRateLimitEnvWithFallback("CASHSTRATUM_RATE_LIMIT", "CKPOOL_RATE_LIMIT", DefaultRateLimitRequests); got != 2400 {
+		t.Errorf("API_RATE_LIMIT override = %d, want 2400", got)
+	}
+}
+

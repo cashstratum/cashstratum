@@ -1,34 +1,34 @@
  cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network                                            ● 12:00:00 UTC 
                                                                                                                         
-            ┌─ Help ───────────────────────────────────────────────────────────────────────────────────────┐            
-            │1 2 3 4 5     Dashboard, Workers, Blocks, Feed, Network                                       │            
-            │tab / h l     next / previous tab                                                             │            
-            │j k / arrows  move selection, scroll                                                          │            
-            │g G           first / last (Feed: G follows new events)                                       │            
-            │enter         Blocks: sharelog jobs for the height; Workers: address view                     │            
-            │/             search: a height, an address or a worker name                                   │            
-            │:             command: test-celebrate replays the newest block, q quits                       │            
-            │esc           close search, help or a detail view                                             │            
-            │r             Feed: toggle share rain                                                         │            
-            │?             this help                                                                       │            
-            │q  ctrl+c     quit                                                                            │            
-            │                                                                                              │            
-            │Numbers                                                                                       │            
-            │round effort  accepted share difficulty / network difficulty x 100                            │            
-            │P(block t)    1 - exp(-H t / (D 2^32)), H pool hashrate, D difficulty                         │            
-            │expected      D 2^32 / H                                                                      │            
-            │stale         no share for 6x the expected interval at the worker's difficulty (min 1m)       │            
-            │rig badges    ◆ own hardware (asic, axe)  ◇ rental, proxy, software or unknown                │            
-            └──────────────────────────────────────────────────────────────────────────────────────────────┘            
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
+           ┌─ Help ─────────────────────────────────────────────────────────────────────────────────────────┐           
+           │1 2 3 4 5     Dashboard, Workers, Blocks, Feed, Network                                         │           
+           │tab / h l     next / previous tab                                                               │           
+           │j k / arrows  move selection, scroll                                                            │           
+           │g G           first / last (Feed: G follows new events)                                         │           
+           │enter         Blocks: sharelog jobs for the height; Workers: address view                       │           
+           │/             search: a height, an address or a worker name                                     │           
+           │:             command: test-celebrate replays the newest block, q quits                         │           
+           │esc           close search, help or a detail view                                               │           
+           │r             Feed: toggle share rain                                                           │           
+           │?             this help                                                                         │           
+           │q  ctrl+c     quit                                                                              │           
+           │                                                                                                │           
+           │Numbers                                                                                         │           
+           │round effort  accepted share difficulty / network difficulty x 100                              │           
+           │P(block t)    1 - exp(-H t / (D 2^32)), H pool hashrate, D difficulty                           │           
+           │expected      D 2^32 / H                                                                        │           
+           │pool rate     1h, falling back to 15m, 5m, 1m, 1d when empty                                    │           
+           │pool share    pool rate / (D 2^32 / 600); x 144 = expected blocks/day                           │           
+           │reported      conn: clients; idle: >60s no share; resum: dropped, kept 600s                     │           
+           │              daemon counts; not comparable to live/stale/off                                   │           
+           │net block     amber 20m, red 40m: our chain view may be stale                                   │           
+           │Feed          USER/WORKER lines: 1m 5m 1h decayed hashrates (keep decaying after a              │           
+           │              worker leaves), <n>w live connections, best round best, luck, rej rejects         │           
+           │stale         no share for 6x the expected interval at the worker's difficulty (min 1m)         │           
+           │idle          connected, no share for a while: rates decayed to 0; off = not connected          │           
+           │zmq           off: not configured; down: endpoint unreachable; waiting: connected, no block yet │           
+           │rig badges    ◆ own hardware (asic, axe)  ◇ rental, proxy, software or unknown                  │           
+           └────────────────────────────────────────────────────────────────────────────────────────────────┘           
                                                                                                                         
                                                                                                                         
                                                                                                                         

@@ -1,5 +1,5 @@
  cashtop  1 Dashboard  2 Workers  3 Blocks  4 Feed  5 Network                                            ● 12:00:00 UTC 
- Workers  0 live · 0 stale · 0 off   stale = no share for 6x the expected interval                                      
+ Workers  0 live · 0 stale · 0 idle · 0 off   stale = no share for 6x the expected interval                             
                                                                                                                         
  No workers connected.                                                                                                  
                                                                                                                         

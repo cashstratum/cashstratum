@@ -77,6 +77,7 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 	}
 	sort.Strings(addrs)
 	allLive := len(addrs) > 0
+	liveN := 0
 	var lastDrop time.Time
 	for _, addr := range addrs {
 		u := st.users[addr]
@@ -99,16 +100,37 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 			if ok && iw.Online {
 				row.Connected = iw.Since
 			}
+			// The sharelog window only knows workers that submitted at the
+			// current height; the index remembers the last value from any height.
+			if ok {
+				if row.UserAgent == "" {
+					row.UserAgent = iw.Agent
+					row.AgentStale = iw.Agent != ""
+				}
+				if row.Diff == 0 {
+					row.Diff = iw.LastDiff
+				}
+			}
 			if ok && iw.LastDrop.After(lastDrop) {
 				lastDrop = iw.LastDrop
 			}
-			if ui.Classify(row, now) != ui.StateLive {
+			// A worker the pool still lists but that has been gone for days is
+			// history, not an outage; only a stale worker, or an off one that is
+			// still connected, breaks the streak.
+			switch ui.Classify(row, now) {
+			case ui.StateLive:
+				liveN++
+			case ui.StateOff, ui.StateIdle:
+				if !row.Connected.IsZero() {
+					allLive = false
+				}
+			default:
 				allLive = false
 			}
 			s.Workers = append(s.Workers, row)
 		}
 	}
-	if allLive && len(s.Workers) > 0 && !lv.Stale {
+	if allLive && liveN > 0 && !lv.Stale {
 		s.Pool.AllAliveSince = now.Add(-s.Pool.Runtime)
 		if lastDrop.After(s.Pool.AllAliveSince) {
 			s.Pool.AllAliveSince = lastDrop
@@ -151,8 +173,18 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 		}
 	}
 
+	var poolUpdated time.Time
+	if p.LastUpdate > 0 {
+		poolUpdated = time.Unix(p.LastUpdate, 0).UTC()
+	}
+	if !s.Pool.LastBlock.IsZero() && !poolUpdated.IsZero() && !poolUpdated.After(s.Pool.LastBlock) {
+		s.Pool.BestShare = 0
+		s.Pool.RoundPercent = 0
+		s.Pool.Accepted = 0
+	}
+
 	s.BestShares = a.roundBest(v, s.Pool.LastBlock, s.Pool.BestShare, nd)
-	if s.Pool.BestShare == 0 && len(s.BestShares) > 0 {
+	if len(s.BestShares) > 0 && s.BestShares[0].Diff > s.Pool.BestShare {
 		s.Pool.BestShare = s.BestShares[0].Diff
 	}
 
@@ -211,19 +243,29 @@ func rigOf(name string) string {
 // roundBest is the per-worker leaderboard since the pool's last block. It
 // comes from the sharelogs when they exist; otherwise from the log's
 // per-minute user lines. Nothing at or before the last block is kept, and a
-// candidate above the pool's own round best (or the network difficulty) is
-// dropped and reported once rather than clamped.
+// candidate at or above the network difficulty is dropped and reported once
+// rather than clamped. The pool's own round best bounds only the user-line
+// fallback: the daemon raises it from a share only when that share also beats
+// the submitting connection's per-user-round best, so after a block found by
+// someone else a worker's genuine round maximum can sit above it for the
+// whole round. Sharelogs are the receipt, so they win.
 func (a *App) roundBest(v index.View, last time.Time, poolBest, netDiff float64) []ui.BestShare {
 	src := v.Best
 	if v.RoundSeen {
 		src = v.RoundBest
+	}
+	var poolUpdated time.Time
+	if a.stats.pool.LastUpdate > 0 {
+		poolUpdated = time.Unix(a.stats.pool.LastUpdate, 0).UTC()
 	}
 	var out []ui.BestShare
 	for _, b := range src {
 		if b.Time.IsZero() || !b.Time.After(last) {
 			continue
 		}
-		if (poolBest > 0 && b.Diff > poolBest*(1+1e-9)+1) || (netDiff > 0 && b.Diff >= netDiff) {
+		newerThanPool := !poolUpdated.IsZero() && b.Time.After(poolUpdated)
+		abovePool := !v.RoundSeen && !newerThanPool && poolBest > 0 && b.Diff > poolBest*(1+1e-9)+1
+		if abovePool || (netDiff > 0 && b.Diff >= netDiff) {
 			a.warnBest(b)
 			continue
 		}

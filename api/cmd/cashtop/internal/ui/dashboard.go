@@ -65,8 +65,7 @@ func renderDashboard(ctx *Context, w, h int) []string {
 		kv(ctx, "blocks 7d/30d", 15, itoa(n7)+" / "+itoa(n30)+"  (all "+itoa(len(s.Blocks))+")"),
 	}
 
-	live, stale, off := ctx.countStates(s.Workers)
-	sep := " " + ctx.sym.Sep + " "
+	live, stale, idle, off := ctx.countStates(s.Workers)
 	alive := dash
 	if !p.AllAliveSince.IsZero() {
 		alive = fmtCoarse(ctx.Now.Sub(p.AllAliveSince))
@@ -80,14 +79,14 @@ func renderDashboard(ctx *Context, w, h int) []string {
 		rej = fmtPct(p.Rejected / tot * 100)
 	}
 	pool := []string{
-		kv(ctx, "workers", 11, ctx.Theme.Good.Render(itoa(live)+" live")+sep+itoa(stale)+" stale"+sep+itoa(off)+" off"),
-		kv(ctx, "reported", 11, ctx.count(p.Workers)+" total"+sep+ctx.count(p.Idle)+" idle"+sep+ctx.count(p.Disconnected)+" disc"),
-		kv(ctx, "users", 11, ctx.count(p.Users)),
-		kv(ctx, "uptime", 11, uptimeStr(ctx, p.Runtime)),
-		kv(ctx, "all alive", 11, alive),
-		kv(ctx, "longest", 11, longest),
-		kv(ctx, "height", 11, heightStr(p.Height)),
-		kv(ctx, "rejected", 11, rej),
+		kv(ctx, "workers", 10, ctx.Theme.Good.Render(itoa(live)+" live")+ctx.sym.Sep+itoa(stale)+" stale"+ctx.sym.Sep+itoa(idle)+" idle"+ctx.sym.Sep+itoa(off)+" off"),
+		kv(ctx, "reported", 10, ctx.count(p.Workers)+" conn"+ctx.sym.Sep+ctx.count(p.Idle)+" idle"+ctx.sym.Sep+ctx.count(p.Disconnected)+" resum"),
+		kv(ctx, "users", 10, ctx.count(p.Users)),
+		kv(ctx, "uptime", 10, uptimeStr(ctx, p.Runtime)),
+		kv(ctx, "all alive", 10, alive),
+		kv(ctx, "longest", 10, longest),
+		kv(ctx, "height", 10, heightStr(p.Height)),
+		kv(ctx, "rejected", 10, rej),
 	}
 
 	out := hjoin(
@@ -209,7 +208,7 @@ func healthStrip(ctx *Context, w int) string {
 		node,
 		t.Dim.Render("tip ") + heightStr(n.Tip),
 		t.Dim.Render("rpc ") + fmtLatency(n.RPCLatency),
-		t.Dim.Render("zmq ") + ageCoarse(ctx.Now, n.ZMQLast),
+		t.Dim.Render("zmq ") + zmqLabel(ctx.Now, n),
 		t.Dim.Render("template ") + ageCoarse(ctx.Now, n.TemplateTime) + " " + itoa(n.TemplateTxs) + " tx",
 		t.Dim.Render("mempool ") + fmtInt(int64(n.MempoolTx)) + " tx",
 	}
@@ -224,6 +223,26 @@ func fmtLatency(d time.Duration) string {
 		return "<1ms"
 	}
 	return d.Round(time.Millisecond).String()
+}
+
+// zmqLabel names the state of the node's hashblock feed. A last-seen time
+// alone is not enough: the log fallback can set it with no endpoint, and an
+// endpoint that never connected has no time at all.
+func zmqLabel(now time.Time, n NetworkInfo) string {
+	if n.ZMQLast.IsZero() {
+		switch {
+		case !n.ZMQConfigured:
+			return "off"
+		case !n.ZMQConnected:
+			return "down"
+		default:
+			return "waiting"
+		}
+	}
+	if n.ZMQConfigured && !n.ZMQConnected {
+		return ageCoarse(now, n.ZMQLast) + " down"
+	}
+	return ageCoarse(now, n.ZMQLast)
 }
 
 // ageCoarse renders an age at ten-second steps so idle screens stay still.

@@ -94,6 +94,7 @@ BITCOIND_PID=""
 CKPOOL_PID=""
 DIFFPOOL_PID=""
 MINERD_PIDS=()
+SCENARIO8_ADDR_A=""
 
 TESTS_RUN=0
 TESTS_FAILED=0
@@ -1046,6 +1047,28 @@ scenario_8_per_user_round_independence() {
 	luck_after=$(pool_status_luck || echo "")
 	check "scenario8: pool-wide luck is a finite, non-negative reading after the solve (observed ${luck_after:-<none>})" \
 		"$(awk -v v="$luck_after" 'BEGIN{exit !(v+0>=0)}' && echo true || echo false)"
+
+	# A block-solving share is never kept as a round best. This is a bound,
+	# not the exact-value check ruled out above: whatever share lands next,
+	# the user's and every worker's bestshare stay below the network
+	# difficulty. It runs last because A mines again here, and any further
+	# solve would move the pool-wide counters asserted above. Waiting for
+	# A's share count to grow past the post-solve read guarantees the file
+	# reflects at least one share after the solve, not the solve alone.
+	local post_a_shares pid_a2 bound_a bound_jq
+	post_a_shares=$(printf '%s' "$post_a" | jq -r '.shares // 0')
+	bound_jq=".shares > $post_a_shares and (.networkdiff as \$n | .bestshare < \$n and ([.worker[]?.bestshare] | all(. < \$n)))"
+	pid_a2=$(run_miner "${addr_a}.w1")
+	if bound_a=$(wait_for_user_field "$addr_a" "$bound_jq" 150); then
+		check "scenario8: A's bestshare and every worker bestshare stay below networkdiff after a further share" "true"
+	else
+		check "scenario8: A's bestshare and every worker bestshare stay below networkdiff after a further share" "false"
+	fi
+	stop_miner "$pid_a2"
+	log "scenario8: A after a further share: shares=$(printf '%s' "$bound_a" | jq -r '.shares // -1') bestshare=$(printf '%s' "$bound_a" | jq -r '.bestshare // -1') workers=$(printf '%s' "$bound_a" | jq -c '[.worker[]? | .bestshare]') networkdiff=$(printf '%s' "$bound_a" | jq -r '.networkdiff // -1')"
+
+	# Scenario 16 restarts the daemon over this user's file.
+	SCENARIO8_ADDR_A="$addr_a"
 }
 
 # ---------------------------------------------------------------------------
@@ -1454,6 +1477,119 @@ scenario_15_reject_stats() {
 }
 
 # ---------------------------------------------------------------------------
+# Scenario 16: a restored round best at or above the network difficulty does
+# not survive a restart.
+#
+# Round bests are persisted in the users file and read back at startup, when
+# the network difficulty is not known yet. The daemon drops any restored
+# round best at or above it once the first workbase arrives. To prove that,
+# stop the main pool, hand-edit scenario 8's finder file so the user and its
+# first worker carry bestshare = 10 x networkdiff, and start it again. The
+# pool-wide round best in pool.status gets the same treatment.
+#
+# The user is re-authorised with a bare subscribe/authorize probe rather than
+# a miner: stats are only written for authorised users, and a miner's share
+# would almost certainly solve a block at this regtest's difficulty floor,
+# whose finder reset would zero the round best whether or not the restart
+# path works. The clamp's own log line pins the cause.
+#
+# bestever is set to 20 x networkdiff, above the edited bestshare, so the
+# loader's "raise bestever to at least bestshare" step leaves it alone and
+# "unchanged" means exactly the value written here.
+# ---------------------------------------------------------------------------
+scenario_16_restored_bestshare_clamped() {
+	log "=== Scenario 16: restored round best at or above networkdiff is dropped on restart ==="
+	local addr="$SCENARIO8_ADDR_A" file nd bs be wname
+	if [[ -z "$addr" ]]; then
+		check "scenario16: scenario 8's finder address is available" "false"
+		return
+	fi
+	file="$LOGDIR/users/$addr"
+
+	if [[ -n "$CKPOOL_PID" ]] && kill -0 "$CKPOOL_PID" >/dev/null 2>&1; then
+		kill "$CKPOOL_PID" >/dev/null 2>&1 || true
+		wait "$CKPOOL_PID" 2>/dev/null || true
+	fi
+	CKPOOL_PID=""
+
+	if [[ ! -f "$file" ]]; then
+		check "scenario16: users file for $addr exists after stopping the pool" "false"
+		return
+	fi
+	nd=$(jq -r '.networkdiff // 0' "$file")
+	bs=$(awk -v n="$nd" 'BEGIN{printf "%.6f", n * 10}')
+	be=$(awk -v n="$nd" 'BEGIN{v = n * 20; printf "%d", (v == int(v)) ? v : int(v) + 1}')
+	jq --argjson bs "$bs" --argjson be "$be" \
+		'.bestshare = $bs | .bestever = $be | .worker[0].bestshare = $bs | .worker[0].bestever = $be' \
+		"$file" >"$file.edit"
+	mv "$file.edit" "$file"
+	wname=$(jq -r '.worker[0].workername // ""' "$file")
+	log "scenario16: wrote bestshare=$bs bestever=$be (networkdiff $nd) for $addr and $wname"
+
+	# The pool-wide round best is restored from pool.status's "bestshare",
+	# which the loader only accepts as an integer, so write the ceiling of
+	# 10 x networkdiff (at least 1, still above networkdiff on regtest).
+	# jq -c keeps one JSON object per line, the layout the loader splits on.
+	local pfile="$LOGDIR/pool/pool.status" pbs
+	pbs=$(awk -v n="$nd" 'BEGIN{v = n * 10; v = (v == int(v)) ? v : int(v) + 1; if (v < 1) v = 1; printf "%d", v}')
+	if [[ -f "$pfile" ]] && jq -c --argjson b "$pbs" 'if has("bestshare") then .bestshare = $b else . end' \
+		"$pfile" >"$pfile.edit"; then
+		mv "$pfile.edit" "$pfile"
+		check "scenario16: pool.status carries the edited pool round best before restart" \
+			"$([[ "$(pool_status_field bestshare)" == "$pbs" ]] && echo true || echo false)"
+	else
+		rm -f "$pfile.edit"
+		check "scenario16: pool.status carries the edited pool round best before restart" "false"
+	fi
+	log "scenario16: wrote pool.status bestshare=$pbs (networkdiff $nd)"
+
+	start_ckpool
+	stratum_probe "${addr}.w1" x >/dev/null 2>&1 || true
+
+	local post
+	if post=$(wait_for_user_field "$addr" '.networkdiff < 1e15 and .bestshare < .networkdiff and .worker[0].bestshare < .networkdiff' 150); then
+		check "scenario16: restored bestshare is below networkdiff for the user and worker after restart" "true"
+	else
+		check "scenario16: restored bestshare is below networkdiff for the user and worker after restart" "false"
+	fi
+	log "scenario16: after restart bestshare=$(printf '%s' "$post" | jq -r '.bestshare // -1') worker bestshare=$(printf '%s' "$post" | jq -r '.worker[0].bestshare // -1') networkdiff=$(printf '%s' "$post" | jq -r '.networkdiff // -1')"
+
+	local post_be post_wbe
+	post_be=$(printf '%s' "$post" | jq -r '.bestever // -1')
+	post_wbe=$(printf '%s' "$post" | jq -r '.worker[0].bestever // -1')
+	check "scenario16: user bestever is unchanged (expected $be, observed $post_be)" \
+		"$([[ "$post_be" == "$be" ]] && echo true || echo false)"
+	check "scenario16: worker bestever is unchanged (expected $be, observed $post_wbe)" \
+		"$([[ "$post_wbe" == "$be" ]] && echo true || echo false)"
+
+	local clamp_log
+	# Nothing is restored before this restart in a fresh run, so every clamp
+	# line in the log comes from it.
+	clamp_log=$(grep -F "Dropping restored round best" "$LOGDIR/e2e.log" 2>/dev/null || true)
+	printf '%s\n' "$clamp_log" >&2
+	check "scenario16: the daemon logged dropping the user's restored round best" \
+		"$(printf '%s' "$clamp_log" | grep -qF "for user $addr " && echo true || echo false)"
+	check "scenario16: the daemon logged dropping the worker's restored round best" \
+		"$(printf '%s' "$clamp_log" | grep -qF "for worker $wname " && echo true || echo false)"
+
+	# pool.status still holds the edited value until the first stats write
+	# after the clamp, so poll until it drops below networkdiff.
+	local post_pbs="" waited=0 pool_ok="false"
+	while [[ $waited -lt 150 ]]; do
+		post_pbs=$(pool_status_field bestshare 2>/dev/null || true)
+		if [[ -n "$post_pbs" ]] && awk -v b="$post_pbs" -v n="$nd" 'BEGIN{exit !(b + 0 < n + 0)}'; then
+			pool_ok="true"
+			break
+		fi
+		waited=$((waited + 1))
+		sleep 1
+	done
+	check "scenario16: restored pool round best is below networkdiff after restart (observed ${post_pbs:-<none>}, networkdiff $nd)" "$pool_ok"
+	check "scenario16: the daemon logged dropping the restored pool round best" \
+		"$(grep -qF "Dropping restored pool round best" "$LOGDIR/e2e.log" 2>/dev/null && echo true || echo false)"
+}
+
+# ---------------------------------------------------------------------------
 main() {
 	prereq_check
 	WORKDIR=$(mktemp -d "${TMPDIR:-/tmp}/ckpool-e2e.XXXXXX")
@@ -1484,6 +1620,7 @@ main() {
 	scenario_13_override_lookup
 	scenario_14_suggest_difficulty
 	scenario_15_reject_stats
+	scenario_16_restored_bestshare_clamped
 
 	echo
 	echo "===================================================================="

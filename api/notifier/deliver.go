@@ -16,6 +16,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -70,8 +72,10 @@ type Deliverer struct {
 	now         func() time.Time
 	retryDelays []time.Duration
 
-	mu    sync.Mutex
-	queue []any
+	mu        sync.Mutex
+	queue     []any
+	inflight  any
+	queuePath string
 
 	notify chan struct{}
 
@@ -129,6 +133,162 @@ func (d *Deliverer) LastPoolBlockAt() *time.Time {
 	return d.lastPoolBlockAt
 }
 
+// SetQueuePath configures an optional on-disk JSON file to persist pending
+// deliveries across process restarts, and loads any events already stored at
+// path. Writes use atomic write-temp-and-rename (path+".tmp" -> path, 0600).
+func (d *Deliverer) SetQueuePath(path string) error {
+	d.mu.Lock()
+	d.queuePath = path
+	if path == "" {
+		d.mu.Unlock()
+		return nil
+	}
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		_ = os.MkdirAll(dir, 0o750)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if len(d.queue) > 0 || d.inflight != nil {
+				d.persistLocked()
+			}
+			d.mu.Unlock()
+			return nil
+		}
+		d.mu.Unlock()
+		log.Printf("deliver: failed to read persisted queue from %s: %v", path, err)
+		return err
+	}
+
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		if len(d.queue) > 0 || d.inflight != nil {
+			d.persistLocked()
+		}
+		d.mu.Unlock()
+		return nil
+	}
+
+	var rawItems []json.RawMessage
+	if err := json.Unmarshal(trimmed, &rawItems); err != nil {
+		d.mu.Unlock()
+		log.Printf("deliver: failed to parse persisted queue from %s: %v", path, err)
+		return err
+	}
+
+	var loaded []any
+	for _, raw := range rawItems {
+		evt, err := unmarshalQueuedEvent(raw)
+		if err != nil {
+			log.Printf("deliver: skipping unreadable persisted event in %s: %v", path, err)
+			continue
+		}
+		d.restoreTimestamps(evt)
+		loaded = append(loaded, evt)
+	}
+
+	if len(loaded) > 0 {
+		merged := append(loaded, d.queue...)
+		if len(merged) > deliverQueueCapacity {
+			droppedCount := len(merged) - deliverQueueCapacity
+			merged = merged[droppedCount:]
+			d.eventsDropped.Add(int64(droppedCount))
+		}
+		d.queue = merged
+		d.persistLocked()
+	} else if len(d.queue) > 0 || d.inflight != nil {
+		d.persistLocked()
+	}
+	hasItems := len(d.queue) > 0
+	d.mu.Unlock()
+
+	if hasItems {
+		select {
+		case d.notify <- struct{}{}:
+		default:
+		}
+	}
+	return nil
+}
+
+// unmarshalQueuedEvent decodes a persisted JSON event back into its concrete
+// event struct (preserving type assertions and timestamp tracking) or falls
+// back to json.RawMessage for unknown event types.
+func unmarshalQueuedEvent(raw json.RawMessage) (any, error) {
+	fields, err := extractEnvelopeFields(raw)
+	if err != nil {
+		return nil, err
+	}
+	switch fields.Event {
+	case "network.block":
+		var evt NetworkBlockEvent
+		if err := json.Unmarshal(raw, &evt); err != nil {
+			return nil, err
+		}
+		return evt, nil
+	case "pool.block.submitted":
+		var evt PoolBlockSubmittedEvent
+		if err := json.Unmarshal(raw, &evt); err != nil {
+			return nil, err
+		}
+		return evt, nil
+	case "pool.block":
+		var evt PoolBlockEvent
+		if err := json.Unmarshal(raw, &evt); err != nil {
+			return nil, err
+		}
+		return evt, nil
+	case "pool.block.rejected":
+		var evt PoolBlockRejectedEvent
+		if err := json.Unmarshal(raw, &evt); err != nil {
+			return nil, err
+		}
+		return evt, nil
+	case "notifier.heartbeat":
+		var evt HeartbeatEvent
+		if err := json.Unmarshal(raw, &evt); err != nil {
+			return nil, err
+		}
+		return evt, nil
+	default:
+		cp := make(json.RawMessage, len(raw))
+		copy(cp, raw)
+		return cp, nil
+	}
+}
+
+// persistLocked writes the current in-flight + queued events to d.queuePath
+// using atomic write-temp-and-rename (0600). Caller must hold d.mu.
+func (d *Deliverer) persistLocked() {
+	if d.queuePath == "" {
+		return
+	}
+	capHint := len(d.queue)
+	if d.inflight != nil {
+		capHint++
+	}
+	items := make([]any, 0, capHint)
+	if d.inflight != nil {
+		items = append(items, d.inflight)
+	}
+	items = append(items, d.queue...)
+
+	data, err := json.Marshal(items)
+	if err != nil {
+		log.Printf("deliver: failed to marshal queue for %s: %v", d.queuePath, err)
+		return
+	}
+	tmpPath := d.queuePath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o600); err != nil {
+		log.Printf("deliver: failed to write temp queue file %s: %v", tmpPath, err)
+		return
+	}
+	if err := os.Rename(tmpPath, d.queuePath); err != nil {
+		log.Printf("deliver: failed to rename temp queue file %s -> %s: %v", tmpPath, d.queuePath, err)
+	}
+}
+
 // Enqueue hands event to the delivery queue. Never blocks: when the queue
 // is already at deliverQueueCapacity, the oldest queued event is dropped
 // (incrementing eventsDropped) to make room for this one.
@@ -143,6 +303,7 @@ func (d *Deliverer) Enqueue(event any) {
 		log.Printf("deliver: queue full (%d), dropping oldest queued event (%s)", deliverQueueCapacity, eventLabel(dropped))
 	}
 	d.queue = append(d.queue, event)
+	d.persistLocked()
 	d.mu.Unlock()
 
 	select {
@@ -175,7 +336,24 @@ func (d *Deliverer) dequeue() (any, bool) {
 	}
 	item := d.queue[0]
 	d.queue = d.queue[1:]
+	d.inflight = item
 	return item, true
+}
+
+func (d *Deliverer) finishInflight(completed bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if !completed && d.inflight != nil {
+		requeued := make([]any, 0, 1+len(d.queue))
+		requeued = append(requeued, d.inflight)
+		requeued = append(requeued, d.queue...)
+		if len(requeued) > deliverQueueCapacity {
+			requeued = requeued[:deliverQueueCapacity]
+		}
+		d.queue = requeued
+	}
+	d.inflight = nil
+	d.persistLocked()
 }
 
 // trackTimestamps updates lastNetworkBlockAt/lastPoolBlockAt at the moment
@@ -197,6 +375,27 @@ func (d *Deliverer) trackTimestamps(event any) {
 	}
 }
 
+func (d *Deliverer) restoreTimestamps(event any) {
+	switch evt := event.(type) {
+	case NetworkBlockEvent:
+		if t, err := time.Parse(time.RFC3339Nano, evt.EmittedAt); err == nil {
+			d.tsMu.Lock()
+			if d.lastNetworkBlockAt == nil || t.After(*d.lastNetworkBlockAt) {
+				d.lastNetworkBlockAt = &t
+			}
+			d.tsMu.Unlock()
+		}
+	case PoolBlockEvent:
+		if t, err := time.Parse(time.RFC3339Nano, evt.EmittedAt); err == nil {
+			d.tsMu.Lock()
+			if d.lastPoolBlockAt == nil || t.After(*d.lastPoolBlockAt) {
+				d.lastPoolBlockAt = &t
+			}
+			d.tsMu.Unlock()
+		}
+	}
+}
+
 // Run drains the queue until ctx is cancelled. Exactly one goroutine should
 // call this -- delivery order and the retry ladder both assume a single
 // in-flight send at a time.
@@ -211,7 +410,8 @@ func (d *Deliverer) Run(ctx context.Context) {
 				continue
 			}
 		}
-		d.deliverWithRetry(ctx, item)
+		completed := d.deliverWithRetry(ctx, item)
+		d.finishInflight(completed)
 		if ctx.Err() != nil {
 			return
 		}
@@ -221,19 +421,21 @@ func (d *Deliverer) Run(ctx context.Context) {
 // deliverWithRetry marshals event once, signs it once (timestamp fixed at
 // first-attempt time per contract §1: "does not change on retry"), and
 // then attempts delivery per the retry ladder. In dry-run mode it logs the
-// would-be request and returns without any network I/O.
-func (d *Deliverer) deliverWithRetry(ctx context.Context, event any) {
+// would-be request and returns without any network I/O. Returns false only
+// when delivery was aborted by ctx cancellation before reaching a terminal
+// outcome, allowing Run to keep the event in the persisted queue.
+func (d *Deliverer) deliverWithRetry(ctx context.Context, event any) bool {
 	body, err := json.Marshal(event)
 	if err != nil {
 		log.Printf("deliver: failed to marshal event, dropping: %v", err)
 		d.eventsDropped.Add(1)
-		return
+		return true
 	}
 	fields, err := extractEnvelopeFields(body)
 	if err != nil {
 		log.Printf("deliver: failed to read envelope fields from marshalled event, dropping: %v", err)
 		d.eventsDropped.Add(1)
-		return
+		return true
 	}
 
 	timestamp := strconv.FormatInt(d.now().Unix(), 10)
@@ -256,7 +458,7 @@ func (d *Deliverer) deliverWithRetry(ctx context.Context, event any) {
 			d.url, fields.Event, fields.EventID, timestamp, signature,
 			fields.Event, fields.EventID, timestamp, signature, body,
 		)
-		return
+		return true
 	}
 
 	delays := append([]time.Duration{0}, d.retryDelays...)
@@ -264,35 +466,39 @@ func (d *Deliverer) deliverWithRetry(ctx context.Context, event any) {
 		if delay > 0 {
 			select {
 			case <-ctx.Done():
-				return
+				return false
 			case <-time.After(delay):
 			}
 		}
 
 		status, sendErr := d.send(ctx, fields, timestamp, signature, body)
+		if sendErr != nil && ctx.Err() != nil {
+			return false
+		}
 
 		switch {
 		case sendErr == nil && status >= 200 && status < 300:
 			d.eventsSent.Add(1)
-			return
+			return true
 
 		case sendErr == nil && status >= 400 && status < 500:
 			// Terminal per contract §6: bad signature/timestamp (401)
 			// or malformed body (422) are never retried.
 			log.Printf("deliver: %s %s got HTTP %d, terminal, not retried", fields.Event, fields.EventID, status)
-			return
+			return true
 
 		case i == len(delays)-1:
 			// Retries exhausted -- 5xx, timeout, or transport error on
 			// the final attempt.
 			d.eventsDropped.Add(1)
 			log.Printf("deliver: %s %s exhausted retries, dropping (last error: status=%d err=%v)", fields.Event, fields.EventID, status, sendErr)
-			return
+			return true
 
 		default:
 			log.Printf("deliver: %s %s attempt %d failed (status=%d err=%v), retrying", fields.Event, fields.EventID, i+1, status, sendErr)
 		}
 	}
+	return true
 }
 
 // send issues one HTTP POST attempt. status is 0 when the request never

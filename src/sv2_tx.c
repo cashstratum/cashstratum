@@ -27,8 +27,10 @@ void sv2_write_compact_size(uint8_t **p, uint64_t n)
 		*(*p)++ = (uint8_t)((n >> 16) & 0xff);
 		*(*p)++ = (uint8_t)((n >> 24) & 0xff);
 	} else {
+		uint64_t le = htole64(n);
+
 		*(*p)++ = 0xff;
-		memcpy(*p, &n, 8);
+		memcpy(*p, &le, 8);
 		*p += 8;
 	}
 }
@@ -66,9 +68,12 @@ bool sv2_read_compact_size(const uint8_t **pp, const uint8_t *end, uint64_t *n)
 		     ((uint64_t)p[2] << 16) | ((uint64_t)p[3] << 24);
 		p += 4;
 	} else {
+		uint64_t le;
+
 		if (p + 8 > end)
 			return false;
-		memcpy(n, p, 8);
+		memcpy(&le, p, 8);
+		*n = le64toh(le);
 		p += 8;
 	}
 	*pp = p;

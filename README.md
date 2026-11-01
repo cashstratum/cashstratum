@@ -14,7 +14,7 @@ Run your pool. Choose direct payouts or username-based mining. Inspect the work 
   <img alt="CashStratum — Your pool. Your rules. Direct payouts, native CashAddr and verifiable blocks." src=".github/assets/readme/hero-light.webp" width="100%">
 </picture>
 
-[![Release v1.3.1](.github/assets/readme/badge-release.svg)](https://github.com/cashstratum/cashstratum/releases/tag/v1.3.1)
+[![Release v1.4.0](.github/assets/readme/badge-release.svg)](https://github.com/cashstratum/cashstratum/releases/tag/v1.4.0)
 [![98 verified BCH blocks](.github/assets/readme/badge-proofs.svg)](docs/proofs/)
 [![Regtest and testnet before engine releases](.github/assets/readme/badge-validation.svg)](#release-validation)
 [![License: GPL v3 or later](.github/assets/readme/badge-license.svg)](COPYING)
@@ -51,7 +51,7 @@ The [proof index](docs/proofs/) contains the full hash, explorer link and excerp
 Clone a release on Linux, then run the guided installer:
 
 ```bash
-git clone --branch v1.3.1 --depth 1 https://github.com/cashstratum/cashstratum.git
+git clone --branch v1.4.0 --depth 1 https://github.com/cashstratum/cashstratum.git
 cd cashstratum
 bash install-cashstratum.sh
 ```
@@ -71,8 +71,8 @@ they do not provision a node or automatically enable SV2.
 
 ### Release status
 
-**[v1.3.1](https://github.com/cashstratum/cashstratum/releases/tag/v1.3.1)** (2026-10-31) adds
-`cashtop`, a read-only terminal dashboard, and leaves the stratum server unchanged from v1.3.0.
+**[v1.4.0](https://github.com/cashstratum/cashstratum/releases/tag/v1.4.0)** (2026-11-01) drops block-sized round bests left on disk by earlier releases and makes `cashtop` label what the daemon counts (idle workers, zmq state, pool counts, odds basis); the stratum server changed, so pools rebuild and restart.
+**v1.3.1** added `cashtop`, a read-only terminal dashboard, and left the stratum server unchanged from v1.3.0.
 **v1.3.0** added per-user and per-worker reject statistics, capped the difficulty credited to
 rejected shares, recorded a reason for every disconnect, and shipped a filtered `monitor.sh`. **v1.2.5** fixed the Stratum V2
 Noise certificate version and **v1.2.2** introduced BCHD and Flowee compatibility. See
@@ -200,6 +200,12 @@ are supported through RPC adaptation and polling; **CashStratum did not add ZMQ 
 See the node guide for configuration requirements and
 [v1.2.2](https://github.com/cashstratum/cashstratum/releases/tag/v1.2.2) for the integration
 contributed by [@CyberAshven](https://github.com/CyberAshven).
+
+**Purpose-built for Bitcoin Cash.** Infrastructure that tries to serve every chain rarely excels
+at any single one. CashStratum focuses exclusively on Bitcoin Cash — its CashAddr format, its
+non-SegWit block structure, its node implementations (`BCHN`, `BCHD`, and `Flowee the Hub`), and
+its mainnet, testnet and regtest networks — so every path from miner login to block submission is
+engineered and verified for BCH. Operators targeting Bitcoin (BTC) should use upstream CKPool.
 
 
 ## Choose your mining model

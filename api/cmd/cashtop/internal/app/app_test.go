@@ -705,8 +705,11 @@ func ownBest(rows []ui.BestShare, addr string, rigs ...string) []ui.BestShare {
 	return out
 }
 
-// The leaderboard only holds shares after the pool's last block, never
-// exceeds the pool's round best, and never reaches the network difficulty.
+// The leaderboard only holds shares after the pool's last block and never
+// reaches the network difficulty. A sharelog share above the pool's own
+// round best is kept: the daemon only raises that number from shares that
+// also beat the submitting connection's per-user-round best, so it lags the
+// sharelogs for a whole round after a block found by someone else.
 func TestBestSharesSinceLastBlock(t *testing.T) {
 	_, dir := tree(t, true)
 	a := open(t, dir)
@@ -731,7 +734,7 @@ func TestBestSharesSinceLastBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := a.Snapshot()
-	if own := ownBest(s.BestShares, addr, "old", "big", "rig1", "rig2"); len(own) != 2 || own[0].Worker != addr+".rig2" || own[1].Worker != addr+".rig1" {
+	if own := ownBest(s.BestShares, addr, "old", "big", "rig1", "rig2"); len(own) != 3 || own[0].Worker != addr+".big" || own[1].Worker != addr+".rig2" || own[2].Worker != addr+".rig1" {
 		t.Fatalf("best shares %+v", s.BestShares)
 	}
 	for _, b := range s.BestShares {
@@ -841,5 +844,51 @@ func TestRestartServesRewardsAndRoundFromCache(t *testing.T) {
 	defer c.Close()
 	if s := c.Snapshot(); len(s.BestShares) != 0 || len(s.Blocks) == 0 {
 		t.Fatalf("stale entries after second restart: %+v", s.BestShares)
+	}
+}
+
+func TestLiveShareNewerThanPoolStatusKeptInLeaderboard(t *testing.T) {
+	_, dir := tree(t, true)
+	a := open(t, dir)
+	s0 := a.Snapshot()
+	last, pb := s0.Pool.LastBlock, s0.Pool.BestShare
+	if last.IsZero() || pb <= 0 {
+		t.Fatalf("fixture lacks a block or round best: %v %v", last, pb)
+	}
+	a.mu.Lock()
+	poolUpd := time.Unix(a.stats.pool.LastUpdate, 0).UTC()
+	a.mu.Unlock()
+	if poolUpd.IsZero() {
+		t.Fatal("pool.status lacks lastupdate")
+	}
+
+	addr := fixturegen.BareAddr(6)
+	nd := filepath.Join(dir, "logs", "7fffffff")
+	if err := os.MkdirAll(nd, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A share newer than pool.status lastupdate that exceeds stale poolBest (but is < netDiff)
+	// must be kept in BestShares and promote Pool.BestShare.
+	newBest := pb * 1.5
+	if s0.Pool.NetworkDiff > 0 && newBest >= s0.Pool.NetworkDiff {
+		newBest = s0.Pool.NetworkDiff * 0.5
+	}
+	shareAt := poolUpd.Add(5 * time.Second)
+	if !shareAt.After(last) {
+		shareAt = last.Add(5 * time.Second)
+	}
+	if err := os.WriteFile(filepath.Join(nd, "0000000000000001.sharelog"), []byte(bestLine(addr, "livebest", newBest, shareAt)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.ix.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	s := a.Snapshot()
+	own := ownBest(s.BestShares, addr, "livebest")
+	if len(own) != 1 || own[0].Diff != newBest {
+		t.Fatalf("newer-than-pool.status share dropped: %+v (all=%+v)", own, s.BestShares)
+	}
+	if s.Pool.BestShare < newBest {
+		t.Fatalf("Pool.BestShare %v did not advance to live share %v", s.Pool.BestShare, newBest)
 	}
 }

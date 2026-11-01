@@ -93,6 +93,7 @@ static void ck_runlock(int *l) { (void)l; }
 static stratum_instance_t *ref_instance_by_id(sdata_t *s, int64_t id) { (void)s; (void)id; return &client; }
 static void dec_instance_ref(sdata_t *s, stratum_instance_t *c) { (void)s; (void)c; }
 static void check_best_diff(sdata_t *s, user_instance_t *u, worker_instance_t *w, double d, stratum_instance_t *c) { (void)s;(void)u;(void)w;(void)d;(void)c; }
+static double pool_best_diff(sdata_t *s) { (void)s; return 0; }
 static bool new_share(sdata_t *s, const unsigned char *h, int64_t id) { (void)s;(void)h;(void)id; return unique_share; }
 static void add_submit(stratum_instance_t *c, double d, bool valid, bool submit) { (void)c;last_valid=valid;last_submit=submit;if(valid||submit)credited+=d; }
 static bool client_active(stratum_instance_t *c) { return c->authorised; }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -876,5 +877,127 @@ func TestRescanKeepsEnrichment(t *testing.T) {
 	v := ix2.Snapshot()
 	if b := v.Blocks[0]; b.Height != h || b.Reward != 312500000 || b.Hash != "nodehash" || v.Tip != h+3 {
 		t.Fatalf("rescan dropped enrichment: %+v tip %d", b, v.Tip)
+	}
+}
+
+func TestSolveContextPopulatesLuckAndProto(t *testing.T) {
+	e := newEnv(t)
+	solvesDir := filepath.Join(e.root, "solves")
+	if err := os.MkdirAll(solvesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	h := int64(888888)
+	hash := "0000000000000000000123456789abcdef0123456789abcdef0123456789abcd"
+	ctxFile := fmt.Sprintf("solves/%d-%s.log", h, hash)
+	ctxContent := fmt.Sprintf(
+		"[2026-04-19 10:00:00.100] Solved and confirmed block %d by bitcoincash:qp0000000000000000000000000000000000000000.rig1 on SV2\n"+
+			"[2026-04-19 10:00:00.101] Block solved after 123456 shares at 142.5%% diff\n",
+		h,
+	)
+	if err := os.WriteFile(filepath.Join(e.root, ctxFile), []byte(ctxContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tsvLine := fmt.Sprintf("%d\t%s\t2026-04-19 10:00:00.100\tACCEPTED\tbitcoincash:qp0000000000000000000000000000000000000000.rig1\t10\t%s\n", h, hash, ctxFile)
+	appendFile(t, filepath.Join(solvesDir, "INDEX.tsv"), tsvLine)
+
+	ix := e.open()
+	defer ix.Close()
+	var got *Block
+	for i := range ix.Snapshot().Blocks {
+		b := &ix.Snapshot().Blocks[i]
+		if b.Height == h {
+			got = b
+			break
+		}
+	}
+	if got == nil || got.Luck == nil || *got.Luck != 142.5 || got.Proto != "SV2" {
+		t.Fatalf("solve context not merged: %+v", got)
+	}
+}
+
+func TestSyncRoundSkipsSolvedBlockOwnDirectory(t *testing.T) {
+	e := newEnv(t)
+	ix := e.open()
+	defer ix.Close()
+	h, at, ok := ix.lastAccepted()
+	if !ok || at.IsZero() {
+		t.Fatal("no timed accepted block")
+	}
+	a := fixturegen.BareAddr(5)
+	solvedDir := filepath.Join(e.root, "logs", fmt.Sprintf("%08x", h))
+	if err := os.MkdirAll(solvedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Share written to the solved block's own directory 1 second after block solve time must be ignored.
+	appendFile(t, filepath.Join(solvedDir, "0000000000000099.sharelog"), roundLine(a, "oldround", 999999, at.Add(time.Second), true))
+	if err := ix.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	if got := ownRoundKeys(ix.Snapshot(), a+".oldround"); len(got) != 0 {
+		t.Fatalf("solved block's own sharelog directory leaked into new round: %v", got)
+	}
+}
+
+func TestWorkerAgentAndDiffPersist(t *testing.T) {
+	e := newEnv(t)
+	ix := e.open()
+	v := ix.Snapshot()
+	var name string
+	for _, w := range v.Workers {
+		if w.Agent != "" && w.LastDiff > 0 {
+			name = w.Name
+			break
+		}
+	}
+	if name == "" {
+		t.Fatal("no worker picked up an agent and difficulty from the sharelogs")
+	}
+	if err := ix.Close(); err != nil {
+		t.Fatal(err)
+	}
+	ix2 := e.open()
+	defer ix2.Close()
+	if ix2.Info().Rescanned {
+		t.Fatalf("info %+v", ix2.Info())
+	}
+	for _, w := range ix2.Snapshot().Workers {
+		if w.Name == name && w.Agent != "" && w.LastDiff > 0 {
+			return
+		}
+	}
+	t.Fatalf("%s lost its agent or diff over a restart", name)
+}
+
+// A snapshot written before Agent and LastDiff existed still loads, without a
+// rescan, and leaves the new fields empty.
+func TestSnapshotWithoutAgentFieldsLoads(t *testing.T) {
+	e := newEnv(t)
+	e.open().Close()
+	p := filepath.Join(e.cacheDir(), snapshotName)
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := regexp.MustCompile(`,"(agent|last_diff)":("[^"]*"|[0-9.eE+-]+)`).ReplaceAll(raw, nil)
+	if len(old) == len(raw) {
+		t.Fatal("snapshot held no agent fields to strip")
+	}
+	if err := os.WriteFile(p, old, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(filepath.Join(e.cacheDir(), journalName))
+	ix := e.open()
+	defer ix.Close()
+	if ix.Info().Rescanned {
+		t.Fatalf("old snapshot forced a rescan: %+v", ix.Info())
+	}
+	v := ix.Snapshot()
+	if len(v.Workers) == 0 {
+		t.Fatal("no workers loaded")
+	}
+	for _, w := range v.Workers {
+		if w.Agent != "" || w.LastDiff != 0 {
+			t.Fatalf("%s: agent %q diff %v from an old snapshot", w.Name, w.Agent, w.LastDiff)
+		}
 	}
 }

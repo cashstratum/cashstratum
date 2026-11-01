@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="154" height="40" viewBox="0 0 154 40" role="img" aria-labelledby="title desc">
-<title id="title">Release v1.3.1</title><desc id="desc">Release documented in this README</desc>
+<title id="title">Release v1.4.0</title><desc id="desc">Release documented in this README</desc>
 <rect x=".5" y=".5" width="153" height="39" rx="12" fill="#edf7f1" stroke="#a7cdb8"/>
 <g transform="translate(12 9)" fill="none" stroke="#087d50" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h8l7 7-7 7-8-8z"/><circle cx="7.5" cy="9.5" r="1"/></g>
-<text x="42" y="25" fill="#174b35" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="14" font-weight="600">Release v1.3.1</text>
+<text x="42" y="25" fill="#174b35" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="14" font-weight="600">Release v1.4.0</text>
 </svg>

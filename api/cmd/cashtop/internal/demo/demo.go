@@ -84,7 +84,7 @@ func build(o Options) ui.Snapshot {
 		Chain: "main", Tip: dp.Height - 1, TipHash: fixturegen.Hash(999), TipTime: now.Add(-4 * time.Minute),
 		Difficulty: dp.NetworkDiff, NetHashrate: dp.NetworkDiff * two32 / 600,
 		MempoolTx: 1840, MempoolBytes: 912_345, RPCLatency: 3 * time.Millisecond, RPCOK: true,
-		ZMQLast: now.Add(-4 * time.Minute), TemplateTime: now.Add(-17 * time.Second), TemplateTxs: 1840,
+		ZMQLast: now.Add(-4 * time.Minute), ZMQConfigured: true, ZMQConnected: true, TemplateTime: now.Add(-17 * time.Second), TemplateTxs: 1840,
 	}
 
 	if !o.NoWorkers {

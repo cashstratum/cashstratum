@@ -45,6 +45,9 @@ type PoolCard struct {
 	Hashrate1m, Hashrate5m, Hashrate15m, Hashrate1h float64 // H/s
 	Hashrate6h, Hashrate1d, Hashrate7d              float64 // H/s
 
+	// Workers counts connected clients; Idle those with no share for over
+	// 60 s; Disconnected the resumable sessions: dropped miners the daemon
+	// keeps for 600 s so they can reconnect.
 	Users, Workers, Idle, Disconnected int
 	SPS1m, SPS5m                       float64
 
@@ -80,6 +83,7 @@ type WorkerRow struct {
 	Name       string // "<user>.<rig>" as authorised
 	Address    string
 	UserAgent  string
+	AgentStale bool `json:",omitempty"` // UserAgent is the last one known, not from the current window
 	Hashrate1m float64
 	Hashrate5m float64
 	Hashrate1h float64
@@ -125,19 +129,21 @@ type FeedRow struct {
 
 // NetworkInfo is the node and chain view.
 type NetworkInfo struct {
-	Chain        string
-	Tip          int
-	TipHash      string
-	TipTime      time.Time `json:",omitzero"`
-	Difficulty   float64   `json:",omitempty"`
-	NetHashrate  float64   // H/s
-	MempoolTx    int
-	MempoolBytes int64
-	RPCLatency   time.Duration
-	RPCOK        bool
-	ZMQLast      time.Time `json:",omitzero"` // last hashblock notification
-	TemplateTime time.Time `json:",omitzero"` // when the current template was built
-	TemplateTxs  int
+	Chain         string
+	Tip           int
+	TipHash       string
+	TipTime       time.Time `json:",omitzero"`
+	Difficulty    float64   `json:",omitempty"`
+	NetHashrate   float64   // H/s
+	MempoolTx     int
+	MempoolBytes  int64
+	RPCLatency    time.Duration
+	RPCOK         bool
+	ZMQLast       time.Time `json:",omitzero"` // last hashblock notification
+	ZMQConfigured bool      `json:",omitzero"` // a ZMQ endpoint is configured
+	ZMQConnected  bool      `json:",omitzero"` // the subscriber is currently connected
+	TemplateTime  time.Time `json:",omitzero"` // when the current template was built
+	TemplateTxs   int
 
 	// LastNetBlock is when the newest network block was seen, from the
 	// latest of the tip header time, the hashblock notification and the pool
@@ -199,6 +205,14 @@ type FeedRowsMsg struct{ Rows []FeedRow }
 type BlockFoundMsg struct {
 	Block  BlockRow
 	Replay bool
+}
+
+// BlockUpdateMsg fills in fields (effort/luck, hash) that arrive a few log
+// lines after BlockFoundMsg.
+type BlockUpdateMsg struct {
+	Height int
+	Hash   string
+	Luck   float64
 }
 
 // NetworkBlockMsg announces a new chain tip, whoever found it. Height, the

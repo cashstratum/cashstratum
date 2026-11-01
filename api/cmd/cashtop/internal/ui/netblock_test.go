@@ -80,10 +80,10 @@ func fixed() time.Time { return fixedNow }
 
 func TestGoldenDashboardNetBlockRed(t *testing.T) {
 	caps := termcap.Detect(utf8Env, termcap.Flags{})
-	m := netModel(caps, fixedNow.Add(-(11*time.Minute + 5*time.Second)), 529e9, 524.7e9, fixed)
+	m := netModel(caps, fixedNow.Add(-(45*time.Minute + 5*time.Second)), 529e9, 524.7e9, fixed)
 	out := runTea(t, m)
 	checkScreen(t, out, goldenW, goldenH)
-	for _, want := range []string{"last net block", "11m 5s ago", "529G ▲ 0.82%"} {
+	for _, want := range []string{"last net block", "45m 5s ago", "529G ▲ 0.82%"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q:\n%s", want, out)
 		}

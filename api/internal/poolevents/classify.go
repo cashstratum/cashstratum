@@ -23,7 +23,7 @@ const ReasonWindow = 30 * time.Second
 
 var (
 	reBlockAccepted   = regexp.MustCompile(`BLOCK ACCEPTED!`)
-	reSolvedConfirmed = regexp.MustCompile(`Solved and confirmed block (\d+) by (\S+)`)
+	reSolvedConfirmed = regexp.MustCompile(`(?:Solved and confirmed block (\d+) by (\S+)|Block (\d+) solved by (\S+) accepted on SV2/JD)`)
 	reBlockRejected   = regexp.MustCompile(`Submitted, but had block (\d+) rejected`)
 	reSubmitReturned  = regexp.MustCompile(`SUBMIT BLOCK RETURNED: (.+)`)
 )
@@ -73,12 +73,15 @@ func (c *Classifier) Classify(line string) (event any, ok bool) {
 
 	case reSolvedConfirmed.MatchString(line):
 		m := reSolvedConfirmed.FindStringSubmatch(line)
-		height, err := strconv.ParseInt(m[1], 10, 64)
+		hStr, workername := m[1], m[2]
+		if hStr == "" {
+			hStr, workername = m[3], m[4]
+		}
+		height, err := strconv.ParseInt(hStr, 10, 64)
 		if err != nil {
 			c.logf("tail: unparseable height in confirm line %q: %v", line, err)
 			return nil, false
 		}
-		workername := m[2]
 		username, worker := SplitWorkerName(workername)
 		solveID := c.resolveSolveID()
 		c.pendingReason = ""

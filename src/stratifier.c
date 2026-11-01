@@ -574,6 +574,22 @@ struct stratifier_data {
 	proxy_t *subproxy; /* Which subproxy this sdata belongs to in proxy mode */
 };
 
+/* The pool-wide round best is read outside stats_lock by the submit paths as
+ * a pre-filter for check_best_diff(). Keep that read and every store atomic
+ * so the pre-filter is race-clean; record_best_diff() still compares and
+ * stores under stats_lock. */
+static inline int64_t pool_best_diff(sdata_t *sdata)
+{
+	return __atomic_load_n(&sdata->stats.best_diff, __ATOMIC_RELAXED);
+}
+
+/* stats.best_diff is an int64_t: the share difficulty is truncated on store,
+ * exactly as the plain assignment it replaces did. */
+static inline void set_pool_best_diff(sdata_t *sdata, double v)
+{
+	__atomic_store_n(&sdata->stats.best_diff, (int64_t)v, __ATOMIC_RELAXED);
+}
+
 /* Priority levels for generator messages */
 #define GEN_LAX 0
 #define GEN_NORMAL 1
@@ -1206,6 +1222,71 @@ static void generate_userwbs(sdata_t *sdata, workbase_t *wb)
 	ck_wunlock(&sdata->instance_lock);
 }
 
+/* Round bests are persisted in the users files, and the pool-wide round best
+ * in pool.status (bestshare), and all are restored at startup with no bound
+ * check, because the network difficulty is unknown until the first workbase
+ * arrives. A round best at or above the network difficulty is a block-solving
+ * share, which record_best_diff() never keeps as a round best, so once the
+ * difficulty is known drop any such value that came from disk.
+ * best_ever is an all-time high-water mark and is left alone; the loader has
+ * already raised it to cover any round best it read. Runs once, on the first
+ * workbase that sets the pool-wide network difficulty. */
+static void clamp_restored_bestshares(sdata_t *sdata, double network_diff)
+{
+	static bool clamped;
+	double limit = network_diff * 0.999;
+	user_instance_t *user, *tmpuser;
+	stratum_instance_t *client, *tmp;
+	int dropped = 0;
+
+	if (clamped)
+		return;
+	clamped = true;
+
+	ck_rlock(&sdata->instance_lock);
+	HASH_ITER(hh, sdata->user_instances, user, tmpuser) {
+		worker_instance_t *worker;
+
+		if (user->best_diff >= limit) {
+			LOGNOTICE("Dropping restored round best %.1f for user %s at or above network diff %.1f",
+				  user->best_diff, user->username, network_diff);
+			user->best_diff = 0;
+			dropped++;
+		}
+		DL_FOREACH(user->worker_instances, worker) {
+			if (worker->best_diff < limit)
+				continue;
+			LOGNOTICE("Dropping restored round best %.1f for worker %s at or above network diff %.1f",
+				  worker->best_diff, worker->workername, network_diff);
+			worker->best_diff = 0;
+			dropped++;
+		}
+	}
+	/* Clients have no persisted round best, but one that submitted before
+	 * the first workbase bypassed the block guard in record_best_diff(). */
+	HASH_ITER(hh, sdata->stratum_instances, client, tmp) {
+		if (client->best_diff >= limit)
+			client->best_diff = 0;
+	}
+	ck_runlock(&sdata->instance_lock);
+
+	/* The pool-wide round best is restored from pool.status the same way
+	 * and gets the same bound. Stores go under stats_lock, matching
+	 * record_best_diff(). */
+	mutex_lock(&sdata->stats_lock);
+	if (pool_best_diff(sdata) >= limit) {
+		LOGNOTICE("Dropping restored pool round best %.1f at or above network diff %.1f",
+			  (double)pool_best_diff(sdata), network_diff);
+		set_pool_best_diff(sdata, 0);
+		dropped++;
+	}
+	mutex_unlock(&sdata->stats_lock);
+
+	if (dropped)
+		LOGNOTICE("Dropped %d restored round best(s) at or above network diff %.1f",
+			  dropped, network_diff);
+}
+
 /* Add a new workbase to the table of workbases. Sdata is the global data in
  * pool mode but unique to each subproxy in proxy mode */
 static void add_base(sdata_t *sdata, workbase_t *wb, bool *new_block)
@@ -1312,6 +1393,11 @@ static void add_base(sdata_t *sdata, workbase_t *wb, bool *new_block)
 		}
 	}
 	ck_wunlock(&sdata->workbase_lock);
+
+	/* Users live in the global sdata in every mode; clamp them against the
+	 * network the pool-wide difficulty is taken from. */
+	if (update_global)
+		clamp_restored_bestshares(ckp_sdata, wb->network_diff);
 
 	/* This wb can't be pulled out from under us so no workbase lock is
 	 * required to generate_userwbs */
@@ -2479,7 +2565,7 @@ process_block(const workbase_t *wb, const char *coinbase, const int cblen,
 	 * all hex encoded, plus room for the null terminator. Transaction
 	 * data beyond that is appended via realloc_strcat which grows the
 	 * buffer as needed. */
-	hexcoinbase = alloca(cblen * 2 + 1);
+	hexcoinbase = ckalloc(cblen * 2 + 1);
 	gbt_block = ckzalloc(80 * 2 + sizeof(varint) * 2 + cblen * 2 + 1);
 	__bin2hex(gbt_block, data, 80);
 	if (txns < 0xfd) {
@@ -2500,6 +2586,7 @@ process_block(const workbase_t *wb, const char *coinbase, const int cblen,
 	strcat(gbt_block, varint);
 	__bin2hex(hexcoinbase, coinbase, cblen);
 	strcat(gbt_block, hexcoinbase);
+	dealloc(hexcoinbase);
 	if (wb->txns)
 		realloc_strcat(&gbt_block, wb->txn_data);
 	return gbt_block;
@@ -2593,7 +2680,7 @@ static void block_reject(yyjson_mut_doc *doc);
 static void submit_node_block(sdata_t *sdata, yyjson_mut_val *val)
 {
 	char *coinbase = NULL, *enonce1 = NULL, *nonce = NULL, *nonce2 = NULL, *gbt_block,
-		*coinbasehex, *swaphex;
+		*coinbasehex = NULL, *swaphex = NULL;
 	uchar *enonce1bin = NULL, hash[32], swap[80], flip32[32];
 	uint32_t ntime32, version_mask = 0;
 	char blockhash[68], cdfield[64];
@@ -2655,9 +2742,9 @@ static void submit_node_block(sdata_t *sdata, yyjson_mut_val *val)
 	if (coinbasehex && swaphex && cblen > 0 && cblen <= 2 * MAX_COINBASE_LEN) {
 		uchar hash1[32];
 
-		coinbase = alloca(cblen);
+		coinbase = ckalloc(cblen);
 		/* Reject corrupt hex rather than hashing uninitialised
-		 * alloca tails into a submitted block. */
+		 * buffer tails into a submitted block. */
 		if (unlikely(!hex2bin(coinbase, coinbasehex, cblen) ||
 			     !hex2bin(swap, swaphex, 80))) {
 			LOGWARNING("Invalid hex in node method block for jobid %"PRId64, id);
@@ -2670,13 +2757,13 @@ static void submit_node_block(sdata_t *sdata, yyjson_mut_val *val)
 		/* Rebuild the old way if we can if the upstream pool is using
 		 * the old format only */
 		enonce1len = wb->enonce1constlen + wb->enonce1varlen;
-		enonce1bin = alloca(enonce1len);
+		enonce1bin = ckalloc(enonce1len);
 		if (unlikely(!hex2bin(enonce1bin, enonce1, enonce1len))) {
 			LOGWARNING("Invalid enonce1 hex in node method block for jobid %"PRId64, id);
 			put_workbase(sdata, wb);
 			goto out;
 		}
-		coinbase = alloca(wb->coinb1len + wb->enonce1constlen + wb->enonce1varlen + wb->enonce2varlen + wb->coinb2len);
+		coinbase = ckalloc(wb->coinb1len + wb->enonce1constlen + wb->enonce1varlen + wb->enonce2varlen + wb->coinb2len);
 		/* Fill in the hashes */
 		share_diff(coinbase, enonce1bin, wb, nonce2, ntime32, version_mask, nonce, hash, swap, &cblen);
 	}
@@ -2709,6 +2796,10 @@ static void submit_node_block(sdata_t *sdata, yyjson_mut_val *val)
 
 	yyjson_mut_doc_free(doc);
 out:
+	free(swaphex);
+	free(coinbasehex);
+	free(enonce1bin);
+	free(coinbase);
 	free(nonce2);
 	free(nonce);
 	free(enonce1);
@@ -2763,10 +2854,12 @@ static void __inc_worker(sdata_t *sdata, user_instance_t *user, worker_instance_
 
 static void __dec_worker(sdata_t *sdata, user_instance_t *user, worker_instance_t *worker)
 {
-	sdata->stats.workers--;
-	if (!--user->workers)
+	if (sdata->stats.workers > 0)
+		sdata->stats.workers--;
+	if (user->workers > 0 && !--user->workers && sdata->stats.users > 0)
 		sdata->stats.users--;
-	worker->instance_count--;
+	if (worker->instance_count > 0)
+		worker->instance_count--;
 }
 
 static void __disconnect_session(sdata_t *sdata, const stratum_instance_t *client)
@@ -2912,7 +3005,8 @@ static void drop_allclients(void)
 		if (!was_sv2)
 			connector_drop_client(client_id, DR_DROPALL);
 	}
-	sdata->stats.users = sdata->stats.workers = 0;
+	if (!sdata->stratum_instances)
+		sdata->stats.users = sdata->stats.workers = 0;
 	ck_wunlock(&sdata->instance_lock);
 
 	if (kills)
@@ -4539,11 +4633,12 @@ static void request_reconnect(sdata_t *sdata, const char *cmd)
  * reset_bestshares() and reset_bestshares_unattributed() below. */
 static void reset_pool_bestshares(sdata_t *sdata)
 {
-	/* Can do this unlocked since it's just zeroing the values */
+	mutex_lock(&sdata->stats_lock);
 	sdata->stats.accounted_diff_shares =
 	sdata->stats.accounted_shares =
 	sdata->stats.accounted_rejects = 0;
-	sdata->stats.best_diff = 0;
+	set_pool_best_diff(sdata, 0);
+	mutex_unlock(&sdata->stats_lock);
 }
 
 /* Reset the pool-wide best diff/share stats on every block solve, and the
@@ -4803,12 +4898,19 @@ static void remap_workinfo_id(sdata_t *sdata, yyjson_mut_doc *doc, yyjson_mut_va
 
 static void block_share_summary(sdata_t *sdata)
 {
-	double bdiff, sdiff;
+	double bdiff, sdiff, uadiff;
 
 	if (unlikely(!sdata->current_workbase || !sdata->current_workbase->network_diff))
 		return;
 
-	sdiff = sdata->stats.accounted_diff_shares;
+	mutex_lock(&sdata->uastats_lock);
+	uadiff = sdata->stats.unaccounted_diff_shares;
+	mutex_unlock(&sdata->uastats_lock);
+
+	mutex_lock(&sdata->stats_lock);
+	sdiff = sdata->stats.accounted_diff_shares + uadiff;
+	mutex_unlock(&sdata->stats_lock);
+
 	bdiff = sdiff / sdata->current_workbase->network_diff * 100;
 	LOGWARNING("Block solved after %.0lf shares at %.1f%% diff",
 		   sdiff, bdiff);
@@ -8322,13 +8424,18 @@ bool stratifier_sv2_submit_share(int64_t instance_id, int64_t workbase_id,
 	if (sdiff_out)
 		*sdiff_out = sdiff;
 
-	if (sdiff > client->best_diff) {
+	/* client->best_diff is per-user-round state: a block found by another
+	 * user resets the pool-wide best but not this client's, so a share
+	 * below the client's old best can still be the new pool best. The
+	 * unlocked read is only a pre-filter; record_best_diff() compares
+	 * again under stats_lock. */
+	if (sdiff > client->best_diff || sdiff > pool_best_diff(sdata)) {
 		user_instance_t *user = client->user_instance;
 		worker_instance_t *worker = client->worker_instance;
 
-		client->best_diff = sdiff;
-		LOGINFO("SV2 user %s worker %s client %s new best diff %lf",
-			user->username, worker->workername, client->identity, sdiff);
+		if (sdiff > client->best_diff)
+			LOGINFO("SV2 user %s worker %s client %s new best diff %lf",
+				user->username, worker->workername, client->identity, sdiff);
 		check_best_diff(sdata, user, worker, sdiff, client);
 	}
 
@@ -8438,13 +8545,18 @@ bool stratifier_sv2_account_share(int64_t instance_id, int64_t workbase_id,
 		}
 		return false;
 	}
-	if (sdiff > client->best_diff) {
+	/* client->best_diff is per-user-round state: a block found by another
+	 * user resets the pool-wide best but not this client's, so a share
+	 * below the client's old best can still be the new pool best. The
+	 * unlocked read is only a pre-filter; record_best_diff() compares
+	 * again under stats_lock. */
+	if (sdiff > client->best_diff || sdiff > pool_best_diff(sdata)) {
 		user_instance_t *user = client->user_instance;
 		worker_instance_t *worker = client->worker_instance;
 
-		client->best_diff = sdiff;
-		LOGINFO("SV2 user %s worker %s client %s new best diff %lf",
-			user->username, worker->workername, client->identity, sdiff);
+		if (sdiff > client->best_diff)
+			LOGINFO("SV2 user %s worker %s client %s new best diff %lf",
+				user->username, worker->workername, client->identity, sdiff);
 		check_best_diff(sdata, user, worker, sdiff, client);
 	}
 	if (!wb_id) {
@@ -8542,7 +8654,8 @@ bool stratifier_sv2_submit_block_bin(const unsigned char *block, size_t block_le
 	}
 
 	if (ret) {
-		block_share_summary(sdata);
+		user_instance_t *finder = NULL;
+
 		/* submitblock acceptance only — "confirmed" is block_solve()'s
 		 * word once the block update thread sees it on the chain. */
 		if (workername)
@@ -8559,6 +8672,7 @@ bool stratifier_sv2_submit_block_bin(const unsigned char *block, size_t block_le
 
 			user = user_by_workername(sdata, workername);
 			if (user) {
+				finder = user;
 				worker = get_worker(sdata, user, workername);
 				ck_rlock(&sdata->instance_lock);
 				user_val = user_stats(user);
@@ -8574,6 +8688,11 @@ bool stratifier_sv2_submit_block_bin(const unsigned char *block, size_t block_le
 				dealloc(s);
 			}
 		}
+		block_share_summary(sdata);
+		if (finder)
+			reset_bestshares(sdata, finder);
+		else
+			reset_bestshares_unattributed(sdata);
 	} else {
 		LOGWARNING("SV2/JD block submit rejected/error height %d hash %s by %s",
 			   height, blockhash, workername ? workername : "(unknown)");
@@ -8628,11 +8747,14 @@ static void submit_share(stratum_instance_t *client, const int64_t jobid, const 
 	generator_add_send(doc);
 }
 
-static void check_best_diff(sdata_t *sdata, user_instance_t *user,worker_instance_t *worker,
-			    const double sdiff, stratum_instance_t *client)
+static bool record_best_diff(sdata_t *sdata, user_instance_t *user, worker_instance_t *worker,
+			     const double sdiff, stratum_instance_t *client,
+			     bool *best_ever_out, bool *best_user_out)
 {
-	char buf[512];
 	bool best_ever = false, best_worker = false, best_user = false;
+	bool is_block = sdata->current_workbase &&
+			sdata->current_workbase->network_diff > 0 &&
+			sdiff >= sdata->current_workbase->network_diff * 0.999;
 
 	if (sdiff > user->best_ever) {
 		user->best_ever = sdiff;
@@ -8642,6 +8764,18 @@ static void check_best_diff(sdata_t *sdata, user_instance_t *user,worker_instanc
 		worker->best_ever = sdiff;
 		best_ever = true;
 	}
+	/* Don't set current-round best diff on client, worker, user, or pool
+	 * if this share met network difficulty, since block_solve() has already
+	 * reset them to zero for the new round. */
+	if (unlikely(is_block)) {
+		if (best_ever_out)
+			*best_ever_out = best_ever;
+		if (best_user_out)
+			*best_user_out = false;
+		return false;
+	}
+	if (client && sdiff > client->best_diff)
+		client->best_diff = sdiff;
 	if (sdiff > worker->best_diff) {
 		worker->best_diff = sdiff;
 		best_worker = true;
@@ -8653,15 +8787,29 @@ static void check_best_diff(sdata_t *sdata, user_instance_t *user,worker_instanc
 	/* Check against pool's best diff unlocked first, then recheck once
 	 * the mutex is locked. Remote shares can arrive before we have a
 	 * current workbase so check it exists before dereferencing it. */
-	if (sdiff > sdata->stats.best_diff && likely(sdata->current_workbase)) {
+	if (sdiff > pool_best_diff(sdata) && likely(sdata->current_workbase)) {
 		/* Don't set pool best diff if it's a block since we will have
 		 * reset it to zero. */
 		mutex_lock(&sdata->stats_lock);
-		if (unlikely(sdiff > sdata->stats.best_diff && sdiff < sdata->current_workbase->network_diff))
-			sdata->stats.best_diff = sdiff;
+		if (unlikely(sdiff > pool_best_diff(sdata) &&
+			     sdiff < sdata->current_workbase->network_diff * 0.999))
+			set_pool_best_diff(sdata, sdiff);
 		mutex_unlock(&sdata->stats_lock);
 	}
-	if (likely((!best_user && !best_worker) || !client))
+	if (best_ever_out)
+		*best_ever_out = best_ever;
+	if (best_user_out)
+		*best_user_out = best_user;
+	return best_user || best_worker;
+}
+
+static void check_best_diff(sdata_t *sdata, user_instance_t *user, worker_instance_t *worker,
+			    const double sdiff, stratum_instance_t *client)
+{
+	char buf[512];
+	bool best_ever = false, best_user = false;
+
+	if (likely(!record_best_diff(sdata, user, worker, sdiff, client, &best_ever, &best_user) || !client))
 		return;
 	snprintf(buf, 511, "New best %sshare for %s: %lf", best_ever ? "ever " : "",
 		 best_user ? "user" : "worker", sdiff);
@@ -8827,12 +8975,14 @@ static bool parse_submit(stratum_instance_t *client, yyjson_mut_val *params_val,
 		renotify_solo_client(sdata, client);
 		goto out_put;
 	}
-	if (sdiff > client->best_diff) {
+	/* See the SV2 submit path: the per-user-round client best must not
+	 * gate the pool-wide best, which resets on every block. */
+	if (sdiff > client->best_diff || sdiff > pool_best_diff(sdata)) {
 		worker_instance_t *worker = client->worker_instance;
 
-		client->best_diff = sdiff;
-		LOGINFO("User %s worker %s client %s new best diff %lf", user->username,
-			worker->workername, client->identity, sdiff);
+		if (sdiff > client->best_diff)
+			LOGINFO("User %s worker %s client %s new best diff %lf", user->username,
+				worker->workername, client->identity, sdiff);
 		check_best_diff(sdata, user, worker, sdiff, client);
 	}
 	bswap_256(sharehash, hash);
@@ -9980,21 +10130,23 @@ static void parse_remote_block(sdata_t *sdata, yyjson_mut_doc *doc, yyjson_mut_v
 		LOGWARNING("Inadequate data locally to attempt submit of remote block");
 	else {
 		uchar swap[80], hash[32], hash1[32], flip32[32];
-		char *coinbase = alloca(cblen), *gbt_block;
+		char *coinbase = ckalloc(cblen), *gbt_block;
 		char blockhash[68];
 
 		LOGWARNING("Possible remote block solve diff %lf !", diff);
 		/* Same as the node block path: refuse to assemble/submit on
-		 * corrupt hex so uninitialised alloca is never hashed in. */
+		 * corrupt hex so uninitialised buffer tails are never hashed in. */
 		if (unlikely(!hex2bin(coinbase, coinbasehex, cblen) ||
 			     !hex2bin(swap, swaphex, 80))) {
 			LOGWARNING("Invalid hex in remote block for workinfoid %"PRId64, id);
+			dealloc(coinbase);
 			put_remote_workbase(sdata, wb);
 			goto out_add;
 		}
 		sha256(swap, 80, hash1);
 		sha256(hash1, 32, hash);
 		gbt_block = process_block(wb, coinbase, cblen, swap, hash, flip32, blockhash);
+		dealloc(coinbase);
 		/* Note nodes use jobid of the mapped_id instead of workinfoid */
 		yyjson_mut_obj_put(val, yyjson_mut_str(doc, "jobid"), yyjson_mut_sint(doc, wb->mapped_id));
 		send_nodes_block(sdata, doc, client_id);

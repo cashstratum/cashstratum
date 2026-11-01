@@ -3,7 +3,7 @@
 # CashStratum Installation Script
 # Builds from current working directory and installs to ~/cashstratum
 
-set -e
+set -euo pipefail
 
 echo "======================================"
 echo "CashStratum Installation"
@@ -181,7 +181,6 @@ echo "Copying binaries..."
 cp src/ckpool "$INSTALL_DIR/cashstratum"
 cp src/ckpmsg "$INSTALL_DIR/"
 cp src/notifier "$INSTALL_DIR/"
-[ -d "build/bin" ] && cp build/bin/* "$INSTALL_DIR/" 2>/dev/null || true
 [ -f "clean-old-blocks.sh" ] && cp clean-old-blocks.sh "$INSTALL_DIR/" 2>/dev/null || true
 
 # Make binaries executable
@@ -253,17 +252,17 @@ fi
 # Create start script
 cat > "$INSTALL_DIR/start-cashstratum.sh" << 'START_EOF'
 #!/bin/bash
+set -euo pipefail
 
 CONFIG="${1:-cashstratum.conf}"
 
 echo "Starting CashStratum with config: $CONFIG"
+echo "Check logs/cashstratum.log once started."
 
 cd "$(dirname "$0")"
 
 # Start cashstratum
 exec ./cashstratum -c "$CONFIG" -n cashstratum -L -B
-
-echo "CashStratum started. Check logs/cashstratum.log"
 START_EOF
 
 chmod +x "$INSTALL_DIR/start-cashstratum.sh"
@@ -271,6 +270,7 @@ chmod +x "$INSTALL_DIR/start-cashstratum.sh"
 # Create stop script
 cat > "$INSTALL_DIR/stop-cashstratum.sh" << STOP_EOF
 #!/bin/bash
+set -euo pipefail
 
 echo "Stopping CashStratum..."
 pkill -TERM -x cashstratum || true
@@ -426,8 +426,8 @@ echo "       sudo grep CASHSTRATUM_API_KEY $API_DIR/cashstratum-api.env"
 echo
 echo "  3. Reach it - all endpoints need the bearer token:"
 echo "       KEY=\$(sudo sed -n 's/^CASHSTRATUM_API_KEY=//p' $API_DIR/cashstratum-api.env)"
-echo "       curl -H "Authorization: Bearer \$KEY" http://127.0.0.1:$API_PORT/health"
-echo "       curl -H "Authorization: Bearer \$KEY" http://127.0.0.1:$API_PORT/stats"
+echo "       curl -H \"Authorization: Bearer \$KEY\" http://127.0.0.1:$API_PORT/health"
+echo "       curl -H \"Authorization: Bearer \$KEY\" http://127.0.0.1:$API_PORT/stats"
 echo
 echo "  Endpoints: /health /stats /tail /grep /find-block /user-log /user-file"
 echo "             /coinbase /metrics          (see api/README.md)"

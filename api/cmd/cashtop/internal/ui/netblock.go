@@ -9,9 +9,13 @@ import (
 // Thresholds and durations of the network-block indicators.
 const (
 	// NetBlockAmber and NetBlockRed colour the time since the last network
-	// block: normal below the first, amber from it, red from the second.
-	NetBlockAmber = 7 * time.Minute
-	NetBlockRed   = 10 * time.Minute
+	// block: normal below the first, amber from it, red from the second. The
+	// colour means "our view of the chain may be stale", not "slow block":
+	// with 10-minute exponential intervals a gap of 20 minutes (e^-2) occurs
+	// after 13.5% of blocks and 40 minutes (e^-4) after 1.8%, so red is rare
+	// enough to be worth a look.
+	NetBlockAmber = 20 * time.Minute
+	NetBlockRed   = 40 * time.Minute
 
 	// NetBlockBannerFor is how long the new-block banner stays up, and
 	// NetBlockFlashFor how long the dashboard line is highlighted.

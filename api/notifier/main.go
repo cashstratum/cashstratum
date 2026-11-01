@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -36,6 +37,7 @@ type config struct {
 	notifySecret string
 	confPath     string
 	logPath      string
+	queuePath    string
 	dryRun       bool
 }
 
@@ -55,11 +57,21 @@ func loadConfig() config {
 	if v, ok := os.LookupEnv("NOTIFY_DRY_RUN"); ok && v != "" {
 		dryRun = v != "false" && v != "0"
 	}
+	queuePath := getEnvWithFallback("CASHSTRATUM_NOTIFY_QUEUE_PATH", "BLOCKSNIPER_NOTIFY_QUEUE_PATH")
+	if queuePath == "" {
+		queuePath = os.Getenv("NOTIFY_QUEUE_PATH")
+	}
+	if queuePath == "" {
+		if stateDir := os.Getenv("STATE_DIRECTORY"); stateDir != "" {
+			queuePath = filepath.Join(stateDir, "queue.json")
+		}
+	}
 	return config{
 		notifyURL:    getEnvWithFallback("CASHSTRATUM_NOTIFY_URL", "BLOCKSNIPER_NOTIFY_URL"),
 		notifySecret: getEnvWithFallback("CASHSTRATUM_NOTIFY_SECRET", "BLOCKSNIPER_NOTIFY_SECRET"),
 		confPath:     getEnvWithFallback("CASHSTRATUM_CONF_PATH", "CKPOOL_CONF_PATH"),
 		logPath:      getEnvWithFallback("CASHSTRATUM_LOG_PATH", "CKPOOL_LOG_PATH"),
+		queuePath:    queuePath,
 		dryRun:       dryRun,
 	}
 }
@@ -121,6 +133,13 @@ func main() {
 	// its Enqueue method -- the only thing zmqsub/tail/heartbeat know
 	// about delivery is that it exists.
 	deliverer := NewDeliverer(cfg.notifyURL, cfg.notifySecret, cfg.dryRun)
+	if cfg.queuePath != "" {
+		if err := deliverer.SetQueuePath(cfg.queuePath); err != nil {
+			log.Printf("notifier: failed to load queue from %s: %v", cfg.queuePath, err)
+		} else {
+			log.Printf("notifier: persisting delivery queue at %s", cfg.queuePath)
+		}
+	}
 	sink := eventSink(deliverer.Enqueue)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

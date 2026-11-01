@@ -48,6 +48,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
+StateDirectory=cashstratum-notifier
+StateDirectoryMode=0700
 
 StandardOutput=journal
 StandardError=journal

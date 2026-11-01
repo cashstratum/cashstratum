@@ -1,16 +1,41 @@
 package ui
 
-import "time"
+import (
+	"math"
+	"strconv"
+	"time"
+)
+
+// poolShare is the fraction of the network the pool hashes, on the
+// difficulty basis: rate over the hashrate that difficulty implies at one
+// block per 600 s (D 2^32 / 600). It is the same basis as the expected-blocks
+// figure, so share x 144 equals the blocks per day. Zero when unknown.
+func poolShare(rate, diff float64) float64 {
+	if rate <= 0 || diff <= 0 {
+		return 0
+	}
+	return rate / (diff * 4294967296 / 600)
+}
+
+// fmtPoolShare prints a share fraction as a percentage with two decimals
+// ("1.70%"). Below 0.01% two decimals would print 0.00%, so it switches to
+// parts per million with two significant figures.
+func fmtPoolShare(f float64) string {
+	if f <= 0 || math.IsNaN(f) || math.IsInf(f, 0) {
+		return dash
+	}
+	if pct := f * 100; pct >= 0.01 {
+		return strconv.FormatFloat(pct, 'f', 2, 64) + "%"
+	}
+	return fmtSig(f*1e6) + " ppm"
+}
 
 func renderNetwork(ctx *Context, w, h int) []string {
 	n := ctx.Snap.Network
 	p := ctx.Snap.Pool
 	t := ctx.Theme
 	rate := poolRate(p)
-	share := dash
-	if n.NetHashrate > 0 && rate > 0 {
-		share = fmtSig(rate/n.NetHashrate*1e6) + " ppm"
-	}
+	share := fmtPoolShare(poolShare(rate, n.Difficulty))
 	perDay := dash
 	if eta, ok := ETA(rate, n.Difficulty); ok && eta > 0 {
 		v := float64(day) / float64(eta)
@@ -43,7 +68,7 @@ func renderNetwork(ctx *Context, w, h int) []string {
 	}
 	health := []string{
 		kv(ctx, "rpc", 16, rpc),
-		kv(ctx, "zmq hashblock", 16, ageCoarse(ctx.Now, n.ZMQLast)),
+		kv(ctx, "zmq hashblock", 16, zmqLabel(ctx.Now, n)),
 		kv(ctx, "template age", 16, ageCoarse(ctx.Now, n.TemplateTime)),
 		kv(ctx, "template txs", 16, fmtInt(int64(n.TemplateTxs))),
 		"",

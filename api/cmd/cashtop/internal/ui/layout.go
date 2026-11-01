@@ -80,6 +80,32 @@ type column struct {
 	width int
 	right bool
 	prio  int // lower is kept first when the table is narrow
+	flex  int // when > 0, the widest this column may grow to with spare room
+}
+
+// growFlex returns cols with the kept flex column widened to absorb the room
+// left over in w, up to its flex maximum. Columns without a flex maximum, and
+// every width when nothing is spare, come back unchanged.
+func growFlex(cols []column, keep []bool, w int) []column {
+	used := 0
+	for i, c := range cols {
+		if keep[i] {
+			used += c.width + 1
+		}
+	}
+	spare := w - used
+	if spare <= 0 {
+		return cols
+	}
+	out := make([]column, len(cols))
+	copy(out, cols)
+	for i, c := range out {
+		if keep[i] && c.flex > c.width {
+			out[i].width += min(spare, c.flex-c.width)
+			break
+		}
+	}
+	return out
 }
 
 // fitColumns drops the lowest-priority columns until the table fits w.

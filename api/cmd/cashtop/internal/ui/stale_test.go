@@ -79,7 +79,7 @@ func TestZeroAllAliveRendersDash(t *testing.T) {
 	out := runTea(t, ui.New(prov, ui.Options{Caps: caps, Now: func() time.Time { return fixedNow }}))
 	for _, l := range strings.Split(out, "\n") {
 		if strings.Contains(l, "all alive") {
-			if strings.Contains(l, "0001") || strings.Contains(l, "y ") || !strings.Contains(l, "all alive  -") {
+			if strings.Contains(l, "0001") || strings.Contains(l, "y ") || !strings.Contains(l, "all alive -") {
 				t.Fatalf("unknown streak not a dash: %q", l)
 			}
 			return

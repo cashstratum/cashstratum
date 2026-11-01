@@ -47,7 +47,7 @@ func TestSharesRateLimitAllowsPollingCadence(t *testing.T) {
 	handler := authMiddlewareWithLimiter(limiter, handleShares)
 
 	const remoteAddr = "203.0.113.10:5555"
-	const requests = 31 // > RateLimitRequests(20), still < SharesRateLimitRequests(60)
+	requests := DefaultRateLimitRequests + 11 // > DefaultRateLimitRequests, still < DefaultSharesRateLimitRequests
 	for i := 0; i < requests; i++ {
 		req := authorizedRequest(http.MethodGet, "/shares", key, remoteAddr)
 		rec := httptest.NewRecorder()
@@ -60,7 +60,7 @@ func TestSharesRateLimitAllowsPollingCadence(t *testing.T) {
 }
 
 // (b) Giving /shares its own budget must NOT loosen the default for every
-// other route: the 21st request to a sibling endpoint (/health) from one IP,
+// other route: the (DefaultRateLimitRequests+1)th request to a sibling endpoint (/health) from one IP,
 // through the REAL authMiddleware -> package rateLimiter wiring, is still
 // throttled with 429. The package limiter is swapped for a fresh instance so
 // this test's count starts at zero regardless of what ran before it.
@@ -74,7 +74,7 @@ func TestDefaultRateLimitStillAppliesToSiblingEndpoint(t *testing.T) {
 	handler := authMiddleware(handleHealth)
 
 	const remoteAddr = "203.0.113.20:5555"
-	const requests = 21 // one past RateLimitRequests(20)
+	requests := DefaultRateLimitRequests + 1 // one past DefaultRateLimitRequests
 	var lastCode int
 	for i := 0; i < requests; i++ {
 		req := authorizedRequest(http.MethodGet, "/health", key, remoteAddr)

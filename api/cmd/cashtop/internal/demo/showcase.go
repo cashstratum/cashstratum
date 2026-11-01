@@ -25,7 +25,7 @@ type showRig struct {
 	name   string
 	agent  string
 	rate   float64 // H/s
-	state  byte    // 'l' live, 's' stale, 'o' off
+	state  byte    // 'l' live, 's' stale, 'i' idle, 'o' off
 	lastAs time.Duration
 }
 
@@ -50,6 +50,7 @@ var showRigs = []showRig{
 	{3, "nerdq-1", "NerdQAxe++/v1.0.3", 4.9 * th, 'l', 12 * time.Second},
 	{4, "bitaxe-2", "bitaxe/BM1366/v2.3.0", 0.93 * th, 's', 5 * time.Minute},
 	{4, "nerdq-2", "NerdQAxe++/v1.0.3", 0, 'o', 26 * time.Hour},
+	{2, "s19-f", "cgminer/4.12.1", 0.31 * ph, 'i', 19 * time.Minute},
 	{4, "s19-e", "cgminer/4.12.1", 0.29 * ph, 'l', 8 * time.Second},
 }
 
@@ -91,7 +92,7 @@ func Showcase(o Options) *Provider {
 		Chain: "main", Tip: tip, TipHash: fixturegen.Hash(9001), TipTime: tipTime,
 		Difficulty: netDiff, NetHashrate: netDiff * two32 / 600,
 		MempoolTx: 3412, MempoolBytes: 1_284_906, RPCLatency: 4 * time.Millisecond, RPCOK: true,
-		ZMQLast: tipTime, TemplateTime: now.Add(-23 * time.Second), TemplateTxs: 3388,
+		ZMQLast: tipTime, ZMQConfigured: true, ZMQConnected: true, TemplateTime: now.Add(-23 * time.Second), TemplateTxs: 3388,
 		LastNetBlock: tipTime, PrevDifficulty: netDiff / 1.0042, PrevTipTime: tipTime.Add(-11*time.Minute - 38*time.Second),
 	}
 
@@ -102,7 +103,7 @@ func Showcase(o Options) *Provider {
 	for i, r := range showRigs {
 		name := fmt.Sprintf("user%d.%s", r.user+1, r.name)
 		w := ui.WorkerRow{Name: name, Address: fixturegen.Addr(r.user), UserAgent: r.agent}
-		if r.state != 'o' {
+		if r.state != 'o' && r.state != 'i' {
 			jit := func(spread float64) float64 { return 1 + spread*(rng.Float64()*2-1) }
 			w.Hashrate1m = r.rate * jit(0.03)
 			w.Hashrate5m = r.rate * jit(0.02)
@@ -120,13 +121,17 @@ func Showcase(o Options) *Provider {
 		w.Shares = int64(r.rate/two32*3600*float64(30+i*11)) + int64(rng.IntN(5000))
 		if r.state == 'o' {
 			w.Shares = 38_412
+			w.Hashrate1h = 4.0
+		}
+		if r.state == 'i' {
+			w.Hashrate1h = r.rate * 0.4
+			w.Hashrate1d = r.rate * 0.7
 		}
 		w.LastShare = now.Add(-r.lastAs)
 		conn := time.Duration(9+i*53) * time.Hour
-		if r.state == 'o' {
-			conn = 26 * time.Hour
+		if r.state != 'o' {
+			w.Connected = now.Add(-conn)
 		}
-		w.Connected = now.Add(-conn)
 		if conn > oldest && r.state != 'o' {
 			oldest, oldestName = conn, w.Name
 		}
@@ -189,7 +194,7 @@ func Showcase(o Options) *Provider {
 	// difficulty.
 	frac := []float64{0.0471, 0.0312, 0.0224, 0.0158, 0.0121, 0.0094, 0.0071, 0.0052}
 	who := []int{2, 0, 4, 6, 1, 8, 11, 3}
-	mins := []int{6, 8, 3, 1480, 2900, 4100, 260, 950}
+	mins := []int{6, 8, 3, 14, 22, 31, 39, 47}
 	for i, f := range frac {
 		wi := who[i]
 		s.Workers[wi].BestShare = netDiff * f
@@ -304,13 +309,15 @@ func showShares(s ui.Snapshot, now time.Time, rng *rand.Rand) []poolfmt.Share {
 }
 
 // workerState mirrors the worker state letters used by the showcase table: 'l'
-// live, 's' stale, 'o' off.
+// live, 's' stale, 'i' idle, 'o' off.
 func workerState(w ui.WorkerRow, now time.Time) byte {
 	switch ui.Classify(w, now) {
 	case ui.StateLive:
 		return 'l'
 	case ui.StateStale:
 		return 's'
+	case ui.StateIdle:
+		return 'i'
 	}
 	return 'o'
 }

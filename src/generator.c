@@ -5162,9 +5162,13 @@ static void parse_addproxy(gdata_t *gdata, const int sockd, const char *buf)
 	mutex_lock(&gdata->lock);
 	id = ckpool.proxies++;
 	if (global) {
-		ckpool.proxyurl = realloc(ckpool.proxyurl, sizeof(char **) * ckpool.proxies);
-		ckpool.proxyauth = realloc(ckpool.proxyauth, sizeof(char **) * ckpool.proxies);
-		ckpool.proxypass = realloc(ckpool.proxypass, sizeof(char **) * ckpool.proxies);
+		ckpool.proxyurl = ckrealloc(ckpool.proxyurl, sizeof(char *) * ckpool.proxies);
+		ckpool.proxyauth = ckrealloc(ckpool.proxyauth, sizeof(char *) * ckpool.proxies);
+		ckpool.proxypass = ckrealloc(ckpool.proxypass, sizeof(char *) * ckpool.proxies);
+		if (ckpool.proxyjds) {
+			ckpool.proxyjds = ckrealloc(ckpool.proxyjds, sizeof(char *) * ckpool.proxies);
+			ckpool.proxyjds[id] = NULL;
+		}
 		ckpool.proxyurl[id] = url;
 		ckpool.proxyauth[id] = auth;
 		ckpool.proxypass[id] = pass;
@@ -5835,11 +5839,15 @@ static void proxy_mode(proc_instance_t *pi)
 			create_pthread(&proxy->pth_precv, passthrough_recv, proxy);
 			proxy->passsends = create_ckmsgq("passsend", &passthrough_send);
 		} else {
-			mutex_init(&gdata->psend_lock);
-			cond_init(&gdata->psend_cond);
+			if (!i) {
+				mutex_init(&gdata->psend_lock);
+				cond_init(&gdata->psend_cond);
+			}
 			prepare_proxy(proxy);
-			create_pthread(&gdata->pth_uprecv, userproxy_recv, NULL);
-			create_pthread(&gdata->pth_psend, proxy_send, NULL);
+			if (!i) {
+				create_pthread(&gdata->pth_uprecv, userproxy_recv, NULL);
+				create_pthread(&gdata->pth_psend, proxy_send, NULL);
+			}
 		}
 	}
 

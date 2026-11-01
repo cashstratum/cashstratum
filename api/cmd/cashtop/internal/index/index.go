@@ -62,6 +62,7 @@ type Index struct {
 	gen     int
 	orphans map[int64]bool
 	carry   map[int64]Block // enrichment from before a rescan, by height
+	ctxRead map[int64]bool  // solves/<height>-<hash>.log already parsed
 
 	sigIdx, sigTSV fileSig
 	lastWork       time.Time
@@ -105,7 +106,7 @@ func Open(opt Options) (*Index, error) {
 	if opt.WorkEvery <= 0 {
 		opt.WorkEvery = 5 * time.Second
 	}
-	ix := &Index{opt: opt, orphans: map[int64]bool{}, carry: map[int64]Block{}}
+	ix := &Index{opt: opt, orphans: map[int64]bool{}, carry: map[int64]Block{}, ctxRead: map[int64]bool{}}
 	ix.st = newState()
 	ix.dirty = newDirty(ix.st)
 
@@ -189,7 +190,7 @@ func (ix *Index) resetState() {
 		if b.Status == StatusOrphaned {
 			ix.orphans[h] = true
 		}
-		if b.Reward > 0 || b.Hash != "" {
+		if b.Reward > 0 || b.Hash != "" || b.Luck != nil || b.Proto != "" {
 			ix.carry[h] = *b
 		}
 	}

@@ -57,12 +57,13 @@ func ETA(h, d float64) (time.Duration, bool) {
 // ShareInterval is the expected time between shares at difficulty diff.
 func ShareInterval(diff, h float64) (time.Duration, bool) { return ETA(h, diff) }
 
-// WorkerState classifies a worker as live, stale or off.
+// WorkerState classifies a worker as live, stale, idle or off.
 type WorkerState int
 
 const (
 	StateLive WorkerState = iota
 	StateStale
+	StateIdle
 	StateOff
 )
 
@@ -72,15 +73,21 @@ func (s WorkerState) String() string {
 		return "live"
 	case StateStale:
 		return "stale"
+	case StateIdle:
+		return "idle"
 	}
 	return "off"
 }
 
-// Classify reports a worker's state: off when it has no hashrate, stale when
-// its last share is older than StaleK expected intervals (at least a minute).
+// Classify reports a worker's state. With no recent hashrate it is idle when
+// still connected and off otherwise; with hashrate it is stale when its last
+// share is older than StaleK expected intervals (at least a minute).
 func Classify(w WorkerRow, now time.Time) WorkerState {
 	if w.Hashrate1m <= 0 && w.Hashrate5m <= 0 {
-		return StateOff
+		if w.Connected.IsZero() {
+			return StateOff
+		}
+		return StateIdle
 	}
 	limit := staleFloor.Seconds()
 	if h := w.Hashrate1m; h > 0 && w.Diff > 0 {

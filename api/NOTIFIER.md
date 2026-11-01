@@ -21,10 +21,11 @@ files itself. New installations use `/etc/cashstratum-notifier/cashstratum-notif
 | `CASHSTRATUM_NOTIFY_SECRET` | Shared HMAC secret; required for live delivery |
 | `CASHSTRATUM_CONF_PATH` | Pool configuration with BCHN RPC/ZMQ settings |
 | `CASHSTRATUM_LOG_PATH` | Pool's actual main log, such as `/opt/cashstratum/logs/cashstratum.log` |
+| `CASHSTRATUM_NOTIFY_QUEUE_PATH` | Optional JSON queue file path for persisting pending deliveries across restarts (defaults to `$STATE_DIRECTORY/queue.json` under systemd) |
 | `NOTIFY_DRY_RUN` | Defaults to `true`; set `false` only after receiver verification |
 | `NOTIFIER_POOL_NAME` | Wire envelope pool identifier; defaults to `blocksniper` for existing receivers |
 
-Legacy `BLOCKSNIPER_NOTIFY_URL`, `BLOCKSNIPER_NOTIFY_SECRET`, `CKPOOL_CONF_PATH` and
+Legacy `BLOCKSNIPER_NOTIFY_URL`, `BLOCKSNIPER_NOTIFY_SECRET`, `BLOCKSNIPER_NOTIFY_QUEUE_PATH`, `CKPOOL_CONF_PATH` and
 `CKPOOL_LOG_PATH` remain environment fallbacks. New names take precedence. Without
 an explicit config path, the process searches for `cashstratum.conf` then
 `ckpool.conf` beside or above the configured log directory.

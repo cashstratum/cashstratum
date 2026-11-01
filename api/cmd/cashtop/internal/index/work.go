@@ -64,6 +64,30 @@ func (ix *Index) newestHeightDir() (int64, string, bool) {
 	return best, filepath.Join(ix.logsDir(), name), true
 }
 
+// noteShareWorker remembers the useragent and difficulty of the newest share
+// of a worker the index already tracks (matched by name, or by payout address
+// and rig when the log names carry a network prefix), so they outlive the height directory
+// they came from.
+func (ix *Index) noteShareWorker(sh poolfmt.Share, byKey map[string]*Worker) {
+	w := ix.st.Workers[sh.WorkerName]
+	if w == nil {
+		w = byKey[RoundKey(sh)]
+	}
+	if w == nil {
+		return
+	}
+	changed := false
+	if sh.Agent != "" && w.Agent != sh.Agent {
+		w.Agent, changed = sh.Agent, true
+	}
+	if sh.Diff > 0 && w.LastDiff != sh.Diff {
+		w.LastDiff, changed = sh.Diff, true
+	}
+	if changed {
+		ix.dirty.workers[w.Name] = true
+	}
+}
+
 // scanHeightDir reads the unread part of each sharelog file. It returns
 // false when a file is smaller than what was already counted.
 func (ix *Index) scanHeightDir(dir string) bool {
@@ -79,6 +103,15 @@ func (ix *Index) scanHeightDir(dir string) bool {
 	}
 	sort.Strings(names)
 	s, d := ix.st, ix.dirty
+	byKey := make(map[string]*Worker, len(s.Workers))
+	for _, w := range s.Workers {
+		_, rig := poolfmt.SplitWorker(w.Name)
+		k := poolfmt.NormalizeAddress(w.Address)
+		if rig != "" {
+			k += "." + rig
+		}
+		byKey[k] = w
+	}
 	for _, n := range names {
 		f, err := os.Open(filepath.Join(dir, n))
 		if err != nil {
@@ -108,7 +141,11 @@ func (ix *Index) scanHeightDir(dir string) bool {
 				continue
 			}
 			sh, err := poolfmt.ParseSharelogLine(line)
-			if err != nil || !sh.Result {
+			if err != nil {
+				continue
+			}
+			ix.noteShareWorker(sh, byKey)
+			if !sh.Result {
 				continue
 			}
 			addr := PayoutAddress(sh)
@@ -171,17 +208,19 @@ func (ix *Index) syncSolved() {
 func (ix *Index) mergeSolve(e poolfmt.SolveIndexEntry) {
 	b := ix.st.Blocks[e.Height]
 	changed := false
+	status := StatusAccepted
+	switch u := strings.ToUpper(e.Outcome); {
+	case strings.Contains(u, "REJECT"):
+		status = StatusRejected
+	case strings.Contains(u, "ORPHAN"):
+		status = StatusOrphaned
+	}
 	if b == nil {
-		status := StatusAccepted
-		switch u := strings.ToUpper(e.Outcome); {
-		case strings.Contains(u, "REJECT"):
-			status = StatusRejected
-		case strings.Contains(u, "ORPHAN"):
-			status = StatusOrphaned
-		}
 		b = &Block{Height: e.Height, Status: status}
 		ix.st.Blocks[e.Height] = b
 		changed = true
+	} else if status != StatusAccepted && b.Status != status {
+		b.Status, changed = status, true
 	}
 	if b.Hash == "" && e.Hash != "" {
 		b.Hash, changed = e.Hash, true
@@ -192,8 +231,53 @@ func (ix *Index) mergeSolve(e poolfmt.SolveIndexEntry) {
 	if b.Time.IsZero() && e.HasTime {
 		b.Time, changed = e.Time, true
 	}
+	// The context file is written once at solve time and never changes, so a
+	// block that still lacks an effort line after one read will never gain one;
+	// ctxRead stops the file being re-read on every sync.
+	if (b.Luck == nil || b.Proto == "" || b.Finder == "") && ix.opt.Root != "" && !ix.ctxRead[e.Height] {
+		ctxName := filepath.Base(e.ContextFile)
+		if (ctxName == "" || ctxName == ".") && e.Hash != "" {
+			ctxName = strconv.FormatInt(e.Height, 10) + "-" + e.Hash + ".log"
+		}
+		if ctxName != "" && ctxName != "." {
+			if raw, err := os.ReadFile(filepath.Join(ix.opt.Root, "solves", ctxName)); err == nil {
+				ix.ctxRead[e.Height] = true
+				var j poolfmt.Joiner
+				for _, line := range strings.Split(string(raw), "\n") {
+					for _, joined := range j.Feed(strings.TrimRight(line, "\r"), 0) {
+						ix.applySolveContextEvent(b, poolfmt.ParseLine(joined.Line), &changed)
+					}
+				}
+				for _, joined := range j.Flush() {
+					ix.applySolveContextEvent(b, poolfmt.ParseLine(joined.Line), &changed)
+				}
+			}
+		}
+	}
 	if changed {
 		ix.dirty.blocks[e.Height] = true
+	}
+}
+
+func (ix *Index) applySolveContextEvent(b *Block, ev poolfmt.Event, changed *bool) {
+	switch ev.Kind {
+	case poolfmt.KindSolveShares:
+		if b.Luck == nil {
+			l := ev.Percent
+			b.Luck, *changed = &l, true
+		}
+	case poolfmt.KindSolved, poolfmt.KindSV2Accepted:
+		if ev.Height == b.Height {
+			if b.Proto == "" && ev.Protocol != "" {
+				b.Proto, *changed = ev.Protocol, true
+			}
+			if b.Finder == "" && ev.Worker != "" {
+				b.Finder, *changed = ev.Worker, true
+			}
+			if b.Time.IsZero() && ev.HasTime {
+				b.Time, *changed = ev.Time, true
+			}
+		}
 	}
 }
 
@@ -288,7 +372,7 @@ func (ix *Index) syncRound() {
 			continue
 		}
 		v, err := strconv.ParseInt(n, 16, 64)
-		if err != nil || v < h || (have && at.IsZero() && v == h) {
+		if err != nil || v < h || (have && v == h) {
 			continue
 		}
 		dirs = append(dirs, hd{v, n})
@@ -352,6 +436,12 @@ func (ix *Index) scanRoundFile(path, key string) {
 		}
 		k := RoundKey(sh)
 		if k == "" {
+			continue
+		}
+		// A block-sized share belongs to a solve (confirmed, rejected or on a
+		// stale job), never to the round; keeping it as the worker's single
+		// maximum would hide every real share behind it.
+		if sh.IsBlock(s.NetDiff) {
 			continue
 		}
 		if cur, ok := s.Round.Best[k]; !ok || sh.SDiff > cur.Diff {

@@ -116,6 +116,30 @@ tree until those checks and runtime verification succeed. Installers do not prov
 that a historical protection index is complete. See the cleanup script's help
 before importing a verified index and scheduling deletion.
 
+## After upgrading from 1.3.1 or earlier
+
+Up to 1.3.1, the share that solved a block could be kept as the finder's
+round best (`bestshare`), so a users file can carry a round best at or above the
+network difficulty. The daemon now drops any restored round best at or above the
+network difficulty on its own when the first workbase arrives after start, for
+every user and worker. All-time bests (`bestever`) are left alone.
+
+To also start every round afresh, reset the round once after the upgrade. Wait
+for the first stats write after the restart (about one minute; the users files
+under `logs/users/` are rewritten), then run, from the installation directory:
+
+```sh
+printf 'resetshares\n' | ./ckpmsg -n cashstratum -s /tmp -N stratifier
+```
+
+`-n` is the instance name the service runs with (`-n cashstratum` in the
+generated unit) and `-s` is the parent of its socket directory (`/tmp` unless the
+daemon was started with its own `-s`). The reset applies to **every user**: each
+user's and worker's round best and round shares go to zero, so per-user luck
+restarts for everyone, and the pool-wide round counters reset too. `bestever`,
+total shares and hashrates are untouched. The change reaches the users files at
+the next stats write, so do not restart the daemon again within that minute.
+
 ## Interactive installation from a checkout
 
 `bash install-cashstratum.sh` builds the current directory and prompts for an

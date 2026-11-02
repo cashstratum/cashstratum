@@ -2111,7 +2111,11 @@ func handleCoinbase(w http.ResponseWriter, r *http.Request) {
 		log.Printf("/coinbase: could not extend write deadline: %v", err)
 	}
 
-	result, err := getCoinbaseProof(r.Context(), username, candidateHeight, fetchCoinbaseFromStratum)
+	// A cache miss is answered from the per-height template when the address
+	// decodes, and by a per-user Stratum probe otherwise (fetchCoinbaseProof).
+	result, err := getCoinbaseProof(r.Context(), username, candidateHeight, func(user string) coinbaseFetchResult {
+		return fetchCoinbaseProof(user, candidateHeight)
+	})
 	if err != nil {
 		return
 	}
@@ -2121,34 +2125,109 @@ func handleCoinbase(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result.response)
 }
 
+// stratumJob is the raw material one Stratum probe yields: the job's two
+// coinbase halves plus the connection's extranonce layout.
+type stratumJob struct {
+	coinb1      string
+	coinb2      string
+	extranonce1 string
+	en2Size     int
+	networkBits string
+}
+
 func fetchCoinbaseFromStratum(username string) coinbaseFetchResult {
 	response := CoinbaseResponse{
 		Username:  username,
 		Timestamp: time.Now().Unix(),
 	}
 
+	// Authorise as "<user>."+ProbeWorkerSuffix so the phantom worker this creates is
+	// obviously ours in the miner's stats. canonicalAuthUser both selects the
+	// payout token the same way ckpool does (splitting on EITHER '.' or '_',
+	// src/stratifier.c:5466) and canonicalises a CashAddr spelling -- so this
+	// probe never authorises a bare address ckpool already knows in prefixed
+	// form and mints a shadow user.
+	authUser := canonicalAuthUser(username) + "." + ProbeWorkerSuffix
+
+	// The subscribe parameter is the USERAGENT, not the username -- naming it
+	// after the caller keeps these probes identifiable in the pool log.
+	job, failed, ok := probeStratumJob(response, username+"/api", authUser)
+	if !ok {
+		return failed
+	}
+
+	// Rebuild the coinbase exactly as a miner does:
+	//     coinb1 + extranonce1 + extranonce2 + coinb2
+	//
+	// coinb1 already declares the FULL scriptSig length, extranonce included, so
+	// concatenating coinb1+coinb2 alone leaves the parser 12 bytes short (4 for
+	// extranonce1, 8 for extranonce2) and every output offset after it is wrong.
+	// Measured against this pool 2026-08-28, the truncated form parsed as ONE
+	// output of -5970863856677875828 sats (-59,708,638,566 BCH) instead of the
+	// real two-output 98/2 split. extranonce2 is zero-filled: its value does not
+	// affect the outputs, only its length matters for the offsets.
+	coinbaseHex := job.coinb1 + job.extranonce1 +
+		strings.Repeat("00", job.en2Size) + job.coinb2
+	return finishCoinbaseResponse(response, coinbaseHex, job.coinb1, job.networkBits)
+}
+
+// finishCoinbaseResponse fills every derived CoinbaseResponse field from a
+// full coinbase transaction and its coinb1. It is the single tail shared by
+// the per-user probe and the template splice, so both report identical
+// fields for identical bytes.
+func finishCoinbaseResponse(response CoinbaseResponse, coinbaseHex, coinb1, networkBits string) coinbaseFetchResult {
+	response.CoinbaseHex = coinbaseHex
+	response.NetworkBits = networkBits
+
+	// Extract coinbase message from part1
+	if msg := extractCoinbaseMessage(coinb1); msg != "" {
+		response.CoinbaseMessage = msg
+	}
+
+	// Extract block height from part1
+	if height := extractBlockHeight(coinb1); height != nil {
+		response.BlockHeight = height
+	}
+
+	// Parse outputs from the FULL coinbase transaction (coinb1+coinb2).
+	// coinb2 alone is ~12 bytes and cannot contain the outputs — parsing it
+	// was what made /coinbase report a single bogus multi-million-BCH output.
+	outputs, totalValue := parseCoinbaseOutputs(response.CoinbaseHex)
+	response.Outputs = outputs
+	response.TotalValue = totalValue
+	response.TotalValueBCH = fmt.Sprintf("%.8f", float64(totalValue)/100000000.0)
+
+	return coinbaseFetchResult{response: response, status: http.StatusOK}
+}
+
+// probeStratumJob opens one Stratum session to stratumHost, subscribes with
+// useragent, authorises authUser and returns the job the pool issues to it.
+// On failure ok is false and failed carries response with Error set and the
+// status /coinbase answers with.
+func probeStratumJob(response CoinbaseResponse, useragent, authUser string) (job stratumJob, failed coinbaseFetchResult, ok bool) {
+	fail := func(status int, format string, args ...any) (stratumJob, coinbaseFetchResult, bool) {
+		response.Error = fmt.Sprintf(format, args...)
+		return stratumJob{}, coinbaseFetchResult{response: response, status: status}, false
+	}
+
 	// Connect to stratum
-	conn, err := net.DialTimeout("tcp", DefaultStratumHost, 5*time.Second)
+	conn, err := net.DialTimeout("tcp", stratumHost, 5*time.Second)
 	if err != nil {
-		response.Error = fmt.Sprintf("Failed to connect to pool: %v", err)
-		return coinbaseFetchResult{response: response, status: http.StatusOK}
+		return fail(http.StatusOK, "Failed to connect to pool: %v", err)
 	}
 	defer conn.Close()
 
 	conn.SetDeadline(time.Now().Add(stratumJobDeadline))
 
-	// Send mining.subscribe. The parameter is the USERAGENT, not the username --
-	// naming it after the caller keeps these probes identifiable in the pool log.
 	subscribe := StratumSubscribe{
 		ID:     1,
 		Method: "mining.subscribe",
-		Params: []interface{}{username + "/api"},
+		Params: []interface{}{useragent},
 	}
 
 	encoder := json.NewEncoder(conn)
 	if err := encoder.Encode(subscribe); err != nil {
-		response.Error = fmt.Sprintf("Failed to send subscribe: %v", err)
-		return coinbaseFetchResult{response: response, status: http.StatusOK}
+		return fail(http.StatusOK, "Failed to send subscribe: %v", err)
 	}
 
 	// Read responses
@@ -2158,10 +2237,8 @@ func fetchCoinbaseFromStratum(username string) coinbaseFetchResult {
 	// would end the scan silently and be misreported below as an authorisation
 	// failure. Raise the cap so only a genuine transport fault stops the scan.
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	var coinbasePart1, coinbasePart2, networkBits string
-	var extranonce1 string
-	var extranonce2Size int
 	authorized := false
+	haveJob := false
 
 	// In btcsolo mode (-B) ckpool builds a workbase PER USER, at authorise time
 	// (src/stratifier.c, generate_user()). A client that only subscribes is
@@ -2170,19 +2247,18 @@ func fetchCoinbaseFromStratum(username string) coinbaseFetchResult {
 	// received the caller's own coinbase. So the username has to be authorised,
 	// not merely passed as a useragent, or this endpoint returns nothing.
 	//
-	// Authorise as "<user>."+ProbeWorkerSuffix so the phantom worker this creates is
-	// obviously ours in the miner's stats. canonicalAuthUser both selects the
-	// payout token the same way ckpool does (splitting on EITHER '.' or '_',
-	// src/stratifier.c:5466) and canonicalises a CashAddr spelling -- so this
-	// probe never authorises a bare address ckpool already knows in prefixed
-	// form and mints a shadow user.
-	authUser := canonicalAuthUser(username) + "." + ProbeWorkerSuffix
-
+	// ckpool queues the authorised user's job (parse_authorise ->
+	// update_solo_client) BEFORE it sends the authorise reply
+	// (sauth_process -> send_yyauth_response), so in btcsolo the job normally
+	// arrives first. In pooled mode every job pays the pool, so any job is the
+	// same proof. Either way a job held when the reply says true is this
+	// user's job: finish on whichever of the two arrives second, instead of
+	// waiting up to update_interval for the next broadcast.
 	for i := 0; i < 24 && scanner.Scan(); i++ {
 		line := scanner.Text()
 
 		// The subscribe reply carries extranonce1 and extranonce2_size, both of
-		// which are needed to rebuild the coinbase (see below).
+		// which are needed to rebuild the coinbase.
 		var resp struct {
 			ID     int             `json:"id"`
 			Result json.RawMessage `json:"result"`
@@ -2190,9 +2266,9 @@ func fetchCoinbaseFromStratum(username string) coinbaseFetchResult {
 		if json.Unmarshal([]byte(line), &resp) == nil && resp.ID == 1 && len(resp.Result) > 0 {
 			var parts []interface{}
 			if json.Unmarshal(resp.Result, &parts) == nil && len(parts) >= 3 {
-				extranonce1, _ = parts[1].(string)
+				job.extranonce1, _ = parts[1].(string)
 				if f, ok := parts[2].(float64); ok {
-					extranonce2Size = int(f)
+					job.en2Size = int(f)
 				}
 			}
 			if err := encoder.Encode(StratumSubscribe{
@@ -2200,15 +2276,19 @@ func fetchCoinbaseFromStratum(username string) coinbaseFetchResult {
 				Method: "mining.authorize",
 				Params: []interface{}{authUser, "x"},
 			}); err != nil {
-				response.Error = fmt.Sprintf("Failed to send authorize: %v", err)
-				return coinbaseFetchResult{response: response, status: http.StatusOK}
+				return fail(http.StatusOK, "Failed to send authorize: %v", err)
 			}
 			continue
 		}
 		if json.Unmarshal([]byte(line), &resp) == nil && resp.ID == 2 {
-			var ok bool
-			if json.Unmarshal(resp.Result, &ok) == nil {
-				authorized = ok
+			var accepted bool
+			if json.Unmarshal(resp.Result, &accepted) == nil {
+				authorized = accepted
+			}
+			// A refusal is final, and an acceptance with a job in hand is
+			// complete. Only an acceptance with no job yet keeps reading.
+			if !authorized || haveJob {
+				break
 			}
 			continue
 		}
@@ -2217,15 +2297,15 @@ func fetchCoinbaseFromStratum(username string) coinbaseFetchResult {
 		if err := json.Unmarshal([]byte(line), &notify); err == nil {
 			if notify.Method == "mining.notify" && len(notify.Params) >= 9 {
 				if cb1, ok := notify.Params[2].(string); ok {
-					coinbasePart1 = cb1
+					job.coinb1 = cb1
 				}
 				if cb2, ok := notify.Params[3].(string); ok {
-					coinbasePart2 = cb2
+					job.coinb2 = cb2
 				}
 				if bits, ok := notify.Params[6].(string); ok {
-					networkBits = bits
+					job.networkBits = bits
 				}
-				// Only a post-authorise job is this user's job.
+				haveJob = true
 				if authorized {
 					break
 				}
@@ -2246,7 +2326,6 @@ func fetchCoinbaseFromStratum(username string) coinbaseFetchResult {
 		if authorized {
 			stage = "after authorisation, while waiting for a job"
 		}
-		response.Error = fmt.Sprintf("Stratum read failed %s: %v", stage, err)
 
 		// A read deadline expiring with no job is a real, expected outcome on
 		// an idle pool (ckpool only broadcasts every update_interval
@@ -2258,52 +2337,19 @@ func fetchCoinbaseFromStratum(username string) coinbaseFetchResult {
 		if ne, ok := err.(net.Error); ok && ne.Timeout() {
 			status = http.StatusGatewayTimeout
 		}
-		return coinbaseFetchResult{response: response, status: status}
+		return fail(status, "Stratum read failed %s: %v", stage, err)
 	}
 
+	// A refused authorisation never yields a proof, even with a job held.
 	if !authorized {
-		response.Error = fmt.Sprintf("Pool did not authorise %s -- a username that is neither a valid BCH address nor a plain name is rejected outright", authUser)
-		return coinbaseFetchResult{response: response, status: http.StatusOK}
+		return fail(http.StatusOK, "Pool did not authorise %s -- a username that is neither a valid BCH address nor a plain name is rejected outright", authUser)
 	}
 
-	if coinbasePart1 == "" || coinbasePart2 == "" {
-		response.Error = "Failed to get coinbase from pool"
-		return coinbaseFetchResult{response: response, status: http.StatusOK}
+	if job.coinb1 == "" || job.coinb2 == "" {
+		return fail(http.StatusOK, "Failed to get coinbase from pool")
 	}
 
-	// Rebuild the coinbase exactly as a miner does:
-	//     coinb1 + extranonce1 + extranonce2 + coinb2
-	//
-	// coinb1 already declares the FULL scriptSig length, extranonce included, so
-	// concatenating coinb1+coinb2 alone leaves the parser 12 bytes short (4 for
-	// extranonce1, 8 for extranonce2) and every output offset after it is wrong.
-	// Measured against this pool 2026-08-28, the truncated form parsed as ONE
-	// output of -5970863856677875828 sats (-59,708,638,566 BCH) instead of the
-	// real two-output 98/2 split. extranonce2 is zero-filled: its value does not
-	// affect the outputs, only its length matters for the offsets.
-	response.CoinbaseHex = coinbasePart1 + extranonce1 +
-		strings.Repeat("00", extranonce2Size) + coinbasePart2
-	response.NetworkBits = networkBits
-
-	// Extract coinbase message from part1
-	if msg := extractCoinbaseMessage(coinbasePart1); msg != "" {
-		response.CoinbaseMessage = msg
-	}
-
-	// Extract block height from part1
-	if height := extractBlockHeight(coinbasePart1); height != nil {
-		response.BlockHeight = height
-	}
-
-	// Parse outputs from the FULL coinbase transaction (coinb1+coinb2).
-	// coinb2 alone is ~12 bytes and cannot contain the outputs — parsing it
-	// was what made /coinbase report a single bogus multi-million-BCH output.
-	outputs, totalValue := parseCoinbaseOutputs(response.CoinbaseHex)
-	response.Outputs = outputs
-	response.TotalValue = totalValue
-	response.TotalValueBCH = fmt.Sprintf("%.8f", float64(totalValue)/100000000.0)
-
-	return coinbaseFetchResult{response: response, status: http.StatusOK}
+	return job, coinbaseFetchResult{}, true
 }
 
 // readVarint reads a Bitcoin compact-size integer at data[offset].
@@ -2655,6 +2701,7 @@ func newMux() *http.ServeMux {
 	mux.HandleFunc("/grep", authMiddleware(handleGrep))
 	mux.HandleFunc("/find-block", authMiddleware(handleFindBlock))
 	mux.HandleFunc("/user-file", authMiddleware(handleUserFile))
+	mux.HandleFunc("/users", authMiddleware(handleUsers))
 	mux.HandleFunc("/stats", authMiddleware(handleStats))
 	mux.HandleFunc("/user-log", authMiddleware(handleUserLog))
 	mux.HandleFunc("/coinbase", authMiddleware(handleCoinbase))
@@ -2757,6 +2804,12 @@ func main() {
 		btcdRPC = ckconf.LoadBtcdRPC(confPath)
 		stratumJobDeadline = ckconf.LoadUpdateInterval(confPath) + stratumDeadlineSlack
 		log.Printf("Stratum job deadline: %s (update_interval from %s + %s slack)", stratumJobDeadline, confPath, stratumDeadlineSlack)
+		coinbaseTemplateIdentity = templateProbeIdentity(ckconf.LoadPoolAddress(confPath))
+	}
+	if coinbaseTemplateIdentity != "" {
+		log.Printf("/coinbase template probe identity: pool fee address from conf")
+	} else {
+		log.Printf("/coinbase template probe identity: no usable pooladdress -- probing as the requesting address")
 	}
 
 	// Log startup information

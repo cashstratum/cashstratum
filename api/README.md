@@ -35,6 +35,7 @@ its own 60 requests/minute budget and no response cache.
 | `GET /stats` | parsed pool stats — hashrate, workers, users, plus the node's own chain view |
 | `GET /user-log?user=&lines=N` | tail one miner's log |
 | `GET /user-file?user=` | one miner's full status file |
+| `GET /users?active_since=&workers=` | pool totals plus every miner's status file in one response, no node RPC — see [operator-api.md](../docs/operator-api.md#get-users) |
 | `GET /coinbase?user=NAME` | decode the coinbase this miner is currently working on — see [COINBASE_API.md](COINBASE_API.md) |
 | `GET /shares?since=&user=&limit=` | poll new sharelog records with a resumable cursor (`since`) — see [below](#get-shares) |
 | `GET /metrics` | service-level counters |
@@ -51,9 +52,10 @@ except on `/ping` (GET/HEAD). No `/` route exists, so `GET /` returns 404.
 | `/grep?pattern=` | Bearer | main log, grep of the last 500 lines, cached | `lines`, `pattern`, `timestamp` |
 | `/find-block?height=` | Bearer | main log, three patterns with `-C 5` | `found`, `lines`, `height`, `timestamp`, `error?` |
 | `/user-file?user=` | Bearer | `<userLogPath>/<addr>`, up to 1 MB | `username`, `content` (the file's JSON), `raw?`, `error?` |
+| `/users?active_since=&workers=` | Bearer | `pool.status` plus every file in `<userLogPath>`, snapshot cached ≤ 30 s, no node RPC | `pool`, `users`, `skipped`, `timestamp` |
 | `/stats` | Bearer | regex scrape of the last 200 main-log lines plus node `getblockchaininfo` | `hashrate`, `workers`, `users`, `transactions`, `block_height`, `node?`, `timestamp`, `error?` |
 | `/user-log?user=` | Bearer | `tail -n` of the user file | `lines`, `exists`, `username?`, `timestamp` |
-| `/coinbase?user=&candidate_height=` | Bearer | live stratum probe | see [COINBASE_API.md](COINBASE_API.md) |
+| `/coinbase?user=&candidate_height=` | Bearer | per-height template spliced per address; per-user stratum probe as fallback | see [COINBASE_API.md](COINBASE_API.md) |
 | `/shares?user=&limit=&since=` | Bearer, own limiter | `<logdir>/<%08x height>/*.sharelog` | `shares[]`, `height`, `next_cursor?`, `timestamp`, `error?` |
 | `/health` | Bearer | stat of the log file | `status`, `timestamp`, `log_exists`, `log_size`, `uptime`, `version` |
 | `/metrics` | Bearer | in-process counters | `uptime`, `requests_total`, `errors_total`, `rate_limit_entries`, `cache_entries`, `timestamp` |

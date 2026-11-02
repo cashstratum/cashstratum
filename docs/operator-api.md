@@ -331,6 +331,104 @@ Every other field passes through untouched.
 
 ---
 
+### `GET /users`
+
+Pool totals and every miner's status file in one response, read from the files the engine already
+writes. It makes **no node RPC**. Use it for a fleet view; use `/user-file` for one miner.
+
+```bash
+curl -H "$AUTH" "$POOL/users?active_since=1793638000&workers=1"
+```
+
+| Param | Meaning |
+|---|---|
+| `active_since=<unix>` | Keep only users whose `lastshare` is ≥ the value. A user with no `lastshare` is dropped when this filter is set. A non-integer or negative value returns **`400`**. |
+| `workers=1` or `workers=true` | Include each user's `worker` array. Without it, `worker` is removed from every user. |
+
+```json
+{
+  "pool": {
+    "runtime": 98463,
+    "lastupdate": 1793638507,
+    "Users": 6,
+    "Workers": 11,
+    "Idle": 3,
+    "Disconnected": 9,
+    "hashrate1m": "112P",
+    "hashrate5m": "107P",
+    "hashrate15m": "111P",
+    "hashrate1hr": "121P",
+    "hashrate6hr": "98.6P",
+    "hashrate1d": "83.2P",
+    "hashrate7d": "49.3P",
+    "diff": 83.04,
+    "luck": 83.04,
+    "accepted": 451593215252,
+    "rejected": 127629841,
+    "bestshare": 471171079910,
+    "SPS1m": 1.29,
+    "SPS5m": 1.28,
+    "SPS15m": 1.3,
+    "SPS1h": 1.36
+  },
+  "users": [
+    {
+      "hashrate1m": "102",
+      "hashrate5m": "84.7M",
+      "hashrate1hr": "9.25G",
+      "hashrate1d": "3.1G",
+      "hashrate7d": "519M",
+      "lastshare": 1793635713,
+      "workers": 0,
+      "shares": 80000,
+      "roundshares": 80000,
+      "bestshare": 445222.83518990397,
+      "luck": 0.000014710457495446335,
+      "networkdiff": 543830808965.41956,
+      "authorised": 1793608663,
+      "rejected": 10000,
+      "rejectedcount": 2,
+      "user": "bitcoincash:qzxq…4u",
+      "worker": []
+    }
+  ],
+  "skipped": 0,
+  "timestamp": 1793638600
+}
+```
+
+The example is abridged. Values are illustrative; the shape is what matters.
+
+- **`pool`** is the three lines of `pool.status` merged into one object. Keys pass through **as the
+  engine writes them**, so the casing is mixed (`Users`, `Workers`, `SPS1m`, `hashrate1m`). Do not
+  normalise them in a client that matches on names.
+- **`users`** holds each user's status file content, the same fields `/user-file` returns in
+  `content`, plus **`user`**, the file name. The name is the canonical on-disk identity, including
+  any `bitcoincash:` prefix. Users are sorted by name.
+- **Hashrates are suffixed strings** (`"102"`, `"84.7M"`, `"9.25G"`), not numbers. Parse the suffix
+  yourself, as with `/user-file`.
+- **`luck` is a percent**, unrounded per user. Its precision is the engine's, so do not compare
+  it with equality.
+- **`worker`** appears only with `workers=1`. Probe workers (`<user>.cashstratum-api`) are filtered
+  out, and the rest are annotated the same way as on `/user-file`. The top-level **`workers`** count
+  is always the file's own value, unchanged by `workers=1`. It is never recomputed from the array,
+  so it **can differ from `len(worker)`** once probe workers are filtered out, and it can be larger.
+  A count of `0` next to a non-empty `worker` is expected when the engine's counter has decayed.
+- **`skipped`** counts files left out of this response. A file that is being rewritten is re-read
+  once; if it still cannot be read, the last good copy of that file is used. A file is counted in
+  `skipped` only when there is no good copy yet, or when it is larger than 1 MB.
+- **Freshness.** The snapshot is reused for at most 30 s. It is rebuilt sooner when `pool.status`
+  changes on disk, which is checked on every request. `timestamp` is when the response was built.
+- **Cost.** One request in the default rate-limit bucket, including a cache hit. The budget is
+  charged after authentication. No node RPC is made.
+- **Errors.** **`503`** with `{"error": "pool status unavailable"}` when `pool.status` cannot be read
+  or parsed and no earlier good copy exists, or `{"error": "users directory unavailable"}` when the
+  users directory cannot be listed. The response never includes file paths; the detail is written
+  to the server log. Retry after a short wait; a 503 means the files are unavailable, not that the
+  pool has no miners.
+
+---
+
 ### `GET /user-log`
 
 `?user=&lines=N` — tails the same per-user file as raw lines.
@@ -447,10 +545,23 @@ resumes at the oldest surviving height directory **at or above** that height, ne
 `?user=` — decodes the coinbase transaction of the **current candidate block template**. This is
 not proof of a found block.
 
-Each uncached call authorises a temporary probe worker against the pool and waits for the pool to
-broadcast a mining job. The response is cached for 10 seconds per username. On an idle pool this
-can take up to the engine's `update_interval` (default 30 s) plus slack, and returns **`504`**
-with a JSON body if the job never arrives.
+**Per-height template.** `/coinbase` now answers from one cached job per block height. It probes
+the pool once for that height, under a fixed identity, and keeps that job as the template. Every
+address is then answered by splicing its own payout output into the template, so a viewer does not
+cost a probe of its own. The configured pool fee address (`pooladdress` in the engine config) is
+the probe identity when it is set. Without it, the first requesting address is used.
+
+The per-user probe described below is only the **fallback**. It runs when the username is not a
+CashAddr, decodes to a different network than the pool's, when `candidate_height` is older than the
+template, or when no template can be had. The response fields are the same on both paths.
+`extranonce1` in a spliced answer is a sample from the template probe, and `extranonce2` is zeros,
+exactly as in a probe answer. A block that is actually found carries the finding miner's own bytes.
+
+Each uncached fallback call authorises a temporary probe worker against the pool. The probe returns
+as soon as it holds both the mining job and the authorise reply, so it no longer waits for the next
+broadcast. The response is cached for 10 seconds per username. If no job has arrived yet, the probe
+waits up to the engine's `update_interval` (default 30 s) plus slack, and returns **`504`** with a
+JSON body if the job never arrives.
 
 ```bash
 curl -H "$AUTH" "$POOL/coinbase?user=anonymous"

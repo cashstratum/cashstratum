@@ -4,7 +4,7 @@
 
 The `/coinbase` endpoint connects to your CashStratum stratum server, retrieves the **current candidate block template's coinbase transaction**, and returns detailed information about it including pool fee splits and block height.
 
-**Important:** This endpoint returns the template the pool is currently working on, not proof of a found block. Each uncached request costs one short-lived stratum authorisation (a temporary phantom worker named `<user>.cashstratum-api`). Concurrent matching requests for the same username share one probe; different candidate heights queue behind that username's active probe and resolve separately. On an idle pool with infrequent work broadcasts, the endpoint can take up to the pool's `update_interval` (default 30 seconds) plus 5 seconds of network slack to receive a job, and returns HTTP 504 (Gateway Timeout) with a JSON error body if the job never arrives.
+**Important:** This endpoint returns the template the pool is currently working on, not proof of a found block. Answers come from a per-height template (see **Per-height template** below), so most requests cost no stratum probe of their own. An uncached request that falls back to a per-user probe costs one short-lived stratum authorisation (a temporary phantom worker named `<user>.cashstratum-api`). Concurrent matching requests for the same username share one probe; different candidate heights queue behind that username's active probe and resolve separately. A probe returns once it holds both the job and the authorise reply. If no job has arrived yet, it can wait up to the pool's `update_interval` (default 30 seconds) plus 5 seconds of network slack, and returns HTTP 504 (Gateway Timeout) with a JSON error body if the job never arrives.
 
 Use this for display purposes — to show miners what they're working toward if a block is found right now — rather than for critical mining decisions.
 
@@ -141,6 +141,26 @@ print(f"Miner reward: {data['outputs'][0]['value_bch']} BCH")
 print(f"Pool fee: {data['outputs'][1]['value_bch']} BCH")
 ```
 
+## Per-height template
+
+`/coinbase` answers from **one cached job per block height**, not from a probe per viewer.
+
+- **One probe per height.** The server probes the pool once for the current height under a fixed
+  identity and keeps that job as the template. The configured pool fee address (`pooladdress`) is
+  that identity when it is set. Without it, the requesting address is used.
+- **Splicing.** Each address that decodes as a CashAddr on the pool's network gets its own payout
+  output spliced into the template. The coinbase bytes, outputs and totals in the response are the
+  ones a per-user probe would have returned for that address.
+- **Fallback.** The per-user probe is used only when the username is not a CashAddr, decodes to a
+  different network, has a `candidate_height` older than the template, or when no template can be
+  had. A per-user probe makes the pool create that user and a per-workbase entry that lives until
+  the engine restarts, which is why it is kept to the fallback cases.
+- **Unchanged contract.** The response fields are the same on both paths. `extranonce1` in a spliced
+  answer is the template probe's sample, and `extranonce2` is zeros, exactly as in a probe answer.
+  A block that is actually found carries the finding miner's own bytes in those positions.
+- **Faster probe.** The fallback probe returns as soon as it holds both the mining job and the
+  authorise reply. It no longer waits for the next broadcast after both have arrived.
+
 ## Caching and Performance
 
 - With `candidate_height`, a successful proof is cached by **username plus the decoded block
@@ -260,9 +280,10 @@ The endpoint connects to the stratum server at `127.0.0.1:3333` by default. This
 ## Performance and Timeouts
 
 - **Stratum connection timeout:** 5 seconds (if stratum is unreachable)
-- **Stratum job deadline:** `update_interval` + 5 s (default: 35 seconds total). This is how long
-  the handler waits for a mining job broadcast after authorization succeeds. On an idle pool this
-  legitimately expires and the handler returns HTTP 504.
+- **Stratum job deadline:** `update_interval` + 5 s (default: 35 seconds total). This is the most a
+  probe waits for a mining job. The probe returns as soon as it holds both the job and the
+  authorise reply, so the full wait applies only when no job has arrived yet. On an idle pool that
+  wait can legitimately expire, and the handler returns HTTP 504.
 - **HTTP write deadline:** job deadline + 5 s extra (for encoding and sending the JSON response)
 - **Response cache:** candidate-scoped when `candidate_height` is supplied; otherwise 10 seconds per
   username

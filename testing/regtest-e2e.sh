@@ -1055,13 +1055,18 @@ scenario_8_per_user_round_independence() {
 	# solve would move the pool-wide counters asserted above. Waiting for
 	# A's share count to grow past the post-solve read guarantees the file
 	# reflects at least one share after the solve, not the solve alone.
-	local post_a_shares pid_a2 bound_a bound_jq
+	# The 300 s wait is deliberately generous: it covers the miner's
+	# connect/authorise plus up to one 30 s stats cycle on a slow runner.
+	local post_a_shares pid_a2 bound_a bound_jq bound_t0 bound_elapsed
 	post_a_shares=$(printf '%s' "$post_a" | jq -r '.shares // 0')
 	bound_jq=".shares > $post_a_shares and (.networkdiff as \$n | .bestshare < \$n and ([.worker[]?.bestshare] | all(. < \$n)))"
 	pid_a2=$(run_miner "${addr_a}.w1")
-	if bound_a=$(wait_for_user_field "$addr_a" "$bound_jq" 150); then
+	bound_t0=$SECONDS
+	if bound_a=$(wait_for_user_field "$addr_a" "$bound_jq" 300); then
 		check "scenario8: A's bestshare and every worker bestshare stay below networkdiff after a further share" "true"
 	else
+		bound_elapsed=$((SECONDS - bound_t0))
+		log "scenario8: bound wait timed out after ${bound_elapsed}s (post-solve shares=$post_a_shares) -- last read: shares=$(printf '%s' "$bound_a" | jq -r '.shares // -1') bestshare=$(printf '%s' "$bound_a" | jq -r '.bestshare // -1') workers=$(printf '%s' "$bound_a" | jq -c '[.worker[]? | .bestshare]') networkdiff=$(printf '%s' "$bound_a" | jq -r '.networkdiff // -1')"
 		check "scenario8: A's bestshare and every worker bestshare stay below networkdiff after a further share" "false"
 	fi
 	stop_miner "$pid_a2"

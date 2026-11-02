@@ -9,6 +9,29 @@ says so rather than implying one.
 
 ## Unreleased
 
+## 1.5.0 — 2026-11-02
+
+API only. **The stratum server is unchanged:** nothing under `src/` or the C build differs from
+1.4.1, so a running 1.4.1 pool needs no rebuild or restart. Replace the API binary and restart
+the API service to get these changes.
+
+- **New `GET /users` route.** One response with the pool totals and every miner's status file,
+  with `active_since=<unix>` and `workers=1|true` filters. It reads files the engine already
+  writes and makes no node RPC. See [docs/operator-api.md](docs/operator-api.md#get-users).
+- **`/coinbase` is served from a per-height template.** One job is probed per block height, and
+  each CashAddr's payout output is spliced into it. Viewers no longer each cost a per-user probe.
+  The per-user probe remains the fallback for names that do not decode on this network, a stale
+  `candidate_height`, and the case with no template. The response fields are unchanged.
+- **The `/coinbase` probe no longer waits up to `update_interval`.** It returns as soon as it
+  holds both the mining job and the authorise reply.
+  - **Evidence:** against a btcsolo pool the job arrived before the authorise reply and no second
+    job followed for 40 s, so the old loop ran into its deadline. With this change a cold
+    `/coinbase` answered in 4.4 ms on a test pool, and an address the pool had never seen was
+    answered from the cached template in 0.8 ms with no new Stratum connection.
+  - **Evidence:** the coinbase of mainnet block 975630 splits into the template parts and rebuilds
+    byte-identical; its txid matches the node's `getblock` result.
+- **Tests:** the regtest end-to-end scenario 8 bound check now waits long enough for a slow runner.
+
 ## 1.4.1 — 2026-11-01
 
 `cashtop` only. **The stratum server is unchanged:** nothing under `src/` or the C build differs

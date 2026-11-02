@@ -50,6 +50,24 @@ type Conf struct {
 	// (ckpool.conf's top-level "zmqblock" key), used when no btcd entry
 	// carries its own zmqnotify. See ResolveZMQEndpoint.
 	ZmqBlock string `json:"zmqblock"`
+	// PoolAddress is the address the pool fee output pays (ckpool.conf's
+	// "pooladdress" key). Empty when the pool takes no fee.
+	PoolAddress string `json:"pooladdress"`
+}
+
+// LoadPoolAddress returns ckpool.conf's "pooladdress", or "" when the file is
+// unreadable, unparseable or has no such key. Like the other loaders it never
+// fails: callers treat "" as "not configured".
+func LoadPoolAddress(confPath string) string {
+	data, err := os.ReadFile(confPath)
+	if err != nil {
+		return ""
+	}
+	var conf Conf
+	if err := json.Unmarshal(data, &conf); err != nil {
+		return ""
+	}
+	return conf.PoolAddress
 }
 
 // Candidates lists where configuration files (cashstratum.conf or ckpool.conf)

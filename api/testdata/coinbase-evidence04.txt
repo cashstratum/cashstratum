@@ -1,0 +1,15 @@
+Provenance for coinbase-evidence04.hex
+
+A live candidate coinbase for height 975663 as returned by GET /coinbase and shown on a
+consumer's miner page (screenshot taken 2026-11-02 14:02:30 BRT). Transcribed from the
+screenshot's raw hex. The two passages that a text transcription had elided were read off
+the image by monospace glyph matching (pitch 7.2 px, every glyph matched against templates
+from the known parts of the same line):
+
+  en1 = 4042e76a, en2 = 0000000000000000 (the probe's en1 and a zeroed en2)
+  btcsig = 25 "/BlockSniper.ai/ AI Smart Solo Mining" (37 bytes; the scriptSig length 0x42
+           agrees: 16 + 12 + 38 = 66)
+
+The outputs reconcile with the values the page showed: miner 0x1241046a = 3.06250858 BCH,
+fee 0x5f5e21 = 0.06250017 BCH, total 3.12500875 BCH. The P2PKH hash160 the page highlighted is
+26ec87c179dea02b35d86d9167dd4e46514a3f38.

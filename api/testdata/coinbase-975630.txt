@@ -1,0 +1,17 @@
+Provenance for coinbase-975630.hex
+
+Block:    975630 (BCH mainnet), solved by the reference deployment (scriptSig tag "/BlockSniper.ai/")
+Hash:     000000000000000000441d5b556de6e8ae998529010f9a6cf4030cc7ddd7d7e7
+Txid:     992351326e651aa0971886506d22c95a52c314311dfdc732bdae857824c64212 (coinbase, tx[0])
+Fetched:  2026-11-02, read-only, from a BCHN full node with bitcoin-cli:
+
+  H=$(bitcoin-cli getblockhash 975630) && bitcoin-cli getblock "$H" 2
+  # then tx[0].hex; any BCH block explorer returns the same raw transaction
+
+Layout (src/stratifier.c generate_coinbase):
+  coinb1   = version | 1 input | null prevout | scriptSig len 0x42 | height 030ee30e | flags 00
+             | push(time) | push(nsec) | 0c (en1+en2 push length)
+  en1      = 5b40e76a            (4 bytes, nonce1length)
+  en2      = 12a2075de200002b    (8 bytes, chosen by the finding miner)
+  coinb2   = btcsig push | ffffffff | 02 | miner value | 19 76a914 <finder hash160> 88ac
+  coinb3   = fee value | 19 76a914 <pool hash160> 88ac | 00000000

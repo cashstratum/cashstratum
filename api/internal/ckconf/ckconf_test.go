@@ -101,6 +101,30 @@ func TestLoadUpdateInterval(t *testing.T) {
 	}
 }
 
+func TestLoadPoolAddress(t *testing.T) {
+	dir := t.TempDir()
+
+	const addr = "bitcoincash:qzxq7lc575az8tw357ck50wdl7cmn4lc2v9kp3rz4u"
+	withKey := write(t, dir, "with-key.conf", `{"pooladdress": "`+addr+`", "poolfee": 2}`)
+	if got := LoadPoolAddress(withKey); got != addr {
+		t.Errorf("with key set: got %q, want %q", got, addr)
+	}
+
+	withoutKey := write(t, dir, "without-key.conf", `{"btcd": []}`)
+	if got := LoadPoolAddress(withoutKey); got != "" {
+		t.Errorf("key absent: got %q, want empty", got)
+	}
+
+	if got := LoadPoolAddress(filepath.Join(dir, "does-not-exist.conf")); got != "" {
+		t.Errorf("missing conf: got %q, want empty", got)
+	}
+
+	malformed := write(t, dir, "malformed.conf", `{ not json`)
+	if got := LoadPoolAddress(malformed); got != "" {
+		t.Errorf("malformed conf: got %q, want empty", got)
+	}
+}
+
 // ResolveZMQEndpoint's precedence mirrors ckpool's own (src/stratifier.c:
 // 8883-8888): per-btcd zmqnotify beats the top-level zmqblock fallback.
 // This is load-bearing -- production's ckpool.conf has ONLY

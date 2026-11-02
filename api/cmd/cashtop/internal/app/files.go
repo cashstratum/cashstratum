@@ -30,6 +30,15 @@ type fileStats struct {
 	noSharelogs bool
 }
 
+// cloneMap returns a non-nil shallow copy of m.
+func cloneMap[K comparable, V any](m map[K]V) map[K]V {
+	c := make(map[K]V, len(m))
+	for k, v := range m {
+		c[k] = v
+	}
+	return c
+}
+
 // readRetry parses path, retrying once when the read is torn or empty.
 func readRetry[T any](path string, parse func(io.Reader) (T, error), ok func(T) bool) (T, error) {
 	var zero T
@@ -95,15 +104,11 @@ func (a *App) refreshFiles() {
 		// Agent, difficulty and last share are kept across heights: a worker
 		// with no line in the new directory yet is still the same rig. Only
 		// the share window belongs to a single height.
-		if st.agents == nil {
-			st.agents = map[string]string{}
-		}
-		if st.diffs == nil {
-			st.diffs = map[string]float64{}
-		}
-		if st.lastShare == nil {
-			st.lastShare = map[string]time.Time{}
-		}
+		// The published maps are read under a.mu by other goroutines, so
+		// every refresh writes into fresh copies and never into them.
+		st.agents = cloneMap(st.agents)
+		st.diffs = cloneMap(st.diffs)
+		st.lastShare = cloneMap(st.lastShare)
 		st.recent = nil
 		files, _ := filepath.Glob(filepath.Join(dir, "*.sharelog"))
 		for _, f := range files {

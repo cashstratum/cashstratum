@@ -9,6 +9,22 @@ says so rather than implying one.
 
 ## Unreleased
 
+## 1.4.1 — 2026-11-01
+
+`cashtop` only. **The stratum server is unchanged:** nothing under `src/` or the C build differs
+from 1.4.0, so a running 1.4.0 pool needs no rebuild or restart. Rebuild the API directory (or
+re-run the installer) to get the fixed `cashtop`.
+
+- **`cashtop` no longer aborts with "concurrent map read and map write".** 1.4.0 started keeping
+  each worker's agent and difficulty across sharelog heights, but the refresh wrote into the same
+  maps the node loop was reading, so the dashboard could die within minutes on a busy pool. Each
+  refresh now writes into fresh copies of those maps.
+  - **Evidence:** a new race test (`go test -race`, concurrent snapshots during refreshes) fails
+    on 1.4.0 and passes here; `go test -race ./cmd/cashtop/...` passes.
+- **Proofs:** 25 additional mainnet block proofs (heights 972548 → 975607) are mirrored under
+  `docs/proofs/`, bringing the verified total to 106. 975348 and 975388 were found on the
+  released v1.3.1 build; the six from 975500 to 975607 on the released v1.4.0 build.
+
 ## 1.4.0 — 2026-11-01
 
 Fixes round-best data the stratum server could carry over from 1.3.1, and makes the `cashtop`

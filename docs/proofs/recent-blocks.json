@@ -1,12 +1,144 @@
 {
   "schema_version": 1,
-  "checked_at_utc": "2026-11-02T12:10:05Z",
+  "checked_at_utc": "2026-11-03T09:21:39Z",
   "source": "https://blocksniper.ai/miner/qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh",
   "source_block_count": 21,
   "already_in_archived_snapshot": 12,
-  "count": 25,
-  "method": "Twenty-five additional heights, excluding the 81-block archive: nine from the public miner history and sixteen later heights (974758 to 975607) from the reference deployment's solve logs. Each mainchain header, coinbase, pool tag and gross reward verified via the public BCH API. Solve excerpts redacted to an event allowlist. The first nine were recovered from immutable BlockSniper audit logs, checked against SHA-256 sidecars and database hashes, and valued with saved production price observations. The sixteen later excerpts have no sidecar or database hash in this snapshot (those integrity fields are null) and are valued with the documented historical Coinbase minute-candle fallback. Software attribution comes from the operator.",
+  "count": 28,
+  "method": "Twenty-eight additional heights, excluding the 81-block archive: nine from the public miner history and nineteen later heights (974758 to 975726) from the reference deployment's solve logs. Each mainchain header, coinbase, pool tag and gross reward verified via the public BCH API. Solve excerpts redacted to an event allowlist. The first nine were recovered from immutable BlockSniper audit logs, checked against SHA-256 sidecars and database hashes, and valued with saved production price observations. The nineteen later excerpts have no sidecar or database hash in this snapshot (those integrity fields are null) and are valued with the documented historical Coinbase minute-candle fallback. Software attribution comes from the operator.",
   "blocks": [
+    {
+      "height": 975726,
+      "hash": "000000000000000000a8201242a4be248f4da36636c3a9f8ce37f58bf4bc32c7",
+      "block_time_utc": "2026-11-03T03:38:12Z",
+      "mainchain": true,
+      "coinbase_txid": "fbb51a90f6009955722eb48dafa449fa861a23d33c1e039b7dcf4991405a231f",
+      "coinbase_script_hex": "036ee30e00042457e96a04b1960e040cd341e76a877c381cda00006b252f426c6f636b536e697065722e61692f20414920536d61727420536f6c6f204d696e696e67",
+      "recognized_tags": [
+        "BlockSniper.ai",
+        "AI Smart Solo Mining"
+      ],
+      "reward_satoshis": 312706265,
+      "coinbase_outputs_satoshis": [
+        306452140,
+        6254125
+      ],
+      "subsidy_satoshis": 312500000,
+      "fees_satoshis": 206265,
+      "gross_reward_bch": "3.12706265",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/975726",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/fbb51a90f6009955722eb48dafa449fa861a23d33c1e039b7dcf4991405a231f",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/975726",
+      "pool_explorer": "https://blocksniper.ai/block/975726",
+      "software": "CashStratum v1.5.0",
+      "solve_excerpt": "logs/975726-context.log",
+      "historical_value_usd": "856.53",
+      "solve_excerpt_sha256": "0272e060820f20ff6cbaa8a2f1c4a5ea6a462e9be7941bc347051bb02f8c97a8",
+      "original_solve_excerpt_sha256": null,
+      "source_integrity": {
+        "sidecar_sha256_matches": null,
+        "database_sha256_matches": null,
+        "redaction": "Strict event allowlist. Finder identity redacted; all other messages replaced. Timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12706265",
+        "bch_usd": "273.91",
+        "gross_value_usd": "856.53",
+        "price_observed_at_utc": "2026-11-03T03:38:00Z",
+        "price_source": "Coinbase BCH-USD",
+        "price_quality": "completed_minute_candle",
+        "method": "Historical exchange fallback: no saved BlockSniper price snapshot is available in this evidence collection for this block. Close of the last completed, nonzero-volume Coinbase BCH/USD minute candle at or before the block-header timestamp, from https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1793673480&end=1793677080&granularity=ONE_MINUTE&limit=100; gross coinbase reward multiplied by that price, rounded half-up to cents."
+      },
+      "software_attribution": "Operator-confirmed release running on the reference deployment for these solves; chain data does not attest the binary."
+    },
+    {
+      "height": 975692,
+      "hash": "00000000000000000197c0d451b0f1c8ec94973ff75d15e381a65f172188eede",
+      "block_time_utc": "2026-11-02T21:39:40Z",
+      "mainchain": true,
+      "coinbase_txid": "29e89a2a7272d3c8a740b0801d1b507460046894c58df93e49661da12c4a9659",
+      "coinbase_script_hex": "034ce30e00041c03e96a0417483b240c8842e76a67742667b6b52400252f426c6f636b536e697065722e61692f20414920536d61727420536f6c6f204d696e696e67",
+      "recognized_tags": [
+        "BlockSniper.ai",
+        "AI Smart Solo Mining"
+      ],
+      "reward_satoshis": 312654280,
+      "coinbase_outputs_satoshis": [
+        306401195,
+        6253085
+      ],
+      "subsidy_satoshis": 312500000,
+      "fees_satoshis": 154280,
+      "gross_reward_bch": "3.12654280",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/975692",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/29e89a2a7272d3c8a740b0801d1b507460046894c58df93e49661da12c4a9659",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/975692",
+      "pool_explorer": "https://blocksniper.ai/block/975692",
+      "software": "CashStratum v1.5.0",
+      "solve_excerpt": "logs/975692-context.log",
+      "historical_value_usd": "866.68",
+      "solve_excerpt_sha256": "ff6e06210ff33ded6fee4633f89ff9d442e2d4adcff17a403bed2f9c4a527e49",
+      "original_solve_excerpt_sha256": null,
+      "source_integrity": {
+        "sidecar_sha256_matches": null,
+        "database_sha256_matches": null,
+        "redaction": "Strict event allowlist. Finder identity redacted; all other messages replaced. Timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12654280",
+        "bch_usd": "277.2",
+        "gross_value_usd": "866.68",
+        "price_observed_at_utc": "2026-11-02T21:39:00Z",
+        "price_source": "Coinbase BCH-USD",
+        "price_quality": "completed_minute_candle",
+        "method": "Historical exchange fallback: no saved BlockSniper price snapshot is available in this evidence collection for this block. Close of the last completed, nonzero-volume Coinbase BCH/USD minute candle at or before the block-header timestamp, from https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1793651940&end=1793655540&granularity=ONE_MINUTE&limit=100; gross coinbase reward multiplied by that price, rounded half-up to cents."
+      },
+      "software_attribution": "Operator-confirmed release running on the reference deployment for these solves; chain data does not attest the binary."
+    },
+    {
+      "height": 975630,
+      "hash": "000000000000000000441d5b556de6e8ae998529010f9a6cf4030cc7ddd7d7e7",
+      "block_time_utc": "2026-11-02T12:28:55Z",
+      "mainchain": true,
+      "coinbase_txid": "992351326e651aa0971886506d22c95a52c314311dfdc732bdae857824c64212",
+      "coinbase_script_hex": "030ee30e00040782e86a0489e4710c0c5b40e76a12a2075de200002b252f426c6f636b536e697065722e61692f20414920536d61727420536f6c6f204d696e696e67",
+      "recognized_tags": [
+        "BlockSniper.ai",
+        "AI Smart Solo Mining"
+      ],
+      "reward_satoshis": 312533742,
+      "coinbase_outputs_satoshis": [
+        306283068,
+        6250674
+      ],
+      "subsidy_satoshis": 312500000,
+      "fees_satoshis": 33742,
+      "gross_reward_bch": "3.12533742",
+      "block_api": "https://api.blockchain.info/haskoin-store/bch/block/height/975630",
+      "coinbase_api": "https://api.blockchain.info/haskoin-store/bch/transaction/992351326e651aa0971886506d22c95a52c314311dfdc732bdae857824c64212",
+      "explorer": "https://www.blockchain.com/explorer/blocks/bch/975630",
+      "pool_explorer": "https://blocksniper.ai/block/975630",
+      "software": "CashStratum v1.4.1",
+      "solve_excerpt": "logs/975630-context.log",
+      "historical_value_usd": "869.81",
+      "solve_excerpt_sha256": "3998af777fdd7774488a791c8cc3c853ff05f88d04c2f14d26287624f58acaae",
+      "original_solve_excerpt_sha256": null,
+      "source_integrity": {
+        "sidecar_sha256_matches": null,
+        "database_sha256_matches": null,
+        "redaction": "Strict event allowlist. Finder identity redacted; all other messages replaced. Timestamps and event order retained."
+      },
+      "valuation": {
+        "gross_reward_bch": "3.12533742",
+        "bch_usd": "278.31",
+        "gross_value_usd": "869.81",
+        "price_observed_at_utc": "2026-11-02T12:27:00Z",
+        "price_source": "Coinbase BCH-USD",
+        "price_quality": "completed_minute_candle",
+        "method": "Historical exchange fallback: no saved BlockSniper price snapshot is available in this evidence collection for this block. Close of the last completed, nonzero-volume Coinbase BCH/USD minute candle at or before the block-header timestamp, from https://api.coinbase.com/api/v3/brokerage/market/products/BCH-USD/candles?start=1793618880&end=1793622480&granularity=ONE_MINUTE&limit=100; gross coinbase reward multiplied by that price, rounded half-up to cents."
+      },
+      "software_attribution": "Operator-confirmed release running on the reference deployment for these solves; chain data does not attest the binary."
+    },
     {
       "height": 975607,
       "hash": "000000000000000001927e43720f1e72080eb6e7a4f51de79a7d28e23809f65b",
@@ -1092,11 +1224,11 @@
       "software_attribution": "Operator-confirmed CashStratum v1.2.1: the same production build that found block 972535 the same morning; chain data does not attest the binary."
     }
   ],
-  "evidence_updated_at_utc": "2026-11-02T12:10:05Z",
+  "evidence_updated_at_utc": "2026-11-03T09:21:39Z",
   "summary": {
-    "gross_reward_bch": "78.15667269",
-    "historical_gross_value_usd": "22180.30",
-    "solve_logs": 25,
+    "gross_reward_bch": "87.53561556",
+    "historical_gross_value_usd": "24773.32",
+    "solve_logs": 28,
     "saved_database_prices": 9
   }
 }

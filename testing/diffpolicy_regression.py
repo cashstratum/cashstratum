@@ -75,6 +75,17 @@ class DiffpolicyRegression(unittest.TestCase):
         self.assertLess(s12_pos, s13_pos, "scenario_13 must come after scenario_12")
         self.assertLess(s13_pos, s14_pos, "scenario_14 must come after scenario_13")
 
+        # The password-pin scenarios run last, after scenario 14
+        s17_pos = main_body.find('scenario_17_pin_vs_suggest')
+        s18_pos = main_body.find('scenario_18_password_diff_notices')
+        self.assertNotEqual(s17_pos, -1, "scenario_17_pin_vs_suggest not found in main()")
+        self.assertNotEqual(s18_pos, -1, "scenario_18_password_diff_notices not found in main()")
+        self.assertLess(s14_pos, s17_pos, "scenario_17 must come after scenario_14")
+        self.assertLess(s17_pos, s18_pos, "scenario_18 must come after scenario_17")
+        s19_pos = main_body.find('scenario_19_second_authorize_keeps_pin')
+        self.assertNotEqual(s19_pos, -1, "scenario_19_second_authorize_keeps_pin not found in main()")
+        self.assertLess(s18_pos, s19_pos, "scenario_19 must come after scenario_18")
+
         # All scenarios must come after pool start
         self.assertLess(diffpool_pos, s11_pos,
                         "scenario_11 must come after start_diffpolicy_pool")

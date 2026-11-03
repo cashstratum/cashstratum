@@ -1,8 +1,10 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)
 LDADD = $(top_builddir)/src/libckpool.a
 
-check_PROGRAMS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat reject_stats
-TESTS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat reject_stats
+check_PROGRAMS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat reject_stats \
+	password_diff
+TESTS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat reject_stats \
+	password_diff
 
 sha256_SOURCES = sha256.c
 merklebranch_SOURCES = merklebranch.c
@@ -15,6 +17,14 @@ reject_stats_SOURCES = reject_stats.c
 reject_stats_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/ipc/mining
 reject_stats_CFLAGS = $(AM_CFLAGS) $(CFLAGS) -ffunction-sections -fdata-sections
 reject_stats_LDFLAGS = -Wl,--gc-sections
+
+# Password difficulty: a valid d=/diff= token pins the difficulty against
+# vardiff and suggest_difficulty, and the vardiff target math for everyone
+# else. password_diff.c includes src/stratifier.c, as reject_stats does.
+password_diff_SOURCES = password_diff.c
+password_diff_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/ipc/mining
+password_diff_CFLAGS = $(AM_CFLAGS) $(CFLAGS) -ffunction-sections -fdata-sections
+password_diff_LDFLAGS = -Wl,--gc-sections
 
 # BCH address unit tests (fork-local): CashAddr decode/checksum vectors and
 # the local cashaddr+legacy classifier that feeds address_to_txn().

@@ -238,6 +238,23 @@ func TestParseLineFamilies(t *testing.T) {
 				t.Error(e.Diff)
 			}
 		}},
+		{"password pinned", "Client 12 set difficulty to 2048 via password parameter (pinned)", KindPasswordDiff, func(t *testing.T, e Event) {
+			if e.Diff != 2048 || !e.Pinned || e.Requested != 0 {
+				t.Errorf("%+v", e)
+			}
+		}},
+		{"password pinned requested", "Client 12 set difficulty to 1024 via password parameter (pinned, requested 5)", KindPasswordDiff, func(t *testing.T, e Event) {
+			if e.Diff != 1024 || !e.Pinned || e.Requested != 5 {
+				t.Errorf("%+v", e)
+			}
+		}},
+		{"password legacy not pinned", "Client 12 set difficulty to 2048 via password parameter", KindPasswordDiff, func(t *testing.T, e Event) {
+			if e.Pinned || e.Requested != 0 {
+				t.Errorf("%+v", e)
+			}
+		}},
+		{"password near miss", "Client 12 set difficulty to 2048 via password parameter (pinned, requested)", KindUnknown, nil},
+		{"password near miss suffix", "Client 12 set difficulty to 2048 via password parameter (other)", KindUnknown, nil},
 		{"reaping", "Reaping client id 7 192.0.2.9:4444 idle pre-session for 30 seconds", KindReaping, nil},
 		{"unknown", "Something entirely new happened", KindUnknown, nil},
 		{"empty body", "", KindUnknown, nil},

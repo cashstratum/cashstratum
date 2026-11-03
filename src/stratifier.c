@@ -368,6 +368,8 @@ struct stratum_instance {
 	time_t disconnected_time; /* Time this instance disconnected */
 
 	int64_t suggest_diff; /* Stratum client suggested diff */
+	int64_t base_suggest_diff; /* Floor applied before authorisation (server
+				    * highdiff or rental), 0 when none */
 	double best_diff; /* Best share found by this instance */
 
 	sdata_t *sdata; /* Which sdata this client is bound to */
@@ -383,6 +385,11 @@ struct stratum_instance {
 	bool rental_diff; /* Difficulty already applied from useragent-based rental
 			   * service detection (NiceHash/MiningRigRentals), so the
 			   * mindiff_overrides pattern loop must not clobber it */
+	bool pinned_diff; /* Difficulty fixed by a d=/diff= password token. Vardiff
+			   * and mining.suggest_difficulty leave it alone. Set in
+			   * parse_authorise(); the pool accepts one authorize per
+			   * connection, so it lasts for the life of the connection */
+	bool pinned_suggest_logged; /* Ignored suggest_difficulty already logged */
 
 	/* Subclient accounting, used only on a passthrough, node or trusted
 	 * parent. Every id such a parent relays is chosen by the remote end
@@ -4235,7 +4242,7 @@ static stratum_instance_t *__stratum_add_instance(int64_t id, const char *addres
 	client->server = server;
 	client->diff = client->old_diff = ckpool.startdiff;
 	if (ckpool.server_highdiff && ckpool.server_highdiff[server]) {
-		client->suggest_diff = ckpool.highdiff;
+		client->suggest_diff = client->base_suggest_diff = ckpool.highdiff;
 		if (client->suggest_diff > client->diff)
 			client->diff = client->old_diff = client->suggest_diff;
 	}
@@ -6199,6 +6206,29 @@ static int64_t password_requested_diff(const char *pass)
 	return requested;
 }
 
+/* True when the password carries a token that looks like a difficulty request
+ * (d= or diff=, any case, at a token boundary) yet password_requested_diff()
+ * finds no valid value in it, e.g. "d=10M", "D=100000000" or "d=1e8". The
+ * caller logs that the token was ignored; the password itself is never
+ * logged, as it is client controlled. */
+static bool password_diff_token_ignored(const char *pass)
+{
+	const char *p = pass;
+	bool seen = false;
+
+	while (*p) {
+		p += strspn(p, ",; \t");
+		if (!*p)
+			break;
+		if (!strncasecmp(p, "diff=", 5) || !strncasecmp(p, "d=", 2)) {
+			seen = true;
+			break;
+		}
+		p += strcspn(p, ",; \t");
+	}
+	return seen && !password_requested_diff(pass);
+}
+
 static int64_t mindiff_override_diff(const char *key, const int64_t fallback)
 {
 	int i;
@@ -6281,7 +6311,7 @@ static yyjson_mut_doc *parse_subscribe(stratum_instance_t *client, const int64_t
 	if (strcasestr(client->useragent, "nicehash")) {
 		int64_t nicehash_diff = mindiff_override_diff("nicehash", 500000);
 
-		client->suggest_diff = nicehash_diff;
+		client->suggest_diff = client->base_suggest_diff = nicehash_diff;
 		client->diff = client->old_diff = nicehash_diff;
 		client->rental_diff = true;
 		LOGNOTICE("NiceHash detected from useragent '%s' for client %s, applied difficulty %"PRId64,
@@ -6290,7 +6320,7 @@ static yyjson_mut_doc *parse_subscribe(stratum_instance_t *client, const int64_t
 		   strcasestr(client->useragent, "mrr-hash")) {
 		int64_t mrr_diff = mindiff_override_diff("miningrigrentals", 1000000);
 
-		client->suggest_diff = mrr_diff;
+		client->suggest_diff = client->base_suggest_diff = mrr_diff;
 		client->diff = client->old_diff = mrr_diff;
 		client->rental_diff = true;
 		LOGNOTICE("MiningRigRentals detected from useragent '%s' for client %s, applied difficulty %"PRId64,
@@ -7214,13 +7244,83 @@ static void renotify_solo_client(sdata_t *sdata, const stratum_instance_t *clien
 	ck_wunlock(&sdata->workbase_lock);
 }
 
+/* Start of every authorisation: the pin is decided afresh from the new
+ * password, so a later mining.authorize on the same connection replaces it.
+ * A connection leaving a pin gets back the floor and difficulty it had before
+ * any password applied (the rental or server highdiff floor, else none), so
+ * the new password is evaluated exactly as on a fresh connection. Returns
+ * whether the connection was pinned. */
+static bool reset_auth_pin(stratum_instance_t *client)
+{
+	const bool was_pinned = client->pinned_diff;
+
+	client->pinned_diff = false;
+	client->pinned_suggest_logged = false;
+	if (!was_pinned)
+		return false;
+
+	client->suggest_diff = client->base_suggest_diff;
+	if (client->rental_diff)
+		client->diff = client->base_suggest_diff;
+	else
+		client->diff = MAX(client->base_suggest_diff, ckpool.startdiff);
+	client->old_diff = client->diff;
+	return true;
+}
+
+/* Apply a d=/diff= password difficulty, clamped to the pool bounds and any
+ * rental floor, and pin it. Logs when a difficulty-looking token carries no
+ * valid value; the password itself is never logged. */
+static void apply_password_diff(stratum_instance_t *client, const char *pass)
+{
+	int64_t password_diff = password_requested_diff(pass);
+	const int64_t requested_diff = password_diff;
+
+	if (password_diff > 0) {
+		/* Apply mindiff/maxdiff limits BEFORE storing
+		 * suggest_diff. suggest_diff is used as the vardiff
+		 * floor in add_submit(), so storing the unclamped
+		 * value would let a client pin its own difficulty
+		 * above the pool's configured maxdiff. */
+		if (ckpool.mindiff && password_diff < ckpool.mindiff)
+			password_diff = ckpool.mindiff;
+		/* A rental floor (NiceHash/MRR) was already applied from
+		 * the useragent and is higher than the pool mindiff. A d=
+		 * below it makes the marketplace flag us for serving under
+		 * the rig's optimal range, so raise it back. A higher d=
+		 * is still honoured. */
+		if (client->rental_diff && password_diff < client->diff)
+			password_diff = client->diff;
+		if (ckpool.maxdiff && password_diff > ckpool.maxdiff)
+			password_diff = ckpool.maxdiff;
+
+		/* Password difficulty overrides pattern-based difficulty.
+		 * suggest_diff carries the same value so the reconcile
+		 * in sauth_process() announces the pinned difficulty. */
+		client->suggest_diff = password_diff;
+		client->pinned_diff = true;
+
+		/* Apply immediately for NiceHash compatibility */
+		client->diff = client->old_diff = password_diff;
+		if (password_diff == requested_diff)
+			LOGNOTICE("Client %s set difficulty to %"PRId64" via password parameter (pinned)",
+				  client->identity, password_diff);
+		else
+			LOGNOTICE("Client %s set difficulty to %"PRId64" via password parameter (pinned, requested %"PRId64")",
+				  client->identity, password_diff, requested_diff);
+	} else if (password_diff_token_ignored(pass)) {
+		LOGNOTICE("Client %s ignored password difficulty token: not a valid d= or diff= value",
+			  client->identity);
+	}
+}
+
 /* Needs to be entered with client holding a ref count. */
 static bool parse_authorise(stratum_instance_t *client, yyjson_mut_val *params_val,
 			    yyjson_mut_doc **err_doc)
 {
 	user_instance_t *user;
 	const char *buf, *pass;
-	bool ret = false;
+	bool ret = false, was_pinned;
 	int arr_size;
 	ts_t now;
 
@@ -7287,6 +7387,8 @@ static bool parse_authorise(stratum_instance_t *client, yyjson_mut_val *params_v
 	 * till after this point */
 	client->workername = strdup(buf);
 
+	was_pinned = reset_auth_pin(client);
+
 	/* Worker-name pattern difficulty overrides.
 	 *
 	 * Skipped entirely for rental clients already handled by the useragent
@@ -7331,38 +7433,17 @@ static bool parse_authorise(stratum_instance_t *client, yyjson_mut_val *params_v
 	}
 
 	if (pass) {
-		int64_t password_diff = password_requested_diff(pass);
-
 		client->password = strndup(pass, 64);
-
-		if (password_diff > 0) {
-			/* Apply mindiff/maxdiff limits BEFORE storing
-			 * suggest_diff. suggest_diff is used as the vardiff
-			 * floor in add_submit(), so storing the unclamped
-			 * value would let a client pin its own difficulty
-			 * above the pool's configured maxdiff. */
-			if (ckpool.mindiff && password_diff < ckpool.mindiff)
-				password_diff = ckpool.mindiff;
-			/* A rental floor (NiceHash/MRR) was already applied from
-			 * the useragent and is higher than the pool mindiff. A d=
-			 * below it makes the marketplace flag us for serving under
-			 * the rig's optimal range, so raise it back. A higher d=
-			 * is still honoured. */
-			if (client->rental_diff && password_diff < client->diff)
-				password_diff = client->diff;
-			if (ckpool.maxdiff && password_diff > ckpool.maxdiff)
-				password_diff = ckpool.maxdiff;
-
-			/* Password difficulty overrides pattern-based difficulty */
-			client->suggest_diff = password_diff;
-
-			/* Apply immediately for NiceHash compatibility */
-			client->diff = client->old_diff = password_diff;
-			LOGNOTICE("Client %s set difficulty to %"PRId64" via password parameter",
-				  client->identity, password_diff);
-		}
+		apply_password_diff(client, pass);
 	} else
 		client->password = strdup("");
+
+	/* Leaving a pin, restart the vardiff window so the first evaluation
+	 * measures shares at the current difficulty only. */
+	if (was_pinned && !client->pinned_diff) {
+		client->ssdc = 0;
+		tv_time(&client->ldc);
+	}
 
 	/* Ensure the client has a valid difficulty set - use startdiff if
 	 * nothing above assigned one. */
@@ -7501,6 +7582,54 @@ static void account_client_share(pool_stats_t *stats, stratum_instance_t *client
 	}
 }
 
+/* Vardiff target for a client whose biased share rate is dsps diff-1 shares
+ * per second at difficulty cur_diff. floor_diff is the client's own minimum
+ * (suggested or worker mindiff), 0 when it has none. *drr_out receives the
+ * diff rate ratio. Returns 0 when the difficulty should be left alone,
+ * otherwise the target clamped to [pool_mindiff, pool_maxdiff], at least
+ * floor_diff, and at most network_diff. */
+static int64_t vardiff_target(const double dsps, const int64_t cur_diff,
+			      const int64_t floor_diff, const int64_t pool_mindiff,
+			      const int64_t pool_maxdiff, const double network_diff,
+			      double *drr_out)
+{
+	const double drr = dsps / (double)cur_diff;
+	int64_t optimal;
+
+	*drr_out = drr;
+
+	/* Optimal rate product is 0.3, allow some hysteresis. */
+	if (drr > 0.15 && drr < 0.4)
+		return 0;
+
+	/* Allow slightly lower diffs when users choose their own mindiff */
+	if (floor_diff) {
+		if (drr < 0.5)
+			return 0;
+		optimal = lround(dsps * 2.4);
+	} else
+		optimal = lround(dsps * 3.33);
+
+	/* Clamp to mindiff ~ network_diff */
+
+	/* Set to higher of pool mindiff and optimal */
+	optimal = MAX(optimal, pool_mindiff);
+
+	/* Set to higher of optimal and user chosen diff */
+	optimal = MAX(optimal, floor_diff);
+
+	/* Set to lower of optimal and pool maxdiff */
+	if (pool_maxdiff)
+		optimal = MIN(optimal, pool_maxdiff);
+
+	/* Set to lower of optimal and network_diff */
+	optimal = MIN(optimal, network_diff);
+
+	if (unlikely(optimal < 1))
+		return 0;
+	return optimal;
+}
+
 /* Needs to be entered with client holding a ref count. */
 static void add_submit(stratum_instance_t *client, const double diff, const bool valid,
 		       const bool submit)
@@ -7555,6 +7684,12 @@ static void add_submit(stratum_instance_t *client, const double diff, const bool
 	if (ckpool.node)
 		return;
 
+	/* A difficulty pinned by the password is never re-targeted. Return
+	 * before touching ssdc/ldc; parse_authorise() restarts the window if
+	 * a later authorisation drops the pin. */
+	if (client->pinned_diff)
+		return;
+
 	client->ssdc++;
 	bdiff = sane_tdiff(&now_t, &client->first_share);
 	tdiff = sane_tdiff(&now_t, &client->ldc);
@@ -7580,41 +7715,16 @@ static void add_submit(stratum_instance_t *client, const double diff, const bool
 		bias = time_bias(bdiff, 300);
 		dsps = client->dsps5 / bias;
 	}
-	drr = dsps / (double)client->diff;
-
-	/* Optimal rate product is 0.3, allow some hysteresis. */
-	if (drr > 0.15 && drr < 0.4)
-		return;
 
 	/* Client suggest diff overrides worker mindiff */
 	if (client->suggest_diff)
 		mindiff = client->suggest_diff;
 	else
 		mindiff = worker->mindiff;
-	/* Allow slightly lower diffs when users choose their own mindiff */
-	if (mindiff) {
-		if (drr < 0.5)
-			return;
-		optimal = lround(dsps * 2.4);
-	} else
-		optimal = lround(dsps * 3.33);
 
-	/* Clamp to mindiff ~ network_diff */
-
-	/* Set to higher of pool mindiff and optimal */
-	optimal = MAX(optimal, ckpool.mindiff);
-
-	/* Set to higher of optimal and user chosen diff */
-	optimal = MAX(optimal, mindiff);
-
-	/* Set to lower of optimal and pool maxdiff */
-	if (ckpool.maxdiff)
-		optimal = MIN(optimal, ckpool.maxdiff);
-
-	/* Set to lower of optimal and network_diff */
-	optimal = MIN(optimal, network_diff);
-
-	if (unlikely(optimal < 1))
+	optimal = vardiff_target(dsps, client->diff, mindiff, ckpool.mindiff,
+				 ckpool.maxdiff, network_diff, &drr);
+	if (!optimal)
 		return;
 
 	if (client->diff == optimal)
@@ -9364,6 +9474,19 @@ static void suggest_diff(stratum_instance_t *client, const char *method,
 	stratum_send_diff(ckpool.sdata, client);
 }
 
+/* A client whose difficulty is pinned by its password keeps it: the
+ * suggestion leaves both the floor and the difficulty untouched and sends no
+ * set_difficulty. Some firmware always suggests a difficulty, so the client
+ * is neither rejected nor dropped, and the notice is logged once per client. */
+static void ignore_pinned_suggest(stratum_instance_t *client)
+{
+	if (client->pinned_suggest_logged)
+		return;
+	client->pinned_suggest_logged = true;
+	LOGNOTICE("Client %s ignored suggest_difficulty: difficulty pinned to %"PRId64" via password parameter",
+		  client->identity, client->diff);
+}
+
 /* Send diff first when sending the first stratum template after subscribing */
 static void init_client(const stratum_instance_t *client, const int64_t client_id)
 {
@@ -9620,7 +9743,10 @@ static void parse_method(sdata_t *sdata, stratum_instance_t *client,
 	}
 
 	if (cmdmatch(method, "mining.suggest")) {
-		suggest_diff(client, method, params_val);
+		if (client->pinned_diff)
+			ignore_pinned_suggest(client);
+		else
+			suggest_diff(client, method, params_val);
 		return;
 	}
 

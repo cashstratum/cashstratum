@@ -35,7 +35,7 @@ const (
 	KindSV2Rejected      // "SV2/JD block submit rejected/error height N hash H by W"
 	KindRentalDetected   // NiceHash / MiningRigRentals
 	KindPatternDiff      // "Client N workername 'W' matched pattern 'P', ..."
-	KindPasswordDiff     // "Client N set difficulty to D via password parameter"
+	KindPasswordDiff     // "Client N set difficulty to D via password parameter[ (pinned[, requested R])]"
 	KindReaping          // "Reaping client id N addr idle why for S seconds"
 )
 
@@ -65,6 +65,11 @@ type Event struct {
 	User     string
 	Worker   string // full worker name, "address.rig"
 	Diff     float64
+
+	// Password difficulty: Pinned is set when the line carries the "(pinned)"
+	// suffix; Requested is the value asked for when clamps changed it (0 if none).
+	Pinned    bool
+	Requested int64
 
 	// Dropped.
 	NoUser    bool
@@ -114,7 +119,7 @@ var (
 	reSV2Rej     = regexp.MustCompile(`^SV2/JD block submit rejected/error height (\d+) hash ([0-9a-f]{64}) by (.+)$`)
 	reRental     = regexp.MustCompile(`^(NiceHash|MiningRigRentals) detected from useragent '(.*)' for client (\S+), applied difficulty (\d+)$`)
 	rePattern    = regexp.MustCompile(`^Client (\S+) workername '(.*)' matched pattern '(.*)', applied difficulty (\d+)$`)
-	rePassword   = regexp.MustCompile(`^Client (\S+) set difficulty to (\d+) via password parameter$`)
+	rePassword   = regexp.MustCompile(`^Client (\S+) set difficulty to (\d+) via password parameter(?: \((pinned)(?:, requested (\d+))?\))?$`)
 	reReaping    = regexp.MustCompile(`^Reaping client id (\S+) (\S+) idle (.*) for (\d+) seconds$`)
 )
 
@@ -244,7 +249,15 @@ func ParseBody(body string) Event {
 		}
 		if m := rePassword.FindStringSubmatch(body); m != nil {
 			if d, ok := f64(m[2]); ok {
-				return Event{Kind: KindPasswordDiff, ClientID: m[1], Diff: d}
+				ev := Event{Kind: KindPasswordDiff, ClientID: m[1], Diff: d, Pinned: m[3] != ""}
+				if m[4] != "" {
+					r, ok := i64(m[4])
+					if !ok {
+						return Event{Kind: KindUnknown}
+					}
+					ev.Requested = r
+				}
+				return ev
 			}
 		}
 	case "Reaping":

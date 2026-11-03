@@ -88,7 +88,7 @@ func TestFamilies(t *testing.T) {
 		"nicehash":      `NiceHash detected from useragent '.*' for client \d+, applied difficulty \d+\n`,
 		"mrr":           `MiningRigRentals detected`,
 		"pattern":       `Client \d+ workername '.*' matched pattern '.*', applied difficulty \d+\n`,
-		"password":      `Client \d+ set difficulty to \d+ via password parameter\n`,
+		"password":      `Client \d+ set difficulty to \d+ via password parameter \(pinned\)\n`,
 	}
 	for name, p := range pats {
 		re := regexp.MustCompile(`(?m)^\[\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}\] ` + p)

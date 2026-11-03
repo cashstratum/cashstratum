@@ -23,7 +23,7 @@ import (
 	"cashstratumapi/cmd/cashtop/internal/ui"
 )
 
-const version = "1.5.0"
+const version = "1.6.0"
 
 type options struct {
 	showVersion     bool

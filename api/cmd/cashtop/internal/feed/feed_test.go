@@ -100,6 +100,28 @@ func TestDifficultyTagsConsumedOnce(t *testing.T) {
 	}
 }
 
+func TestPinnedPasswordLinesTagAndIgnoredLinesShow(t *testing.T) {
+	for _, suffix := range []string{" (pinned)", " (pinned, requested 5)"} {
+		e := NewEngine(Config{})
+		got := runLines(e,
+			"[2026-01-01 00:00:05.000] Client 2 set difficulty to 2048 via password parameter"+suffix,
+			authLine("00:00:05", "2", "192.0.2.10", addrA+".rig1", addrA))
+		if len(got) != 1 || !strings.Contains(got[0], "d=2048 (password)") {
+			t.Fatalf("%q: got %q", suffix, got)
+		}
+	}
+	e := NewEngine(Config{})
+	for _, msg := range []string{
+		"Client 2 ignored password difficulty token: not a valid d= or diff= value",
+		"Client 2 ignored suggest_difficulty: difficulty pinned to 2048 via password parameter",
+	} {
+		rows := e.Feed("[2026-01-01 00:00:05.000] "+msg, 0)
+		if len(rows) != 1 || rows[0].Style != StyleNotice || rows[0].Code != "33" || !strings.HasSuffix(rows[0].Text, msg) {
+			t.Fatalf("%q: %+v", msg, rows)
+		}
+	}
+}
+
 func TestTagMapCapped(t *testing.T) {
 	e := NewEngine(Config{MaxTracked: 8})
 	for i := 0; i < 100; i++ {

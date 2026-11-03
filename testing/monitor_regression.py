@@ -33,6 +33,10 @@ LOG = '\n'.join([
     "[2026-01-01 00:00:05.000] NiceHash detected from useragent 'NiceHash/1.0.0' for client 2,"
     ' applied difficulty 500000',
     '[2026-01-01 00:00:05.000] Client 2 set difficulty to 10000000 via password parameter',
+    '[2026-01-01 00:00:05.000] Client 6 set difficulty to 2048 via password parameter (pinned)',
+    '[2026-01-01 00:00:05.000] Client 6 set difficulty to 1024 via password parameter (pinned, requested 5)',
+    '[2026-01-01 00:00:05.000] Client 6 ignored password difficulty token: not a valid d= or diff= value',
+    '[2026-01-01 00:00:05.000] Client 6 ignored suggest_difficulty: difficulty pinned to 1024 via password parameter',
     f'[2026-01-01 00:00:05.000] Authorised client 2 192.0.2.10 worker {A}.rig1 as user '
     f'bitcoincash:{A} with diff 10000000',
     # rig9 flaps: three sessions of about one second each
@@ -117,6 +121,17 @@ class MonitorRegression(unittest.TestCase):
         self.assertIn(f'+ {A}.rig1  192.0.2.10  d=10000000  [NiceHash floor 500000 d=10000000 (password)]',
                       out)
         self.assertIn(f'- {A}.rig1  192.0.2.10  (4h00m)', out)
+
+    def test_pinned_password_lines_tag_and_ignored_lines_are_highlighted(self):
+        out = self.run_monitor()
+        # pinned forms are consumed as tags, never printed as rows
+        self.assertNotIn('(pinned', out)
+        ignored = [l for l in self.run_monitor(color=True).splitlines() if 'ignored ' in l]
+        self.assertEqual(len(ignored), 2, ignored)
+        for line in ignored:
+            self.assertIn('\x1b[33m', line)
+        self.assertIn('ignored password difficulty token', out)
+        self.assertIn('ignored suggest_difficulty', out)
 
     def test_connect_green_and_drop_red_with_colour(self):
         out = self.run_monitor(color=True)

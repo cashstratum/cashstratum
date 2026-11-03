@@ -1407,6 +1407,7 @@ scenario_13_override_lookup() {
 		"$([[ "$observed" == "4096" ]] && echo true || echo false)"
 }
 
+# Unpinned (password x) connections only; scenario 17 covers the d= pin.
 scenario_14_suggest_difficulty() {
 	log "=== Scenario 14: mining.suggest_difficulty obeys operator bounds ==="
 	local user1="diffprobe-s14-huge"
@@ -1448,6 +1449,155 @@ scenario_14_suggest_difficulty() {
 	suggested=$(printf '%s' "$probe_json" | jq -r '.suggest_reply_difficulty // "null"')
 	check "scenario14: suggest_difficulty(0) clamps to the pool mindiff on a fresh connection (observed: $suggested)" \
 		"$([[ "$suggested" == "2" ]] && echo true || echo false)"
+}
+
+# diffpool_client_id WORKERNAME -> the client id the difficulty-policy pool
+# logged for the LAST "Authorised client <id> ... worker WORKERNAME as user"
+# line, or nothing if there is none. Lets a scenario pick out the pool-log
+# lines for exactly one probe connection by id, never by line counting.
+diffpool_client_id() {
+	local worker="$1"
+	[[ -f "$DIFFLOGDIR/e2e-diff.log" ]] || return 0
+	grep -F "worker $worker as user" "$DIFFLOGDIR/e2e-diff.log" 2>/dev/null \
+		| grep "Authorised client " | tail -n1 \
+		| sed -E 's/.*Authorised client ([^ ]+) .*/\1/'
+}
+
+# diffpool_client_lines ID PATTERN -> number of pool-log lines of the form
+# "Client <ID> <PATTERN>" (the id is followed by a space, so id 1 never
+# matches id 12).
+diffpool_client_lines() {
+	local id="$1" pattern="$2"
+	[[ -f "$DIFFLOGDIR/e2e-diff.log" ]] || { printf '0'; return 0; }
+	grep -cE "Client ${id} ${pattern}" "$DIFFLOGDIR/e2e-diff.log" 2>/dev/null || true
+}
+
+# Scenario 17: a d=/diff= password pins the difficulty, so
+# mining.suggest_difficulty on that connection is ignored (one NOTICE) and
+# the share is credited at the pinned difficulty.
+scenario_17_pin_vs_suggest() {
+	log "=== Scenario 17: password d= pin survives mining.suggest_difficulty ==="
+	local addr; addr=$(bch_wallet getnewaddress "scenario17")
+	local worker="${addr}.pin"
+	local probe_json
+	probe_json=$(diffprobe --user "$worker" --password d=64 --suggest 4096 --suggest-wait 3 --submit)
+	log "scenario17: raw probe JSON: $probe_json"
+
+	local after_auth after_suggest reply_id reply_ok
+	after_auth=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth // "null"')
+	after_suggest=$(printf '%s' "$probe_json" | jq -r '.set_difficulty_after_suggest | length')
+	reply_id=$(printf '%s' "$probe_json" | jq -r '.submit_reply.id // "null"')
+	reply_ok=$(printf '%s' "$probe_json" | jq -r '.submit_reply | if . == null then "false" elif has("result") and has("error") then "true" else "false" end')
+	check "scenario17: password d=64 starts the connection at 64 (observed $after_auth)" \
+		"$([[ "$after_auth" == "64" ]] && echo true || echo false)"
+	check "scenario17: no mining.set_difficulty followed the suggest_difficulty(4096) (observed $after_suggest)" \
+		"$([[ "$after_suggest" == "0" ]] && echo true || echo false)"
+	check "scenario17: no 4096 push ever arrived and the last difficulty is 64 (set_difficulty: $(printf '%s' "$probe_json" | jq -c '.set_difficulty'))" \
+		"$(printf '%s' "$probe_json" | jq -r '(.set_difficulty | (index(4096) == null) and (.[-1] == 64))')"
+	check "scenario17: the submit after the ignored suggest got a well-formed JSON-RPC reply (id $reply_id)" \
+		"$([[ "$reply_id" == "4" && "$reply_ok" == "true" ]] && echo true || echo false)"
+
+	sleep 1
+	local rec diff_field
+	rec=$(diffpool_sharelog_record "$worker")
+	log "scenario17: sharelog record: $rec"
+	diff_field=$(printf '%s' "$rec" | jq -r '.diff // "null"')
+	check "scenario17: sharelog record for the worker has diff 64 (observed $diff_field)" \
+		"$(printf '%s' "$rec" | jq -r '(.diff == 64)')"
+
+	local id; id=$(diffpool_client_id "$worker")
+	check "scenario17: the pool log names a client id for $worker (observed '${id:-<none>}')" \
+		"$([[ -n "$id" ]] && echo true || echo false)"
+	local n
+	n=$(diffpool_client_lines "${id:-NOID}" "ignored suggest_difficulty: difficulty pinned to 64 via password parameter")
+	check "scenario17: exactly one ignored-suggest NOTICE for client ${id:-?} (observed $n)" \
+		"$([[ "$n" == "1" ]] && echo true || echo false)"
+	n=$(diffpool_client_lines "${id:-NOID}" "set difficulty to 64 via password parameter \\(pinned\\)")
+	check "scenario17: exactly one '(pinned)' notice at 64 for client ${id:-?} (observed $n)" \
+		"$([[ "$n" == "1" ]] && echo true || echo false)"
+}
+
+# Scenario 18: the password-difficulty notices. Each probe is mapped to its
+# client id through its unique worker name in the Authorised-client line.
+scenario_18_password_diff_notices() {
+	log "=== Scenario 18: password difficulty notices ==="
+	local probe_json id n observed
+
+	# Malformed token: one fixed-text NOTICE, no password text, vardiff start.
+	probe_json=$(diffprobe --user "diffprobe-n18-bad" --password "d=10M")
+	observed=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth // "null"')
+	sleep 1
+	id=$(diffpool_client_id "diffprobe-n18-bad")
+	log "scenario18 (d=10M): client id '${id:-<none>}' diff_after_auth=$observed"
+	check "scenario18: d=10M leaves the client on startdiff 8 (observed $observed)" \
+		"$([[ "$observed" == "8" ]] && echo true || echo false)"
+	check "scenario18: d=10M -- the pool log names a client id (observed '${id:-<none>}')" \
+		"$([[ -n "$id" ]] && echo true || echo false)"
+	n=$(diffpool_client_lines "${id:-NOID}" "ignored password difficulty token: not a valid d= or diff= value")
+	check "scenario18: d=10M yields exactly one ignored-token NOTICE (observed $n)" \
+		"$([[ "$n" == "1" ]] && echo true || echo false)"
+	n=$(diffpool_client_lines "${id:-NOID}" "set difficulty to .* via password parameter")
+	check "scenario18: d=10M yields no 'set difficulty ... via password parameter' line (observed $n)" \
+		"$([[ "$n" == "0" ]] && echo true || echo false)"
+	check "scenario18: the pool log never contains the password text '10M'" \
+		"$(grep -qF '10M' "$DIFFLOGDIR/e2e-diff.log" 2>/dev/null && echo false || echo true)"
+
+	# Valid, unclamped.
+	probe_json=$(diffprobe --user "diffprobe-n18-ok" --password "d=64")
+	observed=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth // "null"')
+	sleep 1
+	id=$(diffpool_client_id "diffprobe-n18-ok")
+	n=$(diffpool_client_lines "${id:-NOID}" "set difficulty to 64 via password parameter \\(pinned\\)$")
+	check "scenario18: d=64 starts at 64 (observed $observed)" \
+		"$([[ "$observed" == "64" ]] && echo true || echo false)"
+	check "scenario18: d=64 yields exactly one '(pinned)' notice at 64 (client '${id:-<none>}', observed $n)" \
+		"$([[ -n "$id" && "$n" == "1" ]] && echo true || echo false)"
+
+	# Valid, clamped up to mindiff.
+	probe_json=$(diffprobe --user "diffprobe-n18-clamp" --password "d=1")
+	observed=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth // "null"')
+	sleep 1
+	id=$(diffpool_client_id "diffprobe-n18-clamp")
+	n=$(diffpool_client_lines "${id:-NOID}" "set difficulty to 2 via password parameter \\(pinned, requested 1\\)$")
+	check "scenario18: d=1 is applied as mindiff 2 (observed $observed)" \
+		"$([[ "$observed" == "2" ]] && echo true || echo false)"
+	check "scenario18: d=1 yields exactly one 'set difficulty to 2 ... (pinned, requested 1)' notice (client '${id:-<none>}', observed $n)" \
+		"$([[ -n "$id" && "$n" == "1" ]] && echo true || echo false)"
+
+	# Plain password: nothing password-difficulty related is logged.
+	probe_json=$(diffprobe --user "diffprobe-n18-plain" --password "x")
+	observed=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth // "null"')
+	sleep 1
+	id=$(diffpool_client_id "diffprobe-n18-plain")
+	n=$(diffpool_client_lines "${id:-NOID}" "(set difficulty to .* via password parameter|ignored password difficulty token)")
+	check "scenario18: password x starts at startdiff 8 (observed $observed)" \
+		"$([[ "$observed" == "8" ]] && echo true || echo false)"
+	check "scenario18: password x logs no password-difficulty line (client '${id:-<none>}', observed $n)" \
+		"$([[ -n "$id" && "$n" == "0" ]] && echo true || echo false)"
+}
+
+# Scenario 19: the pin lasts for the life of the connection. The pool accepts
+# one mining.authorize per connection, so a second one sent after the first
+# reply gets no success reply and no difficulty push, and the connection
+# stays up at the pinned difficulty.
+scenario_19_second_authorize_keeps_pin() {
+	log "=== Scenario 19: a second authorize keeps the password d= pin ==="
+	local probe_json first last connected
+
+	probe_json=$(diffprobe --user "diffprobe-n19-twice" --password d=64 \
+		--reauth-password x --timeout 3)
+	log "scenario19: raw probe JSON: $probe_json"
+	first=$(printf '%s' "$probe_json" | jq -r '.diff_after_auth | tostring')
+	last=$(printf '%s' "$probe_json" | jq -r '.set_difficulty[-1] | tostring')
+	connected=$(printf '%s' "$probe_json" | jq -r '.connected | tostring')
+	check "scenario19: d=64 starts the connection at 64 (observed $first)" \
+		"$([[ "$first" == "64" ]] && echo true || echo false)"
+	check "scenario19: a second authorize gets no success reply and no set_difficulty (reply $(printf '%s' "$probe_json" | jq -c '.reauth_result'), pushes $(printf '%s' "$probe_json" | jq -c '.set_difficulty_after_reauth'))" \
+		"$(printf '%s' "$probe_json" | jq -r '(.reauth_result != true) and (.set_difficulty_after_reauth | length == 0)')"
+	check "scenario19: the difficulty is still 64 (observed $last)" \
+		"$([[ "$last" == "64" ]] && echo true || echo false)"
+	check "scenario19: the connection stayed up (observed $connected)" \
+		"$([[ "$connected" == "true" ]] && echo true || echo false)"
 }
 
 # ---------------------------------------------------------------------------
@@ -1626,6 +1776,9 @@ main() {
 	scenario_14_suggest_difficulty
 	scenario_15_reject_stats
 	scenario_16_restored_bestshare_clamped
+	scenario_17_pin_vs_suggest
+	scenario_18_password_diff_notices
+	scenario_19_second_authorize_keeps_pin
 
 	echo
 	echo "===================================================================="

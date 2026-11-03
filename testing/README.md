@@ -109,14 +109,35 @@ scenarios 1-10's shared conf or scenario 8's hashrate-sensitive guard.
   address whose TEXT happens to contain a configured key (must NOT match —
   only the worker segment is checked), and the NiceHash rental floor
   overriding/skipping the loop entirely.
-- **Scenario 14 (`mining.suggest_difficulty`)** — asserts *today's*
-  behaviour: `suggest_diff()` in `src/stratifier.c` clamps a suggestion to
-  the pool's `mindiff` but has no `maxdiff` clamp, so a huge suggestion is
-  honoured verbatim; a share below it is still rejected by the accept
-  predicate, and `suggest_difficulty(0)` clamps up to the pool's `mindiff`
-  on a fresh connection.
+- **Scenario 14 (`mining.suggest_difficulty`)** — with an ordinary password
+  (`x`), `suggest_diff()` in `src/stratifier.c` clamps a suggestion to
+  `[mindiff, maxdiff]`: a huge suggestion lands on `maxdiff`, a share below it
+  is still rejected by the accept predicate, and `suggest_difficulty(0)`
+  clamps up to the pool's `mindiff` on a fresh connection.
+- **Scenario 17 (a `d=` password pins the difficulty)** — `d=64` followed by
+  `mining.suggest_difficulty(4096)` and one unmined submit. Asserts the
+  connection starts at 64, no `mining.set_difficulty` follows the suggestion,
+  the submit gets a well-formed JSON-RPC reply, the sharelog record has
+  `diff: 64`, and the pool log carries exactly one
+  `ignored suggest_difficulty` NOTICE for that client.
+- **Scenario 18 (password difficulty notices)** — maps each probe to its
+  client id through the unique worker name in the `Authorised client` log
+  line, then asserts: `d=10M` yields exactly one fixed-text
+  `ignored password difficulty token` NOTICE, never echoes the password, and
+  leaves the client on `startdiff`; `d=64` yields one `(pinned)` notice;
+  `d=1` is applied as `mindiff` and logged as `(pinned, requested 1)`; the
+  plain password `x` logs no password-difficulty line.
+- **Scenario 19 (a second authorize keeps the pin)** — the pool accepts one
+  `mining.authorize` per connection. After `d=64`, a second authorize with
+  `x` sent after the first reply (`--reauth-password`) gets no success reply
+  and no `mining.set_difficulty`, the connection stays up, and its difficulty
+  is still 64.
 
-All four drive `testing/stratum_diffprobe.py`, a dependency-free stdlib-only
+The pin's vardiff behaviour (a pinned client is never retargeted) cannot be
+observed on regtest, where the network difficulty clamps vardiff to 1; it is
+covered by the `test/password_diff.c` unit test instead.
+
+Scenarios 11-14 and 17-19 drive `testing/stratum_diffprobe.py`, a dependency-free stdlib-only
 stratum V1 client (not `minerd`, which only ever submits shares that meet the
 difficulty it was told):
 
@@ -126,10 +147,10 @@ python3 testing/stratum_diffprobe.py --port 3336 --user bchreg:qz... \
 ```
 
 It subscribes, authorises, waits for the first `mining.notify` and every
-`mining.set_difficulty`, optionally sends `mining.suggest_difficulty` and
+`mining.set_difficulty`, optionally sends a second `mining.authorize` on the same connection after the first reply, optionally sends `mining.suggest_difficulty` and
 records the next difficulty push, optionally submits one share for the
 recorded job with a random nonce, and prints a single JSON object on stdout
-(`set_difficulty`, `diff_after_auth`, `submit_reply`, `suggest_reply_difficulty`,
+(`set_difficulty`, `diff_after_auth`, `set_difficulty_after_suggest`, `diff_after_reauth`, `reauth_result`, `connected`, `submit_reply`, `suggest_reply_difficulty`,
 `authorize_result`, plus `enonce1`/`nonce2_size`/`job_id`/`ntime`). Every
 socket read is bounded (`--timeout`, default 10s) and it never retries a
 submit — after 120s/180s of continuous invalid shares `src/stratifier.c`

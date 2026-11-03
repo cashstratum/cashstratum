@@ -9,6 +9,38 @@ says so rather than implying one.
 
 ## Unreleased
 
+## 1.6.0 — 2026-11-03
+
+**The stratum server changed:** rebuild and restart the pool. The API, `cashtop` and `monitor.sh`
+read both the old and the new log lines, so they can be upgraded in either order.
+
+- **`d=N` in the password now pins the difficulty.** Until now `d=N` / `diff=N` only set a vardiff
+  floor. Vardiff could raise a connection above N and, while that floor was set, never lowered it
+  again until the miner reconnected.
+  - **Evidence:** a NiceHash rig authorised at `d=100000000` ran at about 500 PH/s for 40 minutes,
+    was raised to 398M, and stayed at 398M after its hashrate dropped to about 50 PH/s.
+  - The pinned value is N after the existing limits: raised to `mindiff`, raised to the
+    NiceHash/MiningRigRentals floor for rental useragents, capped at `maxdiff`.
+  - Vardiff never re-targets a pinned connection, and `mining.suggest_difficulty` is ignored for
+    it (one NOTICE per connection; the client is not dropped).
+  - The pool accepts one `mining.authorize` per connection, so changing a pinned difficulty means
+    reconnecting with a new password.
+  - Any other password (for example `x`) keeps vardiff exactly as before, including rental and
+    `mindiff_overrides` floors.
+- **Log lines.** The password notice gains a suffix:
+  `Client N set difficulty to D via password parameter (pinned)`, or
+  `(pinned, requested R)` when a limit changed the value. The legacy prefix is unchanged.
+  - A difficulty-looking token with no valid value (`d=10M`, `D=500`, `d=1e8`) now logs
+    `Client N ignored password difficulty token: not a valid d= or diff= value` and the client stays
+    on vardiff. The password itself is never logged.
+- **Tests.** New unit test `test/password_diff.c` covers the pin, the vardiff target and the
+  ignored-token detector. Regtest scenarios 17–19 cover the pin against `suggest_difficulty`, the
+  log notices, and a second authorize on a pinned connection. The full regtest run passes 171/171.
+- **Proofs:** three more mainnet blocks (975630, 975692, 975726) are added to
+  `docs/proofs/recent-blocks.json`, bringing the verified total to 109. 975630 was found while
+  v1.4.1 was the current release; 975692 and 975726 while v1.5.0 was. The stratum server is the
+  same in both.
+
 ## 1.5.0 — 2026-11-02
 
 API only. **The stratum server is unchanged:** nothing under `src/` or the C build differs from

@@ -26,6 +26,7 @@ const (
 	StyleNewBlock
 	StyleNetDiff
 	StyleError
+	StyleNotice // password-difficulty notices that were ignored
 )
 
 // Row is one visible feed line.
@@ -66,6 +67,7 @@ var Palette = [24]int{39, 45, 51, 75, 81, 111, 117, 141, 147, 171, 177, 183, 207
 var (
 	reUser     = regexp.MustCompile(`^(User|Worker) [^ ]+:\{`)
 	rePassword = regexp.MustCompile(`^Client [^ ]+ set difficulty to [0-9]+ via password parameter`)
+	reIgnored  = regexp.MustCompile(`^Client [^ ]+ ignored (password difficulty token|suggest_difficulty):`)
 	reAgent    = regexp.MustCompile(`detected from useragent .* for client [^ ]+, applied difficulty`)
 	rePattern  = regexp.MustCompile(`^Client [^ ]+ workername .* matched pattern .* applied difficulty`)
 	reAuth     = regexp.MustCompile(`^Authorised client [^ ]+ [^ ]+ worker `)
@@ -287,6 +289,8 @@ func (e *Engine) rule(c ctx, msg string) (Row, bool) {
 		f := strings.Fields(msg)
 		e.tags.set(f[1], e.tags.get(f[1])+" d="+f[5]+" (password)")
 		return Row{}, false
+	case reIgnored.MatchString(msg):
+		return e.row(c, StyleNotice, "33", hms+" "+msg), true
 	case reAgent.MatchString(msg):
 		f := strings.Fields(msg)
 		cid := ""

@@ -243,7 +243,7 @@ MODE == "all" {
     else if (msg ~ /[Rr]eject|[Ee]rror|ERROR|[Ff]ail|CRITICAL|Unable|[Ii]nvalid|RETURNED|NO RESPONSE/) out("1;31", line)
     else if (msg ~ /^Block hash changed/) out("1;35", line)
     else if (msg ~ /^Network diff set/) out("1;33", line)
-    else if (msg ~ /detected from useragent|via password parameter|matched pattern/) out("33", line)
+    else if (msg ~ /detected from useragent|via password parameter|matched pattern|ignored password difficulty token|ignored suggest_difficulty/) out("33", line)
     else if (msg ~ /^ZMQ/) out("34", line)
     else if (msg ~ /^Pool:/) out("36", line)
     else if (msg ~ /^Stored local workbase|^Reaping client/) out("2", line)
@@ -346,6 +346,7 @@ msg ~ /SUBMIT BLOCK RETURNED|SUBMIT BLOCK GOT NO RESPONSE|had block [0-9]+ rejec
 msg ~ /BLOCK ACCEPTED|Solved and confirmed|Possible block solve|Block solved after|Submitting (possible )?block/ { out("1;32", hms " * " msg); next }
 msg ~ /^Block hash changed to / { out("1;35", hms " ━━━━ NEW NETWORK BLOCK ━━━━ " substr(msg, 23)); next }
 msg ~ /^Network diff set to / { out("33", hms " # network diff " si(substr(msg, 21))); next }
+msg ~ /^Client [^ ]+ ignored (password difficulty token|suggest_difficulty):/ { out("33", hms " " msg); next }
 msg ~ /^ZMQ block hash/ { next }
 msg ~ /[Rr]eject|[Ee]rror|ERROR|[Ff]ail|CRITICAL|Unable|[Ii]nvalid|rate limited/ { out("1;31", hms " " msg); next }
 { out("", (hms != "" ? hms " " : "") msg) }

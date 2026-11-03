@@ -311,7 +311,7 @@ func (g *Generator) Extra() []string {
 		g.line("NiceHash detected from useragent '%s' for client %d, applied difficulty %d", "NiceHash/1.0.0", c, 500000),
 		g.line("MiningRigRentals detected from useragent '%s' for client %d, applied difficulty %d", "MRRNode/1.0", c, 20000),
 		g.line("Client %d workername '%s' matched pattern '%s', applied difficulty %d", c, Worker(0, 0), "user1.*", 10000),
-		g.line("Client %d set difficulty to %d via password parameter", c, 4096),
+		g.line("Client %d set difficulty to %d via password parameter (pinned)", c, 4096),
 		g.line("SUBMIT BLOCK GOT NO RESPONSE!"),
 		g.line("Block %d solved by %s accepted on SV2/JD", g.Height, FullWorker(1, 0)),
 		g.line("Possible stale share block solve diff %s !", f(g.NetworkDiff, 6)),

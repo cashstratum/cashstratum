@@ -5,7 +5,8 @@ difficulty-policy regtest scenarios (regtest-e2e.sh scenarios 11-14).
 Speaks just enough of the stratum V1 JSON-RPC-over-newline-delimited-TCP
 protocol to observe the pool's difficulty decisions without hashing
 anything: mining.subscribe, mining.authorize, waiting on mining.notify /
-mining.set_difficulty, an optional mining.suggest_difficulty, and an
+mining.set_difficulty, an optional second mining.authorize on the same
+connection, an optional mining.suggest_difficulty, and an
 optional single mining.submit with a syntactically valid but unmined
 share (a random nonce is already below any assigned difficulty >= 1, so
 no proof-of-work is required to prove a reject).
@@ -37,10 +38,23 @@ def parse_args():
     parser.add_argument("--password", default="x", help="mining.authorize password (default: x)")
     parser.add_argument("--useragent", default="regtest-diffprobe", help="mining.subscribe useragent")
     parser.add_argument(
+        "--reauth-password",
+        default=None,
+        help="if given, send a second mining.authorize for --user with this password on "
+        "the same connection, after the first reply and its difficulty pushes",
+    )
+    parser.add_argument(
         "--suggest",
         type=int,
         default=None,
         help="if given, send mining.suggest_difficulty(N) after authorising",
+    )
+    parser.add_argument(
+        "--suggest-wait",
+        type=float,
+        default=None,
+        help="seconds to wait for a set_difficulty after --suggest (default: --timeout); "
+        "use a short value when none is expected",
     )
     parser.add_argument(
         "--submit",
@@ -64,6 +78,7 @@ class StratumClient(object):
         self.sock.settimeout(timeout)
         self.timeout = timeout
         self._buf = b""
+        self.eof = False
 
     def close(self):
         try:
@@ -87,6 +102,7 @@ class StratumClient(object):
             except socket.timeout:
                 return None
             if not chunk:
+                self.eof = True
                 return None
             self._buf += chunk
         line, self._buf = self._buf.split(b"\n", 1)
@@ -104,7 +120,12 @@ def main():
     result = {
         "set_difficulty": [],
         "set_difficulty_after_auth": [],
+        "set_difficulty_after_suggest": [],
         "diff_after_auth": None,
+        "set_difficulty_after_reauth": [],
+        "diff_after_reauth": None,
+        "reauth_result": None,
+        "connected": None,
         "submit_reply": None,
         "suggest_reply_difficulty": None,
         "authorize_result": None,
@@ -119,6 +140,8 @@ def main():
     # before the authorize response is fully processed, so gating on the
     # reply loses those pushes to a wire-ordering race.
     auth_diff_seen = False
+    suggest_sent = False
+    reauth_sent = False
 
     def pump(client):
         """Read and route exactly one line, if one is available. Returns
@@ -133,6 +156,10 @@ def main():
                 result["set_difficulty"].append(params[0])
                 if auth_diff_seen:
                     result["set_difficulty_after_auth"].append(params[0])
+                if suggest_sent:
+                    result["set_difficulty_after_suggest"].append(params[0])
+                if reauth_sent:
+                    result["set_difficulty_after_reauth"].append(params[0])
         elif method == "mining.notify":
             params = msg.get("params") or []
             if len(params) >= 8:
@@ -213,10 +240,28 @@ def main():
         if result["set_difficulty_after_auth"]:
             result["diff_after_auth"] = result["set_difficulty_after_auth"][-1]
 
+        if args.reauth_password is not None:
+            # Marked before sending, for the same wire-ordering reason as
+            # the first authorize.
+            reauth_sent = True
+            client.send({"id": 5, "method": "mining.authorize",
+                         "params": [args.user, args.reauth_password]})
+            deadline = time.time() + args.timeout
+            wait_for(client, lambda: 5 in responses, deadline)
+            deadline = time.time() + args.timeout
+            wait_for(client, lambda: bool(result["set_difficulty_after_reauth"]), deadline)
+            drain_for(client, 0.5)
+            if 5 in responses:
+                result["reauth_result"] = responses[5].get("result")
+            if result["set_difficulty_after_reauth"]:
+                result["diff_after_reauth"] = result["set_difficulty_after_reauth"][-1]
+
         if args.suggest is not None:
             before = len(result["set_difficulty"])
+            suggest_sent = True
             client.send({"id": 3, "method": "mining.suggest_difficulty", "params": [args.suggest]})
-            deadline = time.time() + args.timeout
+            wait = args.timeout if args.suggest_wait is None else args.suggest_wait
+            deadline = time.time() + wait
             wait_for(client, lambda: len(result["set_difficulty"]) > before, deadline)
             if len(result["set_difficulty"]) > before:
                 result["suggest_reply_difficulty"] = result["set_difficulty"][-1]
@@ -235,6 +280,8 @@ def main():
             deadline = time.time() + args.timeout
             wait_for(client, lambda: 4 in responses, deadline)
             result["submit_reply"] = responses.get(4)
+
+        result["connected"] = not client.eof
     finally:
         client.close()
 

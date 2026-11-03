@@ -192,8 +192,13 @@ that every configuration has been validated on mainnet.
 **Three Methods of Difficulty Control (Priority Order):**
 
 ##### a) **Password-Based Difficulty** (Highest Priority) ✅ TESTED
-  - Set difficulty via password field: `-p d=500000` or `-p diff=1000000`
-  - **Both formats supported**: `d=` (short) and `diff=` (long)
+  - Pin a fixed difficulty via the password field: `-p d=500000` or `-p diff=1000000`
+  - **Both formats supported**: `d=` (short) and `diff=` (long). Lower-case only, whole digits, at the start of the password or after `,`, `;` or a space
+  - The value is clamped by the pool: raised to `mindiff`, raised to the NiceHash/MiningRigRentals floor for rental useragents, and capped at `maxdiff`
+  - The connection stays at that difficulty. Vardiff never moves it and `mining.suggest_difficulty` is ignored
+  - The pin lasts for the life of the connection: the pool accepts one `mining.authorize` per connection, so changing the difficulty means reconnecting with a new password
+  - Any other password (for example `x`) leaves the connection on vardiff
+  - A malformed token (`d=10M`, `D=500`, `d=1e8`) is ignored with a NOTICE in the pool log, and the client stays on vardiff
   - Overrides ALL other difficulty settings
   - Applied immediately upon authorization
   - Perfect for individual miner control
@@ -371,7 +376,7 @@ looks like this.
 #### Password-Based Difficulty (Per Connection)
 
 ```bash
-# Set specific difficulty via password
+# Pin a fixed difficulty via password (vardiff is disabled for this connection)
 ./cgminer -o stratum+tcp://pool:3333 -u BCH_ADDRESS.worker -p d=500000
 
 # Or using long format
@@ -550,7 +555,7 @@ If renting hashrate to this pool:
 3. **Auto-detection:** Pool automatically detects NiceHash/MRR from useragent and applies appropriate difficulty
    - NiceHash: 500k difficulty
    - MiningRigRentals: 1M difficulty
-4. You can override with password: `-p d=1000000`
+4. You can pin a fixed difficulty with the password: `-p d=1000000` (clamped to `mindiff`, the rental floor and `maxdiff`)
 5. **Note:** Ensure pool's `maxdiff` is 0 or > rental service difficulty
 
 ## 🚦 BCH Node Setup

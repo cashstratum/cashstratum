@@ -9,6 +9,39 @@ says so rather than implying one.
 
 ## Unreleased
 
+## 1.6.1 — 2026-11-08
+
+**Only `cashtop` changed.** The stratum server, the API and the notifier did not, so no pool restart
+is needed. Replace the `cashtop` binary and relaunch it. On first start it rebuilds its cache from
+the pool log once.
+
+- **Blocks show the finder's own effort next to the pool's.** Each miner has its own round, which
+  restarts only at that miner's blocks. The old single "effort" column was the pool round.
+  - **Evidence:** block 976298 read 11.9% pool effort while its finder had done 355.98% of a network
+    difficulty on its own (the finder's last per-minute user line before the solve). A sharelog sum
+    of that address's accepted difficulty since its previous block gives 355.99%.
+- **A complete 510-byte log line no longer swallows the next line.** The pool splits long lines at
+  510 bytes. A message that was exactly 510 bytes long was joined with the following
+  `Block solved after …` line, so that block's effort was lost and shown as 0%. Unknown values now
+  show `–`, never 0%.
+  - **Evidence:** block 976322 showed 0%; the log says 37.4%.
+- **A pool restart closes every open session.** A restart logs no disconnects, so sessions open
+  across it stayed "connected" forever. The dashboard's "longest" read exactly the pool uptime on a
+  worker idle for 17 hours, and idle counts were inflated. The "longest" and "all alive" rows are
+  replaced by "last block" and "top round".
+- **Per-miner round breakdown.** The dashboard's round table lists each address's share of the
+  current round, its own effort and its best share. Pressing Enter on a row opens that miner's page,
+  with its own effort and the blocks it found, each with the finder effort.
+  - **Evidence:** the sum over the sharelogs matched the pool's accepted total to 0.002%.
+- **Workers: a disconnect shows at once** as `off <ago> · <reason>` (`peer_eof`, `peer_reset`, …).
+  Off workers are hidden by default; `o` toggles them.
+- **The block banner stays until Esc, Enter or Space.** Finds queue instead of replacing each other.
+  The iTerm2 attention request is no longer sent. `ctrl+l` redraws the screen.
+- **Share rain has one lane per miner**, with a legend: ● accepted, × rejected, ◆ near miss.
+- **The Network tab lists recent network blocks** with the interval, the coinbase tag and the pool
+  name, plus a difficulty trend.
+- **Proofs: 10 more blocks** found by CashStratum v1.6.0 (975905 to 976456) are in `docs/proofs/`, for 128 verified in total.
+
 ## 1.6.0 — 2026-11-03
 
 **The stratum server changed:** rebuild and restart the pool. The API, `cashtop` and `monitor.sh`

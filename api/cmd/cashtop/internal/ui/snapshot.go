@@ -15,6 +15,28 @@ type Snapshot struct {
 	BestShares []BestShare // highest first, best share per worker since the last block
 	Hashrates  []float64   // trailing pool hashrate series in H/s, oldest first
 	Shares     []ShareDrop // recent submits from the current height's sharelogs, newest last
+
+	// Round is the current round's per-miner breakdown.
+	Round RoundInfo
+}
+
+// RoundInfo is the share accounting of the round in progress.
+type RoundInfo struct {
+	Since  time.Time    `json:",omitzero"` // when the round started; zero when unknown
+	Height int          // height of the block template being worked on
+	Total  float64      // sum of accepted share difficulty in the round
+	Miners []RoundMiner // sorted by Diff, highest first
+}
+
+// RoundMiner is one miner's slice of the current round.
+type RoundMiner struct {
+	Address   string  // payout address of the miner
+	Diff      float64 // accepted share difficulty this round
+	Pct       float64 // share of RoundInfo.Total, percent
+	OwnLuck   float64 // the miner's own effort this round, percent of network difficulty; valid when OwnLuckOK
+	OwnLuckOK bool    // OwnLuck is known
+	Best      float64 // best share difficulty this round
+	BestOfNet float64 // Best as a percent of network difficulty
 }
 
 // MaxShareDrops caps Snapshot.Shares.
@@ -93,6 +115,11 @@ type WorkerRow struct {
 	Shares     int64
 	LastShare  time.Time `json:",omitzero"`
 	Connected  time.Time `json:",omitzero"` // zero when unknown
+
+	// Disconnected is when the worker's last session dropped; zero while
+	// connected or unknown. DropReason says why, when the pool logged it.
+	Disconnected time.Time `json:",omitzero"`
+	DropReason   string    `json:",omitempty"`
 }
 
 // BlockStatus is the chain state of a found block.
@@ -112,7 +139,10 @@ type BlockRow struct {
 	Finder        string    // worker that found it
 	Proto         string    // "v1" / "sv2"
 	Time          time.Time `json:",omitzero"`
-	Luck          float64   // effort at the find, percent of network difficulty
+	Luck          float64   // pool effort at the find, percent of network difficulty
+	LuckOK        bool      // Luck is known (a zero effort is not "unknown")
+	FinderLuck    float64   // the finder's own effort at the find, percent of network difficulty; valid when FinderLuckOK
+	FinderLuckOK  bool      // FinderLuck is known
 	Status        BlockStatus
 	Confirmations int
 	Reward        int64 // satoshis; zero when unknown
@@ -152,6 +182,22 @@ type NetworkInfo struct {
 	LastNetBlock   time.Time `json:",omitzero"`
 	PrevDifficulty float64   `json:",omitempty"`
 	PrevTipTime    time.Time `json:",omitzero"`
+
+	// Recent lists the latest network blocks, newest first. DiffSeries is the
+	// trailing network difficulty series, oldest first.
+	Recent     []NetBlockRow
+	DiffSeries []float64
+}
+
+// NetBlockRow is one recent network block.
+type NetBlockRow struct {
+	Height   int
+	Hash     string
+	Time     time.Time     `json:",omitzero"`
+	Interval time.Duration // time since the previous block; zero when unknown
+	Pool     string        // mining pool that found it; empty when unknown
+	Tag      string        // coinbase tag; empty when unknown
+	Ours     bool          // found by this pool
 }
 
 // BestShare is one row of the best-share leaderboard.

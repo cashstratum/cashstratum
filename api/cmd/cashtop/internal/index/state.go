@@ -30,10 +30,13 @@ type Block struct {
 	Proto  string    `json:"proto,omitempty"`
 	Time   time.Time `json:"time"`
 	Luck   *float64  `json:"luck,omitempty"`
-	Status string    `json:"status"`
-	Reason string    `json:"reason,omitempty"`
-	Offset int64     `json:"offset,omitempty"`
-	Reward int64     `json:"reward,omitempty"` // satoshis; zero until looked up
+	// FinderLuck is the finder's own effort at the solve: the "luck" of the
+	// last periodic User line logged for its address before the solve line.
+	FinderLuck *float64 `json:"finder_luck,omitempty"`
+	Status     string   `json:"status"`
+	Reason     string   `json:"reason,omitempty"`
+	Offset     int64    `json:"offset,omitempty"`
+	Reward     int64    `json:"reward,omitempty"` // satoshis; zero until looked up
 }
 
 // Worker tracks the sessions of one full worker name.
@@ -52,7 +55,17 @@ type Worker struct {
 	// worker, at any height; snapshots written before they existed lack them.
 	Agent    string  `json:"agent,omitempty"`
 	LastDiff float64 `json:"last_diff,omitempty"`
+	// Disconnected is when the last open session closed, by a drop or a pool
+	// restart; DropReason is the reason the pool logged ("pool_restart" for a
+	// restart, empty when the drop line carried none). Both clear when the
+	// worker authorises again.
+	Disconnected time.Time `json:"disconnected,omitzero"`
+	DropReason   string    `json:"drop_reason,omitempty"`
 }
+
+// ReasonPoolRestart is the DropReason of sessions closed by a pool restart,
+// which logs no drop lines of its own.
+const ReasonPoolRestart = "pool_restart"
 
 // Streak is the length of the current uninterrupted session at now.
 func (w Worker) Streak(now time.Time) time.Duration {
@@ -83,20 +96,22 @@ type Work struct {
 	Files  map[string]int64   `json:"files"`
 }
 
-// Round is the best accepted share per worker since the pool's last accepted
-// block, read from the sharelogs. Since and Height identify that block; a
-// different block starts the round over. Files holds the read offsets of
-// every sharelog scanned for the round, keyed "dir/file".
+// Round is the best accepted share per worker, and the accepted difficulty
+// per payout address, since the pool's last accepted block, read from the
+// sharelogs. Since and Height identify that block; a different block starts
+// the round over. Files holds the read offsets of every sharelog scanned for
+// the round, keyed "dir/file".
 type Round struct {
 	Since  time.Time            `json:"since"`
 	Height int64                `json:"height"`
 	Seen   bool                 `json:"seen"`
 	Files  map[string]int64     `json:"files"`
 	Best   map[string]BestShare `json:"best"`
+	Sums   map[string]float64   `json:"sums"`
 }
 
 func newRound() Round {
-	return Round{Files: map[string]int64{}, Best: map[string]BestShare{}}
+	return Round{Files: map[string]int64{}, Best: map[string]BestShare{}, Sums: map[string]float64{}}
 }
 
 // State is everything the index remembers.
@@ -116,14 +131,18 @@ type State struct {
 	NetDiff    float64            `json:"net_diff,omitempty"` // newest network difficulty seen in the log
 	Solved     time.Time          `json:"solved,omitzero"`    // log time of the newest accepted block
 	Tip        int64              `json:"tip,omitempty"`      // last chain height read from the node
+	// LastLuck is the newest per-user "luck" logged for each payout address
+	// (no network prefix) since that address's last solve.
+	LastLuck map[string]float64 `json:"last_luck,omitempty"`
 }
 
 func newState() *State {
 	return &State{
-		Blocks:  map[int64]*Block{},
-		Workers: map[string]*Worker{},
-		Work:    Work{Sums: map[string]float64{}, Files: map[string]int64{}},
-		Round:   newRound(),
+		Blocks:   map[int64]*Block{},
+		Workers:  map[string]*Worker{},
+		Work:     Work{Sums: map[string]float64{}, Files: map[string]int64{}},
+		Round:    newRound(),
+		LastLuck: map[string]float64{},
 	}
 }
 
@@ -139,19 +158,20 @@ type dirty struct {
 	workRst  bool
 	round    bool
 	trans    bool
+	lucks    map[string]bool
 }
 
 func newDirty(s *State) *dirty {
 	return &dirty{
 		blocks: map[int64]bool{}, workers: map[string]bool{},
 		hrFrom: -1, luckFrom: -1,
-		work: map[string]bool{}, files: map[string]bool{},
+		work: map[string]bool{}, files: map[string]bool{}, lucks: map[string]bool{},
 	}
 }
 
 func (d *dirty) empty() bool {
 	return len(d.blocks) == 0 && len(d.workers) == 0 && !d.best && d.hrFrom < 0 &&
-		d.luckFrom < 0 && len(d.work) == 0 && len(d.files) == 0 && !d.workRst && !d.round && !d.trans
+		d.luckFrom < 0 && len(d.work) == 0 && len(d.files) == 0 && !d.workRst && !d.round && !d.trans && len(d.lucks) == 0
 }
 
 // applyEvent folds one parsed log event into the state.
@@ -159,15 +179,19 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 	s, d := ix.st, ix.dirty
 	switch ev.Kind {
 	case poolfmt.KindAuthorised:
+		if IsAPIProbe(ev.Address, ev.Worker) {
+			return
+		}
 		w := ix.worker(ev.Worker, ev.Address, ev.User)
 		w.Clients++
 		w.Sessions++
 		if !w.Online {
 			w.Online, w.Since = true, ev.Time
 		}
+		w.Disconnected, w.DropReason = time.Time{}, ""
 		d.workers[w.Name] = true
 	case poolfmt.KindDropped:
-		if ev.Worker == "" {
+		if ev.Worker == "" || IsAPIProbe(ev.Address, ev.Worker) {
 			return
 		}
 		w := ix.worker(ev.Worker, "", ev.User)
@@ -179,13 +203,31 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 		if w.Clients > 0 {
 			w.Clients--
 		}
-		if w.Clients == 0 && w.Online {
-			w.Online = false
-			if secs := int64(ev.Time.Sub(w.Since) / time.Second); secs > w.Longest {
-				w.Longest = secs
+		if w.Clients == 0 {
+			if w.Online {
+				ix.closeSession(w, ev.Time)
+			}
+			// Drops logged before the pool reported reasons carry none.
+			w.Disconnected, w.DropReason = ev.Time, ""
+			if ev.Reason.OK {
+				w.DropReason = ev.Reason.V
 			}
 		}
 		d.workers[w.Name] = true
+	case poolfmt.KindPoolStart:
+		// A restarting pool drops every connection without logging a drop
+		// line per session, so close them all here.
+		for _, w := range s.Workers {
+			if w.Clients == 0 && !w.Online {
+				continue
+			}
+			w.Clients = 0
+			if w.Online {
+				ix.closeSession(w, ev.Time)
+			}
+			w.Disconnected, w.DropReason = ev.Time, ReasonPoolRestart
+			d.workers[w.Name] = true
+		}
 	case poolfmt.KindPool:
 		if !ev.HasTime {
 			return
@@ -201,6 +243,14 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 			s.NetDiff, d.trans = ev.Diff, true
 		}
 	case poolfmt.KindUser:
+		// The User line printed with a solve carries no luck; only the
+		// periodic form says where the user's own round stands.
+		if l := ev.Stats.Luck; l.OK {
+			addr := poolfmt.NormalizeAddress(ev.Name)
+			if cur, ok := s.LastLuck[addr]; !ok || cur != l.V {
+				s.LastLuck[addr], d.lucks[addr] = l.V, true
+			}
+		}
 		if nd := ev.Stats.NetworkDiff; nd.OK && nd.V > 0 && nd.V != s.NetDiff {
 			s.NetDiff, d.trans = nd.V, true
 		}
@@ -220,8 +270,18 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 		if luck == nil && s.OpenLuck != nil {
 			luck = s.OpenLuck
 		}
+		finderLuck := b.FinderLuck
+		// The daemon starts the finder's own round over at its solve, so the
+		// remembered value is consumed: a second solve before the next User
+		// line has no known effort rather than a repeated one.
+		addr := FinderAddress(ev.Worker)
+		if l, ok := s.LastLuck[addr]; ok {
+			finderLuck = &l
+			delete(s.LastLuck, addr)
+			d.lucks[addr] = true
+		}
 		*b = Block{Height: ev.Height, Hash: s.LastZMQ, Finder: ev.Worker, Proto: ev.Protocol,
-			Time: ev.Time, Status: StatusAccepted, Offset: off, Reward: b.Reward, Luck: luck}
+			Time: ev.Time, Status: StatusAccepted, Offset: off, Reward: b.Reward, Luck: luck, FinderLuck: finderLuck}
 		if old, ok := ix.carry[ev.Height]; ok && (old.Time.IsZero() || old.Time.Equal(b.Time)) {
 			if old.Reward > 0 {
 				b.Reward = old.Reward
@@ -235,6 +295,10 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 			}
 			if b.Proto == "" && old.Proto != "" {
 				b.Proto = old.Proto
+			}
+			if b.FinderLuck == nil && old.FinderLuck != nil {
+				l := *old.FinderLuck
+				b.FinderLuck = &l
 			}
 		}
 		if prev := ix.orphans[ev.Height]; prev {
@@ -264,6 +328,27 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 			d.blocks[ev.Height] = true
 		}
 	}
+}
+
+// closeSession ends a worker's current session at t.
+func (ix *Index) closeSession(w *Worker, t time.Time) {
+	w.Online = false
+	if secs := int64(t.Sub(w.Since) / time.Second); secs > w.Longest {
+		w.Longest = secs
+	}
+}
+
+// IsAPIProbe reports the pool API's own health-check connection, which
+// authorises and drops from the loopback address and is never a miner.
+func IsAPIProbe(ip, worker string) bool {
+	return ip == "127.0.0.1" && strings.HasSuffix(worker, ".cashstratum-api")
+}
+
+// FinderAddress is the payout address of a solve line's finder, without a
+// network prefix, so that bare, prefixed and legacy forms match User lines.
+func FinderAddress(worker string) string {
+	addr, _ := poolfmt.SplitWorker(worker)
+	return poolfmt.NormalizeAddress(addr)
 }
 
 func (ix *Index) block(h int64) *Block {
@@ -364,5 +449,5 @@ func isLineOfInterest(line string) bool {
 	case 'B':
 		return strings.HasPrefix(body, "Block ")
 	}
-	return false
+	return strings.HasSuffix(body, " stratifier starting")
 }

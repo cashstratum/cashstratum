@@ -1001,3 +1001,355 @@ func TestSnapshotWithoutAgentFieldsLoads(t *testing.T) {
 		}
 	}
 }
+
+const (
+	addrNice  = "qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh"
+	addrBare  = "qrfc9tvc5dx4ywgmnxj5yy95xdrg7ra9eupjeshhfq"
+	addrDeus  = "qpdap8727zduldlgyk7x94yxq49cu4l7lc29tat3a3"
+	addrLegcy = "14BDgNEHdr6eo8wEQSfu8uAcV6HgG2GzxH"
+)
+
+// userLuck is a periodic User line, which carries the user's own round.
+func userLuck(stamp, user string, luck float64) string {
+	return fmt.Sprintf(`[%s] User %s:{"hashrate1m":"4.5T","hashrate5m":"4.4T","hashrate1hr":"4.3T","hashrate1d":"4T","hashrate7d":"4T","lastshare":1762480786,"workers":1,"shares":175954,"roundshares":1966086000000,"bestshare":12345678,"luck":%v,"networkdiff":552305174002.9905,"bestever":1,"authorised":1700000000}`+"\n", stamp, user, luck)
+}
+
+// userSolve is the User line printed with a solve: no roundshares, no luck.
+func userSolve(stamp, user string) string {
+	return fmt.Sprintf(`[%s] User %s:{"hashrate1m":"4.5T","hashrate5m":"4.4T","hashrate1hr":"4.3T","hashrate1d":"4T","hashrate7d":"4T","shares":175954,"authorised":1700000000}`+"\n", stamp, user)
+}
+
+// bareIndex opens an in-memory index over a pool root whose log is text.
+func bareIndex(t *testing.T, text string) (*Index, string) {
+	t.Helper()
+	root := t.TempDir()
+	logs := filepath.Join(root, "logs")
+	if err := os.MkdirAll(logs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(logs, "cashstratum.log"), []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ix, err := Open(Options{Root: root, Memory: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ix.Close() })
+	return ix, root
+}
+
+func blockAt(v View, h int64) *Block {
+	for i := range v.Blocks {
+		if v.Blocks[i].Height == h {
+			return &v.Blocks[i]
+		}
+	}
+	return nil
+}
+
+func workerNamed(v View, name string) *Worker {
+	for i := range v.Workers {
+		if v.Workers[i].Name == name {
+			return &v.Workers[i]
+		}
+	}
+	return nil
+}
+
+func stampOf(t *testing.T, line string) time.Time {
+	t.Helper()
+	ev := poolfmt.ParseLine(line)
+	if !ev.HasTime {
+		t.Fatalf("no time in %q", line)
+	}
+	return ev.Time
+}
+
+// The finder's effort is the luck of its last periodic User line before the
+// solve; the luck-less User line printed with the solve is ignored, and the
+// pool effort still comes from the "Block solved after" line.
+func TestFinderLuckFromLastUserLine(t *testing.T) {
+	user := "bitcoincash:" + addrNice
+	log := userLuck("2026-11-07 01:59:46.947", user, 355.978196935985) +
+		userSolve("2026-11-07 01:59:50.000", user) +
+		"[2026-11-07 02:00:00.646] Solved and confirmed block 976298 by " + user + ".nice on SV1\n" +
+		userSolve("2026-11-07 02:00:00.646", user) +
+		"[2026-11-07 02:00:00.646] Block solved after 65606500000 shares at 11.9% diff\n"
+	ix, _ := bareIndex(t, log)
+	b := blockAt(ix.Snapshot(), 976298)
+	if b == nil || b.FinderLuck == nil || b.Luck == nil {
+		t.Fatalf("block %+v", b)
+	}
+	if *b.FinderLuck != 355.978196935985 || *b.Luck != 11.9 {
+		t.Fatalf("finder %v pool %v, want 355.978196935985 and 11.9", *b.FinderLuck, *b.Luck)
+	}
+}
+
+// Solve lines name the finder bare, prefixed or in legacy form; User lines
+// always carry the prefix for cash addresses. All of them match.
+func TestFinderLuckMatchesEveryAddressForm(t *testing.T) {
+	log := userLuck("2026-11-01 10:00:00.000", "bitcoincash:"+addrBare, 50.42) +
+		userLuck("2026-11-01 10:00:01.000", addrLegcy, 127.98) +
+		userLuck("2026-11-01 10:00:02.000", "bitcoincash:"+addrNice, 427.98) +
+		"[2026-11-01 10:00:30.000] Solved and confirmed block 975568 by " + addrBare + ".doutor1 on SV1\n" +
+		"[2026-11-01 10:00:40.000] Solved and confirmed block 975569 by " + addrLegcy + ".rig on SV1\n" +
+		"[2026-11-01 10:00:50.000] Solved and confirmed block 975570 by bitcoincash:" + addrNice + " on SV1\n"
+	ix, _ := bareIndex(t, log)
+	v := ix.Snapshot()
+	for h, want := range map[int64]float64{975568: 50.42, 975569: 127.98, 975570: 427.98} {
+		b := blockAt(v, h)
+		if b == nil || b.FinderLuck == nil || *b.FinderLuck != want {
+			t.Fatalf("%d: %+v, want %v", h, b, want)
+		}
+	}
+}
+
+// The finder's own round restarts at its solve: a second block before its
+// next periodic line has no known effort, and one after it reads the small
+// fresh value. Another address's block leaves the finder's value alone.
+func TestFinderLuckBackToBackSameAddress(t *testing.T) {
+	user := "bitcoincash:" + addrNice
+	other := "bitcoincash:" + addrBare
+	log := userLuck("2026-10-26 10:00:00.000", user, 120.5) +
+		userLuck("2026-10-26 10:00:01.000", other, 80.25) +
+		"[2026-10-26 10:00:10.000] Solved and confirmed block 975757 by " + user + ".nice on SV1\n" +
+		userSolve("2026-10-26 10:00:10.000", user) +
+		"[2026-10-26 10:00:40.000] Solved and confirmed block 975758 by " + user + ".nice on SV1\n" +
+		userLuck("2026-10-26 10:01:00.000", user, 0.34) +
+		"[2026-10-26 10:01:20.000] Solved and confirmed block 975759 by " + user + ".nice on SV1\n" +
+		"[2026-10-26 10:01:30.000] Solved and confirmed block 975760 by " + other + ".rig on SV1\n"
+	ix, _ := bareIndex(t, log)
+	v := ix.Snapshot()
+	if b := blockAt(v, 975757); b == nil || b.FinderLuck == nil || *b.FinderLuck != 120.5 {
+		t.Fatalf("first: %+v", b)
+	}
+	if b := blockAt(v, 975758); b == nil || b.FinderLuck != nil {
+		t.Fatalf("second solve before a new User line must be unknown: %+v", b)
+	}
+	if b := blockAt(v, 975759); b == nil || b.FinderLuck == nil || *b.FinderLuck != 0.34 {
+		t.Fatalf("third: %+v", b)
+	}
+	if b := blockAt(v, 975760); b == nil || b.FinderLuck == nil || *b.FinderLuck != 80.25 {
+		t.Fatalf("other address: %+v", b)
+	}
+	if _, ok := v.LastLuck[addrNice]; ok {
+		t.Fatalf("consumed luck still remembered: %v", v.LastLuck)
+	}
+}
+
+// The remembered luck outlives a cashtop restart, so a solve tailed after
+// the restart still gets the finder's effort.
+func TestFinderLuckSurvivesRestart(t *testing.T) {
+	e := newEnv(t)
+	ix := e.open()
+	user := "bitcoincash:" + addrNice
+	appendFile(t, e.log, userLuck("2026-11-07 01:59:46.947", user, 355.978196935985))
+	if err := ix.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	ix.Close()
+	ix2 := e.open()
+	defer ix2.Close()
+	if ix2.Info().Rescanned {
+		t.Fatalf("unexpected rescan: %+v", ix2.Info())
+	}
+	appendFile(t, e.log, "[2026-11-07 02:00:00.646] Solved and confirmed block 976298 by "+user+".nice on SV1\n")
+	if err := ix2.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	if b := blockAt(ix2.Snapshot(), 976298); b == nil || b.FinderLuck == nil || *b.FinderLuck != 355.978196935985 {
+		t.Fatalf("block %+v", b)
+	}
+}
+
+// A block missing from the log is backfilled from its solves/ context file,
+// finder effort included.
+func TestSolveContextPopulatesFinderLuck(t *testing.T) {
+	e := newEnv(t)
+	solvesDir := filepath.Join(e.root, "solves")
+	if err := os.MkdirAll(solvesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	h := int64(888889)
+	hash := "0000000000000000000123456789abcdef0123456789abcdef0123456789abce"
+	ctxFile := fmt.Sprintf("solves/%d-%s.log", h, hash)
+	ctx := userLuck("2026-04-19 09:59:40.000", "bitcoincash:"+addrBare, 61.5) +
+		fmt.Sprintf("[2026-04-19 10:00:00.100] Solved and confirmed block %d by %s.doutor1 on SV1\n", h, addrBare) +
+		userSolve("2026-04-19 10:00:00.100", "bitcoincash:"+addrBare) +
+		"[2026-04-19 10:00:00.101] Block solved after 123456 shares at 142.5% diff\n"
+	if err := os.WriteFile(filepath.Join(e.root, ctxFile), []byte(ctx), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	appendFile(t, filepath.Join(solvesDir, "INDEX.tsv"),
+		fmt.Sprintf("%d\t%s\t2026-04-19 10:00:00.100\tACCEPTED\t%s.doutor1\t10\t%s\n", h, hash, addrBare, ctxFile))
+	ix := e.open()
+	defer ix.Close()
+	b := blockAt(ix.Snapshot(), h)
+	if b == nil || b.FinderLuck == nil || *b.FinderLuck != 61.5 || b.Luck == nil || *b.Luck != 142.5 {
+		t.Fatalf("solve context not merged: %+v", b)
+	}
+}
+
+// A pool restart logs no drop lines, yet ends every session: a worker
+// authorised before it is not online after it.
+func TestPoolRestartClosesSessions(t *testing.T) {
+	user := "bitcoincash:" + addrDeus
+	worker := user + ".deus"
+	auth := "[2026-11-06 09:28:59.000] Authorised client 3258 34.22.147.138 worker " + worker + " as user " + user + " with diff 10000\n"
+	restart := "[2026-11-06 11:51:44.961] cashstratum stratifier starting\n"
+	log := auth + auth + restart + "[2026-11-06 11:51:45.100] cashstratum stratifier ready\n"
+	ix, _ := bareIndex(t, log)
+	w := workerNamed(ix.Snapshot(), worker)
+	if w == nil {
+		t.Fatal("worker missing")
+	}
+	at := stampOf(t, restart)
+	if w.Online || w.Clients != 0 || !w.Disconnected.Equal(at) || w.DropReason != ReasonPoolRestart {
+		t.Fatalf("after restart: %+v", w)
+	}
+	if want := int64(at.Sub(stampOf(t, auth)) / time.Second); w.Longest != want {
+		t.Fatalf("longest %d, want %d", w.Longest, want)
+	}
+	if w.Streak(at.Add(time.Hour)) != 0 {
+		t.Fatal("closed session still has a streak")
+	}
+
+	reauth := "[2026-11-06 11:52:10.000] Authorised client 2 34.22.147.138 worker " + worker + " as user " + user + " with diff 10000\n"
+	ix.Apply(poolfmt.ParseLine(reauth), 1)
+	w = workerNamed(ix.Snapshot(), worker)
+	if !w.Online || w.Clients != 1 || !w.Disconnected.IsZero() || w.DropReason != "" || !w.Since.Equal(stampOf(t, reauth)) {
+		t.Fatalf("after reconnect: %+v", w)
+	}
+}
+
+// A drop to zero sessions records when and why; an older drop line without
+// a reason records the time only; a reconnect clears both. The pool API's
+// own probe never becomes a worker.
+func TestDropRecordsReasonAndReauthClears(t *testing.T) {
+	user := "bitcoincash:" + addrDeus
+	worker := user + ".NerdaxeGaia"
+	auth := func(stamp, id string) string {
+		return "[" + stamp + "] Authorised client " + id + " 176.206.42.215 worker " + worker + " as user " + user + " with diff 10000\n"
+	}
+	drop1 := "[2026-11-08 14:54:34.482] Dropped client 389 176.206.42.215 user " + user + " worker " + worker + "  reason=peer_reset errno=104 age=153\n"
+	drop2 := "[2026-11-08 15:34:09.049] Dropped client 472 176.206.42.215 user " + user + " worker " + worker + "  reason=peer_eof age=2360\n"
+	probe := "bitcoincash:qr5pp33g5ul4l8chfg56au2kpvanfmqryqfgv00utu"
+	log := auth("2026-11-08 14:52:00.000", "389") + auth("2026-11-08 14:54:00.000", "472") +
+		drop1 +
+		"[2026-11-08 15:00:00.000] Authorised client 900 127.0.0.1 worker " + probe + ".cashstratum-api as user " + probe + " with diff 1\n" +
+		"[2026-11-08 15:00:01.000] Dropped client 900 127.0.0.1 user " + probe + " worker " + probe + ".cashstratum-api  reason=peer_eof age=1\n"
+	ix, _ := bareIndex(t, log)
+	v := ix.Snapshot()
+	w := workerNamed(v, worker)
+	if w == nil || !w.Online || w.Clients != 1 || !w.Disconnected.IsZero() {
+		t.Fatalf("one of two sessions dropped must stay online: %+v", w)
+	}
+	if p := workerNamed(v, probe+".cashstratum-api"); p != nil {
+		t.Fatalf("API probe indexed as a worker: %+v", p)
+	}
+
+	ix.Apply(poolfmt.ParseLine(drop2), 1)
+	w = workerNamed(ix.Snapshot(), worker)
+	if w.Online || !w.Disconnected.Equal(stampOf(t, drop2)) || w.DropReason != "peer_eof" {
+		t.Fatalf("after last drop: %+v", w)
+	}
+
+	ix.Apply(poolfmt.ParseLine(auth("2026-11-08 15:40:00.000", "500")), 2)
+	if w = workerNamed(ix.Snapshot(), worker); !w.Online || !w.Disconnected.IsZero() || w.DropReason != "" {
+		t.Fatalf("after reconnect: %+v", w)
+	}
+
+	old := "[2026-11-08 15:50:00.000] Dropped client 500 176.206.42.215 user " + user + " worker " + worker + " \n"
+	ix.Apply(poolfmt.ParseLine(old), 3)
+	if w = workerNamed(ix.Snapshot(), worker); w.Online || !w.Disconnected.Equal(stampOf(t, old)) || w.DropReason != "" {
+		t.Fatalf("after a drop without reason: %+v", w)
+	}
+}
+
+func sumLine(addr, rig string, diff, sdiff float64, at time.Time, ok bool) string {
+	return fmt.Sprintf(`{"workinfoid":1,"diff":%g,"sdiff":%g,"result":%t,"createdate":"%d,5","workername":"bitcoincash:%s.%s","username":"bitcoincash:%s","address":"%s"}`+"\n",
+		diff, sdiff, ok, at.Unix(), addr, rig, addr, fixturegen.IP(9))
+}
+
+// The round sums each payout address's accepted assigned difficulty since
+// the pool's last block, block-sized shares included, and a shrunk sharelog
+// rebuilds the round instead of counting its shares twice.
+func TestRoundSumsAcceptedDiff(t *testing.T) {
+	solve := "[2026-11-08 08:10:50.124] Solved and confirmed block 976456 by bitcoincash:" + addrNice + ".nice on SV1\n"
+	ix, root := bareIndex(t, solve+userLuck("2026-11-08 08:11:00.000", "bitcoincash:"+addrNice, 0.5))
+	at := stampOf(t, solve)
+	dir := filepath.Join(root, "logs", fmt.Sprintf("%08x", 976457))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f := filepath.Join(dir, "0000000000000001.sharelog")
+	body := sumLine(addrNice, "nice", 10000, 50000, at.Add(-time.Second), true) + // before the block
+		sumLine(addrNice, "nice", 10000, 20000, at.Add(time.Second), true) +
+		sumLine(addrNice, "nice", 10000, 9e12, at.Add(2*time.Second), true) + // block-sized
+		sumLine(addrBare, "doutor1", 4000, 8000, at.Add(3*time.Second), true) +
+		sumLine(addrBare, "doutor1", 4000, 1, at.Add(4*time.Second), false) // rejected
+	appendFile(t, f, body)
+	if err := ix.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	v := ix.Snapshot()
+	want := map[string]float64{addrNice: 20000, addrBare: 4000}
+	if !reflect.DeepEqual(v.RoundSums, want) {
+		t.Fatalf("sums %v, want %v", v.RoundSums, want)
+	}
+	if !v.RoundSince.Equal(at) || v.RoundHeight != 976456 {
+		t.Fatalf("round since %v height %d", v.RoundSince, v.RoundHeight)
+	}
+	if v.RoundAddrBest[addrNice] != 20000 || v.RoundAddrBest[addrBare] != 8000 {
+		t.Fatalf("per-address best %v", v.RoundAddrBest)
+	}
+
+	// Appended shares fold in incrementally.
+	appendFile(t, f, sumLine(addrBare, "doutor1", 4000, 8000, at.Add(5*time.Second), true))
+	ix.Sync()
+	if got := ix.Snapshot().RoundSums[addrBare]; got != 8000 {
+		t.Fatalf("after append %v", got)
+	}
+
+	// A truncated and rewritten sharelog rebuilds the round from scratch.
+	if err := os.WriteFile(f, []byte(sumLine(addrBare, "doutor1", 4000, 8000, at.Add(6*time.Second), true)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ix.Sync()
+	if got := ix.Snapshot().RoundSums; !reflect.DeepEqual(got, map[string]float64{addrBare: 4000}) {
+		t.Fatalf("after shrink %v", got)
+	}
+}
+
+// A cache written by the previous parser is rebuilt from the log, which
+// fills fields the old parser never derived.
+func TestPreviousParserVersionRescans(t *testing.T) {
+	e := newEnv(t)
+	user := "bitcoincash:" + addrNice
+	appendFile(t, e.log, userLuck("2026-11-07 01:59:46.947", user, 355.978196935985)+
+		"[2026-11-07 02:00:00.646] Solved and confirmed block 976298 by "+user+".nice on SV1\n")
+	e.open().Close()
+	sp := filepath.Join(e.cacheDir(), snapshotName)
+	raw, err := os.ReadFile(sp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sn snapshot
+	if err := json.Unmarshal(raw, &sn); err != nil {
+		t.Fatal(err)
+	}
+	sn.Parser = ParserVersion - 1
+	sn.State.Blocks[976298].FinderLuck = nil
+	raw, _ = json.Marshal(sn)
+	if err := os.WriteFile(sp, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ix := e.open()
+	defer ix.Close()
+	if !ix.Info().Rescanned || !strings.Contains(ix.Info().Reason, "version") {
+		t.Fatalf("info %+v", ix.Info())
+	}
+	if b := blockAt(ix.Snapshot(), 976298); b == nil || b.FinderLuck == nil {
+		t.Fatalf("rescan did not backfill: %+v", b)
+	}
+}

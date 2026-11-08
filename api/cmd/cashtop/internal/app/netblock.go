@@ -2,9 +2,14 @@ package app
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
+	"cashstratumapi/cmd/cashtop/internal/index"
+	"cashstratumapi/cmd/cashtop/internal/pooltags"
 	"cashstratumapi/cmd/cashtop/internal/rpc"
 	"cashstratumapi/cmd/cashtop/internal/ui"
 )
@@ -25,7 +30,28 @@ type netTrack struct {
 
 	logDiff     float64
 	logPrevDiff float64
+
+	recent   map[string]recentBlock // network blocks by hash
+	recentTo string                 // tip the recent window was last built from
+	window   []string               // hashes of the window, newest first
+	sig      string                 // the pool's own coinbase signature, lowercase
+	sigRead  bool
 }
+
+// recentBlock is one cached network block.
+type recentBlock struct {
+	height int
+	time   time.Time
+	diff   float64
+	prev   string
+	tag    string
+	pool   string
+}
+
+const (
+	recentKeep   = 20 // blocks shown on the network tab
+	recentBudget = 6  // uncached blocks fetched per refresh
+)
 
 func (a *App) track() *netTrack { return &a.nb }
 
@@ -127,6 +153,135 @@ func (a *App) refreshTipWith(ctx context.Context, fetch func(context.Context, st
 	return m, true
 }
 
+// refreshRecent keeps the window of the newest network blocks. It walks back
+// from the tip through previousblockhash, reusing cached blocks and fetching
+// at most recentBudget new ones per call, newest first, so the window is
+// always contiguous from the tip and deepens over successive refreshes.
+func (a *App) refreshRecent(ctx context.Context) {
+	if a.node == nil {
+		return
+	}
+	a.refreshRecentWith(ctx, a.node.BlockCoinbase)
+}
+
+func (a *App) refreshRecentWith(ctx context.Context, fetch func(context.Context, string) (rpc.Coinbase, error)) {
+	a.mu.Lock()
+	tip, ok := a.net.TipHash, a.net.RPCOK
+	a.mu.Unlock()
+	if !ok || tip == "" {
+		return
+	}
+	t := a.track()
+	t.mu.Lock()
+	if t.recent == nil {
+		t.recent = map[string]recentBlock{}
+	}
+	if !t.sigRead {
+		t.sigRead = true
+		t.sig = strings.ToLower(readBtcSig(a.cfg.Conf))
+	}
+	done := t.recentTo == tip && len(t.window) >= recentKeep
+	t.mu.Unlock()
+	if done {
+		return
+	}
+	budget := recentBudget
+	window := make([]string, 0, recentKeep)
+	for cur := tip; cur != "" && len(window) < recentKeep; {
+		t.mu.Lock()
+		b, have := t.recent[cur]
+		t.mu.Unlock()
+		if !have {
+			if budget == 0 || ctx.Err() != nil {
+				break
+			}
+			budget--
+			c, cancel := context.WithTimeout(ctx, rpcTimeout)
+			cb, err := fetch(c, cur)
+			cancel()
+			if err != nil {
+				break
+			}
+			tag := pooltags.Decode(cb.ScriptHex)
+			pool, _ := pooltags.Match(tag)
+			b = recentBlock{height: int(cb.Height), time: unixTime(cb.Time), diff: cb.Difficulty, prev: cb.PreviousHash, tag: tag, pool: pool}
+			t.mu.Lock()
+			t.recent[cur] = b
+			t.mu.Unlock()
+		}
+		window = append(window, cur)
+		cur = b.prev
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.window, t.recentTo = window, tip
+	// Keep the cache bounded: drop blocks that left the window long ago.
+	if len(t.recent) > 4*recentKeep {
+		keep := make(map[string]recentBlock, len(window))
+		for _, h := range window {
+			keep[h] = t.recent[h]
+		}
+		t.recent = keep
+	}
+}
+
+// readBtcSig reads the coinbase signature the pool puts in its blocks from
+// the pool configuration; empty when unset or unreadable.
+func readBtcSig(conf string) string {
+	if conf == "" {
+		return ""
+	}
+	data, err := os.ReadFile(conf)
+	if err != nil {
+		return ""
+	}
+	var c struct {
+		BtcSig string `json:"btcsig"`
+	}
+	if json.Unmarshal(data, &c) != nil {
+		return ""
+	}
+	return strings.TrimSpace(c.BtcSig)
+}
+
+// fillRecent copies the window into n. A block is ours when its hash is one
+// the pool found itself or its coinbase carries the pool's own signature.
+// The caller holds t.mu.
+func (a *App) fillRecent(n *ui.NetworkInfo) {
+	t := a.track()
+	if len(t.window) == 0 || t.recentTo != n.TipHash {
+		return
+	}
+	mine := map[string]bool{}
+	for _, b := range a.ix.Snapshot().Blocks {
+		if b.Hash != "" && b.Status != index.StatusOrphaned {
+			mine[b.Hash] = true
+		}
+	}
+	rows := make([]ui.NetBlockRow, 0, len(t.window))
+	for i, h := range t.window {
+		b := t.recent[h]
+		r := ui.NetBlockRow{Height: b.height, Hash: h, Time: b.time, Pool: b.pool, Tag: b.tag}
+		if i+1 < len(t.window) {
+			if p := t.recent[t.window[i+1]]; !p.time.IsZero() && b.time.After(p.time) {
+				r.Interval = b.time.Sub(p.time)
+			}
+		}
+		if mine[h] || (t.sig != "" && strings.Contains(strings.ToLower(b.tag), t.sig)) {
+			r.Ours, r.Pool = true, "CashStratum"
+		}
+		rows = append(rows, r)
+	}
+	n.Recent = rows
+	series := make([]float64, 0, len(rows))
+	for i := len(rows) - 1; i >= 0; i-- {
+		if d := t.recent[rows[i].Hash].diff; d > 0 {
+			series = append(series, d)
+		}
+	}
+	n.DiffSeries = series
+}
+
 func unixTime(s int64) time.Time {
 	if s <= 0 {
 		return time.Time{}
@@ -148,6 +303,7 @@ func (a *App) fillNetBlock(n *ui.NetworkInfo, logZMQ, logTip time.Time) {
 		}
 	}
 	n.LastNetBlock = last
+	a.fillRecent(n)
 	if t.hash != "" && t.hash == n.TipHash && t.prevDiff > 0 {
 		n.PrevDifficulty, n.PrevTipTime = t.prevDiff, t.prevTime
 		if n.Difficulty == 0 {

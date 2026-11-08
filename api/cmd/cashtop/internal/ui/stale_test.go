@@ -72,30 +72,3 @@ func TestStaleWorkersNotLive(t *testing.T) {
 		t.Fatalf("hashrate rendered while stale:\n%s", out)
 	}
 }
-
-func TestZeroAllAliveRendersDash(t *testing.T) {
-	caps := termcap.Detect(utf8Env, termcap.Flags{})
-	prov := zeroAliveProvider{demo.New(demo.Options{Seed: 1, Now: fixedNow})}
-	out := runTea(t, ui.New(prov, ui.Options{Caps: caps, Now: func() time.Time { return fixedNow }}))
-	for _, l := range strings.Split(out, "\n") {
-		if strings.Contains(l, "all alive") {
-			if strings.Contains(l, "0001") || strings.Contains(l, "y ") || !strings.Contains(l, "all alive -") {
-				t.Fatalf("unknown streak not a dash: %q", l)
-			}
-			return
-		}
-	}
-	t.Fatal("no 'all alive' line on the dashboard")
-}
-
-type zeroAliveProvider struct{ ui.Provider }
-
-func (p zeroAliveProvider) Snapshot() ui.Snapshot {
-	s := p.Provider.Snapshot()
-	s.Pool.AllAliveSince = time.Time{}
-	s.Pool.LastBlock = time.Time{}
-	for i := range s.Blocks {
-		s.Blocks[i].Time = time.Time{}
-	}
-	return s
-}

@@ -14,7 +14,7 @@ Run your pool. Choose direct payouts or username-based mining. Inspect the work 
   <img alt="CashStratum — Your pool. Your rules. Direct payouts, native CashAddr and verifiable blocks." src=".github/assets/readme/hero-light.webp" width="100%">
 </picture>
 
-[![Release v1.6.0](.github/assets/readme/badge-release.svg)](https://github.com/cashstratum/cashstratum/releases/tag/v1.6.0)
+[![Release v1.6.1](.github/assets/readme/badge-release.svg)](https://github.com/cashstratum/cashstratum/releases/tag/v1.6.1)
 [![109 verified BCH blocks](.github/assets/readme/badge-proofs.svg)](docs/proofs/)
 [![Regtest and testnet before engine releases](.github/assets/readme/badge-validation.svg)](#release-validation)
 [![License: GPL v3 or later](.github/assets/readme/badge-license.svg)](COPYING)
@@ -51,7 +51,7 @@ The [proof index](docs/proofs/) contains the full hash, explorer link and excerp
 Clone a release on Linux, then run the guided installer:
 
 ```bash
-git clone --branch v1.6.0 --depth 1 https://github.com/cashstratum/cashstratum.git
+git clone --branch v1.6.1 --depth 1 https://github.com/cashstratum/cashstratum.git
 cd cashstratum
 bash install-cashstratum.sh
 ```
@@ -71,7 +71,8 @@ they do not provision a node or automatically enable SV2.
 
 ### Release status
 
-**[v1.6.0](https://github.com/cashstratum/cashstratum/releases/tag/v1.6.0)** (2026-11-03) makes `d=N` in the password pin the difficulty: vardiff and `mining.suggest_difficulty` no longer move it. The stratum server changed, so pools rebuild and restart.
+**[v1.6.1](https://github.com/cashstratum/cashstratum/releases/tag/v1.6.1)** (2026-11-08) makes `cashtop` show each finder's own effort next to the pool's, adds a per-miner round breakdown and a recent network blocks view, and fixes lost block effort on long log lines. Only `cashtop` changed; the stratum server did not, so no pool restart is needed.
+**v1.6.0** (2026-11-03) makes `d=N` in the password pin the difficulty: vardiff and `mining.suggest_difficulty` no longer move it. The stratum server changed, so pools rebuild and restart.
 **v1.5.0** added the `GET /users` snapshot route and served `/coinbase` from a per-height template; the stratum server was unchanged from v1.4.1.
 **v1.4.1** fixed a crash in `cashtop` and left the stratum server unchanged from v1.4.0.
 **v1.4.0** dropped block-sized round bests left on disk by earlier releases and made `cashtop` label what the daemon counts (idle workers, zmq state, pool counts, odds basis); the stratum server changed, so pools rebuild and restart.

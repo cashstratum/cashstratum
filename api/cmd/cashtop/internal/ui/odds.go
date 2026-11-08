@@ -79,10 +79,20 @@ func (s WorkerState) String() string {
 	return "off"
 }
 
-// Classify reports a worker's state. With no recent hashrate it is idle when
-// still connected and off otherwise; with hashrate it is stale when its last
+// dropped reports whether the worker's last session ended after its newest
+// share and connect, so the pool no longer holds it.
+func dropped(w WorkerRow) bool {
+	return !w.Disconnected.IsZero() && !w.Disconnected.Before(w.LastShare) && !w.Disconnected.Before(w.Connected)
+}
+
+// Classify reports a worker's state. A worker whose session dropped after its
+// last share or connect is off at once; otherwise, with no recent hashrate it
+// is idle when still connected and off otherwise; with hashrate it is stale when its last
 // share is older than StaleK expected intervals (at least a minute).
 func Classify(w WorkerRow, now time.Time) WorkerState {
+	if dropped(w) {
+		return StateOff
+	}
 	if w.Hashrate1m <= 0 && w.Hashrate5m <= 0 {
 		if w.Connected.IsZero() {
 			return StateOff

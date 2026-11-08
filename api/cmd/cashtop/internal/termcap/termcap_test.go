@@ -90,7 +90,7 @@ func TestNotifications(t *testing.T) {
 		t.Errorf("off: %q", got)
 	}
 	c = Caps{Notify: NotifyAuto, Terminal: ITerm2}
-	want := []string{"\a", "\x1b]9;Block: found\a", "\x1b]1337;RequestAttention=fireworks\a"}
+	want := []string{"\a", "\x1b]9;Block: found\a"}
 	if got := Notifications(c, "Block", "found"); !reflect.DeepEqual(got, want) {
 		t.Errorf("iterm2: %q", got)
 	}

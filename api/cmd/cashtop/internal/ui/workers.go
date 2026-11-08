@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"sort"
 	"strings"
 	"time"
@@ -25,6 +26,22 @@ func sortedWorkers(ws []WorkerRow, now time.Time) []WorkerRow {
 	return out
 }
 
+// visibleWorkers is sortedWorkers without the off workers unless showOff.
+// Row selection in the Workers tab indexes this list.
+func visibleWorkers(ws []WorkerRow, now time.Time, showOff bool) []WorkerRow {
+	all := sortedWorkers(ws, now)
+	if showOff {
+		return all
+	}
+	out := all[:0]
+	for _, w := range all {
+		if Classify(w, now) != StateOff {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
 func rigBadge(ctx *Context, w WorkerRow) (string, string) {
 	c := glyphs.Infer(w.UserAgent, w.Name)
 	return glyphs.Badge(c, ctx.Caps.Glyphs == termcap.ASCII), c.Tag()
@@ -45,13 +62,31 @@ var workerCols = []column{
 	{title: "state", width: 7, prio: 0},
 }
 
+// renderWorkers draws the Workers tab with off workers hidden.
 func renderWorkers(ctx *Context, w, h, sel int) []string {
+	return renderWorkersShow(ctx, w, h, sel, false)
+}
+
+// renderWorkersShow draws the Workers tab. Off workers are listed only when
+// showOff is set or the pool itself is down (then every worker is off and
+// hiding them would leave nothing to read). sel indexes visibleWorkers.
+func renderWorkersShow(ctx *Context, w, h, sel int, showOff bool) []string {
 	t := ctx.Theme
-	ws := sortedWorkers(ctx.Snap.Workers, ctx.Now)
-	live, stale, idle, off := ctx.countStates(ws)
+	showOff = showOff || ctx.stale()
+	all := sortedWorkers(ctx.Snap.Workers, ctx.Now)
+	live, stale, idle, off := ctx.countStates(all)
+	ws := all
+	if !showOff {
+		ws = visibleWorkers(ctx.Snap.Workers, ctx.Now, false)
+	}
 	sep := " " + ctx.sym.Sep + " "
+	offTxt := itoa(off) + " off"
+	switch {
+	case off > 0 && !showOff:
+		offTxt += " (hidden)"
+	}
 	out := []string{
-		" " + t.Title.Render("Workers") + "  " + t.Good.Render(itoa(live)+" live") + sep + t.Warn.Render(itoa(stale)+" stale") + sep + t.Dim.Render(itoa(idle)+" idle") + sep + t.Dim.Render(itoa(off)+" off") +
+		" " + t.Title.Render("Workers") + "  " + t.Good.Render(itoa(live)+" live") + sep + t.Warn.Render(itoa(stale)+" stale") + sep + t.Dim.Render(itoa(idle)+" idle") + sep + t.Dim.Render(offTxt) +
 			t.Dim.Render("   stale = no share for "+itoa(StaleK)+"x the expected interval"),
 		"",
 	}
@@ -59,8 +94,9 @@ func renderWorkers(ctx *Context, w, h, sel int) []string {
 		return append(out, " "+t.Text.Render("No workers connected."), "",
 			" "+t.Dim.Render("Workers appear here once a miner authorises and submits a share."))
 	}
-	keep := fitColumns(workerCols, w-1)
-	out = append(out, " "+tableHead(ctx, workerCols, keep))
+	cols := withStateWidth(workerCols, stateWidth(ctx, ws))
+	keep := fitColumns(cols, w-1)
+	out = append(out, " "+tableHead(ctx, cols, keep))
 	lo, hi := window(len(ws), h-len(out), sel)
 	for i := lo; i < hi; i++ {
 		r := ws[i]
@@ -77,9 +113,9 @@ func renderWorkers(ctx *Context, w, h, sel int) []string {
 		cells := []string{
 			cur, badge + " " + tag, shortWorker(r.Name, ctx.sym.Ellipsis), shortAddr(r.Address, ctx.sym.Ellipsis), agentCell(ctx, r),
 			ctx.hash(r.Hashrate1m), ctx.longHash(r, r.Hashrate1h), ctx.longHash(r, r.Hashrate1d),
-			fmtDiff(r.Diff), fmtDiff(r.BestShare), last, stateLabel(ctx, st),
+			fmtDiff(r.Diff), fmtDiff(r.BestShare), last, workerState(ctx, r, st),
 		}
-		row := tableRow(workerCols, keep, cells)
+		row := tableRow(cols, keep, cells)
 		switch {
 		case i == sel:
 			row = t.Selected.Render(row)
@@ -88,6 +124,23 @@ func renderWorkers(ctx *Context, w, h, sel int) []string {
 		}
 		out = append(out, " "+row)
 	}
+	return out
+}
+
+// stateWidth is the width of the state column: wide enough for the
+// "off <ago> · <reason>" cells of the rows shown, else the plain label.
+func stateWidth(ctx *Context, ws []WorkerRow) int {
+	n := 7
+	for _, r := range ws {
+		n = max(n, ansi.StringWidth(workerState(ctx, r, ctx.classify(r))))
+	}
+	return min(n, 28)
+}
+
+// withStateWidth copies cols with the state column (the last) resized.
+func withStateWidth(cols []column, w int) []column {
+	out := append([]column(nil), cols...)
+	out[len(out)-1].width = w
 	return out
 }
 
@@ -101,6 +154,20 @@ func stateLabel(ctx *Context, s WorkerState) string {
 		return ctx.sym.Idle + " idle"
 	}
 	return ctx.sym.Off + " off"
+}
+
+// workerState is the state cell of a worker row. A worker that dropped reads
+// "off <ago> · <reason>" so the operator sees why it left.
+func workerState(ctx *Context, r WorkerRow, st WorkerState) string {
+	label := stateLabel(ctx, st)
+	if st != StateOff || !dropped(r) || ctx.stale() {
+		return label
+	}
+	label += " " + ageSince(ctx.Now, r.Disconnected)
+	if r.DropReason != "" {
+		label += " " + ctx.sym.Sep + " " + r.DropReason
+	}
+	return label
 }
 
 // agentCell is the agent of a row, dimmed when it is only the last one known.

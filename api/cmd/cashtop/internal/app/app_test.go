@@ -892,3 +892,138 @@ func TestLiveShareNewerThanPoolStatusKeptInLeaderboard(t *testing.T) {
 		t.Fatalf("Pool.BestShare %v did not advance to live share %v", s.Pool.BestShare, newBest)
 	}
 }
+
+const finderUser = "bitcoincash:qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh"
+
+func finderLuckLine(stamp string, luck float64) string {
+	return fmt.Sprintf(`[%s] User %s:{"hashrate1m":"4.5T","hashrate5m":"4.4T","hashrate1hr":"4.3T","hashrate1d":"4T","hashrate7d":"4T","lastshare":1762480786,"shares":175954,"roundshares":1966086000000,"luck":%v,"networkdiff":552305174002.9905,"authorised":1700000000}`+"\n", stamp, finderUser, luck)
+}
+
+// The finder's own effort reaches the live find even when its User line is
+// older than the feed backlog (the index remembers it), and the block table
+// carries both efforts with their known flags.
+func TestFinderLuckOnFindAndBlockRows(t *testing.T) {
+	tr, dir := tree(t, false)
+	filler := make([]string, 0, 1200)
+	for i := 0; i < 1200; i++ {
+		filler = append(filler, "[2026-11-07 01:59:50.000] Stored local workbase with 39 transactions\n")
+	}
+	appendLog(t, tr.LogPath, append([]string{finderLuckLine("2026-11-07 01:59:46.947", 355.978196935985)}, filler...))
+	a := open(t, dir)
+	a.Step()
+
+	top := 0
+	for _, f := range tr.Found {
+		top = max(top, f.Height)
+	}
+	h := top + 7
+	appendLog(t, tr.LogPath, []string{
+		fmt.Sprintf("[2026-11-07 02:00:00.646] Solved and confirmed block %d by %s.nice on SV1\n", h, finderUser),
+		"[2026-11-07 02:00:00.646] Block solved after 65606500000 shares at 11.9% diff\n",
+	})
+	var found *ui.BlockRow
+	for _, m := range a.Step() {
+		if b, ok := m.(ui.BlockFoundMsg); ok {
+			found = &b.Block
+		}
+	}
+	if found == nil || !found.FinderLuckOK || found.FinderLuck != 355.978196935985 {
+		t.Fatalf("live find %+v", found)
+	}
+	if err := a.ix.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	var row *ui.BlockRow
+	s := a.Snapshot()
+	for i := range s.Blocks {
+		if s.Blocks[i].Height == h {
+			row = &s.Blocks[i]
+		}
+	}
+	if row == nil || !row.LuckOK || row.Luck != 11.9 || !row.FinderLuckOK || row.FinderLuck != 355.978196935985 {
+		t.Fatalf("block row %+v", row)
+	}
+}
+
+// A worker whose last session dropped shows when and why; the pool API's
+// probe never shows as a worker.
+func TestWorkerRowDropState(t *testing.T) {
+	tr, dir := tree(t, false)
+	a := open(t, dir)
+	a.Step()
+	s := a.Snapshot()
+	if len(s.Workers) == 0 {
+		t.Fatal("no workers")
+	}
+	w := s.Workers[0]
+	user, _ := poolfmt.SplitWorker(w.Name)
+	auth := fmt.Sprintf("[2026-11-08 15:00:00.000] Authorised client 471 192.0.2.44 worker %s as user %s with diff 10000\n", w.Name, user)
+	drop := fmt.Sprintf("[2026-11-08 15:34:09.049] Dropped client 471 192.0.2.44 user %s worker %s  reason=peer_eof age=2360\n", user, w.Name)
+	appendLog(t, tr.LogPath, []string{auth, drop})
+	a.Step()
+	if err := a.ix.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	want := poolfmt.ParseLine(drop).Time
+	for _, r := range a.Snapshot().Workers {
+		if strings.HasSuffix(r.Name, ".cashstratum-api") {
+			t.Fatalf("API probe listed: %+v", r)
+		}
+		if r.Name == w.Name {
+			if !r.Disconnected.Equal(want) || r.DropReason != "peer_eof" || !r.Connected.IsZero() {
+				t.Fatalf("row %+v", r)
+			}
+			return
+		}
+	}
+	t.Fatal("worker row missing")
+}
+
+// Each miner's slice of the round is its accepted difficulty over the sum,
+// sorted largest first, with its own effort from the users file (falling
+// back to the log) and its best share as a share of the network difficulty.
+func TestRoundInfo(t *testing.T) {
+	const (
+		a = "qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh"
+		b = "qrfc9tvc5dx4ywgmnxj5yy95xdrg7ra9eupjeshhfq"
+		c = "qpdap8727zduldlgyk7x94yxq49cu4l7lc29tat3a3"
+	)
+	since := time.Date(2026, 11, 8, 8, 10, 50, 0, time.UTC)
+	v := index.View{
+		RoundSince:    since,
+		RoundSums:     map[string]float64{a: 247_833_000_000, b: 140_812_000_000, c: 240_532_690_000, "zero": 0},
+		RoundAddrBest: map[string]float64{a: 5_523_051_740, b: 1_000_000},
+		LastLuck:      map[string]float64{b: 22.5, c: 3.25},
+	}
+	users := map[string]poolfmt.UserFile{
+		"bitcoincash:" + a: {UserStats: poolfmt.UserStats{Luck: poolfmt.Opt[float64]{V: 41.75, OK: true}}},
+		c:                  {},
+	}
+	ri := roundInfo(v, users, 552_305_174_000)
+	if !ri.Since.Equal(since) || ri.Total != 629_177_690_000 || len(ri.Miners) != 3 {
+		t.Fatalf("%+v", ri)
+	}
+	if ri.Miners[0].Address != a || ri.Miners[1].Address != c || ri.Miners[2].Address != b {
+		t.Fatalf("order %+v", ri.Miners)
+	}
+	m := ri.Miners[0]
+	if pct := m.Pct; pct < 39.38 || pct > 39.40 {
+		t.Fatalf("pct %v", pct)
+	}
+	if !m.OwnLuckOK || m.OwnLuck != 41.75 || m.Best != 5_523_051_740 || m.BestOfNet < 0.99 || m.BestOfNet > 1.01 {
+		t.Fatalf("miner %+v", m)
+	}
+	if !ri.Miners[1].OwnLuckOK || ri.Miners[1].OwnLuck != 3.25 || ri.Miners[1].Best != 0 {
+		t.Fatalf("fallback %+v", ri.Miners[1])
+	}
+	var sum float64
+	for _, x := range ri.Miners {
+		sum += x.Pct
+	}
+	if sum < 99.999 || sum > 100.001 {
+		t.Fatalf("pct sum %v", sum)
+	}
+	if empty := roundInfo(index.View{}, nil, 0); empty.Total != 0 || len(empty.Miners) != 0 {
+		t.Fatalf("empty %+v", empty)
+	}
+}

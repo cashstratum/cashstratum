@@ -79,5 +79,63 @@ func renderNetwork(ctx *Context, w, h int) []string {
 	}
 	half := (w - 1) / 2
 	bh := max(len(health), len(node)) + 2
-	return hjoin(box(ctx, "Node", node, half, bh), box(ctx, "Health & odds", health, w-1-half, bh))
+	out := hjoin(box(ctx, "Node", node, half, bh), box(ctx, "Health & odds", health, w-1-half, bh))
+	return append(out, recentBlocksBox(ctx, n, w, h-len(out))...)
+}
+
+// recentBlocksBox lists the latest network blocks (height, age, interval,
+// pool, coinbase tag) with the difficulty trend underneath. It is empty when
+// the node reported no blocks or h leaves no room.
+func recentBlocksBox(ctx *Context, n NetworkInfo, w, h int) []string {
+	if len(n.Recent) == 0 || h < 4 || w < 40 {
+		return nil
+	}
+	inner := w - 2
+	const hw, aw, iw, pw = 8, 8, 7, 22
+	tagw := inner - hw - aw - iw - pw - 4
+	showTag := tagw >= 8
+	t := ctx.Theme
+	head := fit("height", hw) + " " + fit("age", aw) + " " + fit("gap", iw) + " " + fit("pool", pw)
+	if showTag {
+		head += " " + fit("coinbase tag", tagw)
+	}
+	lines := []string{t.Dim.Render(head)}
+	room := h - 2 - 1 // borders and the header row
+	if len(n.DiffSeries) > 1 {
+		room-- // the trend row
+	}
+	for i, r := range n.Recent {
+		if i >= room {
+			break
+		}
+		age, gap, pool := dash, dash, r.Pool
+		if !r.Time.IsZero() {
+			age = fmtCoarse(ctx.Now.Sub(r.Time))
+		}
+		if r.Interval > 0 {
+			gap = fmtCoarse(r.Interval)
+		}
+		if pool == "" {
+			pool = "unknown"
+		}
+		style := t.Text
+		if r.Ours {
+			pool, style = pool+" (us)", t.Gold
+		}
+		row := fit(heightStr(r.Height), hw) + " " + fit(age, aw) + " " + fit(gap, iw) + " " + fit(pool, pw)
+		if showTag {
+			row += " " + fit(r.Tag, tagw)
+		}
+		lines = append(lines, style.Render(row))
+	}
+	if len(n.DiffSeries) > 1 {
+		const lbl = "difficulty "
+		trend := t.Dim.Render(lbl) + sparkline(ctx, n.DiffSeries, max(1, min(len(n.DiffSeries), inner-len(lbl)-12))) +
+			t.Dim.Render("  "+fmtDiff(n.DiffSeries[0])+" "+"->"+" "+fmtDiff(n.DiffSeries[len(n.DiffSeries)-1]))
+		for len(lines) < h-3 {
+			lines = append(lines, "")
+		}
+		lines = append(lines, trend)
+	}
+	return box(ctx, "Recent network blocks", lines, w, min(h, len(lines)+2))
 }

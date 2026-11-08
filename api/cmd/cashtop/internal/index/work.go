@@ -234,7 +234,7 @@ func (ix *Index) mergeSolve(e poolfmt.SolveIndexEntry) {
 	// The context file is written once at solve time and never changes, so a
 	// block that still lacks an effort line after one read will never gain one;
 	// ctxRead stops the file being re-read on every sync.
-	if (b.Luck == nil || b.Proto == "" || b.Finder == "") && ix.opt.Root != "" && !ix.ctxRead[e.Height] {
+	if (b.Luck == nil || b.FinderLuck == nil || b.Proto == "" || b.Finder == "") && ix.opt.Root != "" && !ix.ctxRead[e.Height] {
 		ctxName := filepath.Base(e.ContextFile)
 		if (ctxName == "" || ctxName == ".") && e.Hash != "" {
 			ctxName = strconv.FormatInt(e.Height, 10) + "-" + e.Hash + ".log"
@@ -243,13 +243,14 @@ func (ix *Index) mergeSolve(e poolfmt.SolveIndexEntry) {
 			if raw, err := os.ReadFile(filepath.Join(ix.opt.Root, "solves", ctxName)); err == nil {
 				ix.ctxRead[e.Height] = true
 				var j poolfmt.Joiner
+				lucks := map[string]float64{}
 				for _, line := range strings.Split(string(raw), "\n") {
 					for _, joined := range j.Feed(strings.TrimRight(line, "\r"), 0) {
-						ix.applySolveContextEvent(b, poolfmt.ParseLine(joined.Line), &changed)
+						ix.applySolveContextEvent(b, poolfmt.ParseLine(joined.Line), lucks, &changed)
 					}
 				}
 				for _, joined := range j.Flush() {
-					ix.applySolveContextEvent(b, poolfmt.ParseLine(joined.Line), &changed)
+					ix.applySolveContextEvent(b, poolfmt.ParseLine(joined.Line), lucks, &changed)
 				}
 			}
 		}
@@ -259,15 +260,28 @@ func (ix *Index) mergeSolve(e poolfmt.SolveIndexEntry) {
 	}
 }
 
-func (ix *Index) applySolveContextEvent(b *Block, ev poolfmt.Event, changed *bool) {
+// applySolveContextEvent folds one line of a solve context file into b.
+// lucks tracks the per-user luck lines seen so far in the file, so the
+// finder's own effort is the last one before the solve line.
+func (ix *Index) applySolveContextEvent(b *Block, ev poolfmt.Event, lucks map[string]float64, changed *bool) {
 	switch ev.Kind {
+	case poolfmt.KindUser:
+		if ev.Stats.Luck.OK {
+			lucks[poolfmt.NormalizeAddress(ev.Name)] = ev.Stats.Luck.V
+		}
 	case poolfmt.KindSolveShares:
 		if b.Luck == nil {
 			l := ev.Percent
 			b.Luck, *changed = &l, true
 		}
 	case poolfmt.KindSolved, poolfmt.KindSV2Accepted:
+		addr := FinderAddress(ev.Worker)
+		l, ok := lucks[addr]
+		delete(lucks, addr)
 		if ev.Height == b.Height {
+			if b.FinderLuck == nil && ok && (b.Finder == "" || FinderAddress(b.Finder) == addr) {
+				b.FinderLuck, *changed = &l, true
+			}
 			if b.Proto == "" && ev.Protocol != "" {
 				b.Proto, *changed = ev.Protocol, true
 			}
@@ -381,6 +395,7 @@ func (ix *Index) syncRound() {
 	if len(dirs) > 0 && !s.Round.Seen {
 		s.Round.Seen, d.round = true, true
 	}
+	var paths, keys []string
 	for _, dr := range dirs {
 		dir := filepath.Join(ix.logsDir(), dr.name)
 		files, err := os.ReadDir(dir)
@@ -395,28 +410,49 @@ func (ix *Index) syncRound() {
 		}
 		sort.Strings(names)
 		for _, n := range names {
-			ix.scanRoundFile(filepath.Join(dir, n), dr.name+"/"+n)
+			paths, keys = append(paths, filepath.Join(dir, n)), append(keys, dr.name+"/"+n)
 		}
+	}
+	for attempt := 0; attempt < 2; attempt++ {
+		shrunk := false
+		for i := range paths {
+			if !ix.scanRoundFile(paths[i], keys[i]) {
+				shrunk = true
+				break
+			}
+		}
+		if !shrunk {
+			return
+		}
+		// A sharelog shrank: its share of the sums can no longer be told
+		// apart, so the round is rebuilt from every file.
+		seen := s.Round.Seen
+		s.Round = newRound()
+		s.Round.Height, s.Round.Since, s.Round.Seen = h, at, seen
+		d.round = true
 	}
 }
 
-func (ix *Index) scanRoundFile(path, key string) {
+// scanRoundFile folds the unread part of one sharelog into the round. It
+// returns false, reading nothing, when the file is smaller than what was
+// already counted.
+func (ix *Index) scanRoundFile(path, key string) bool {
 	s, d := ix.st, ix.dirty
 	f, err := os.Open(path)
 	if err != nil {
-		return
+		return true
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil {
-		return
+		return true
 	}
 	off := s.Round.Files[key]
 	if st.Size() < off {
-		off = 0 // truncated: read it again from the top
+		return false
 	}
 	if st.Size() == off {
-		return
+		return true
 	}
 	data := make([]byte, st.Size()-off)
 	m, _ := f.ReadAt(data, off)
@@ -427,7 +463,7 @@ func (ix *Index) scanRoundFile(path, key string) {
 			continue
 		}
 		sh, err := poolfmt.ParseSharelogLine(line)
-		if err != nil || !sh.Result || sh.SDiff <= 0 {
+		if err != nil || !sh.Result {
 			continue
 		}
 		t, ok := shareTime(sh)
@@ -436,6 +472,15 @@ func (ix *Index) scanRoundFile(path, key string) {
 		}
 		k := RoundKey(sh)
 		if k == "" {
+			continue
+		}
+		// The round's accepted work is the assigned difficulty of every
+		// accepted share, block-sized ones included.
+		if sh.Diff > 0 {
+			s.Round.Sums[PayoutAddress(sh)] += sh.Diff
+			d.round = true
+		}
+		if sh.SDiff <= 0 {
 			continue
 		}
 		// A block-sized share belongs to a solve (confirmed, rejected or on a
@@ -453,4 +498,5 @@ func (ix *Index) scanRoundFile(path, key string) {
 		s.Round.Files[key] = off + int64(end)
 		d.round = true
 	}
+	return true
 }

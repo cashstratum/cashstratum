@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 const day = 24 * time.Hour
@@ -12,6 +14,12 @@ const day = 24 * time.Hour
 const compactMeterBelow = 30
 
 func renderDashboard(ctx *Context, w, h int) []string {
+	return renderDashboardSel(ctx, w, h, -1)
+}
+
+// renderDashboardSel draws the dashboard with row sel of the round table
+// highlighted; a negative sel highlights none.
+func renderDashboardSel(ctx *Context, w, h, sel int) []string {
 	s := ctx.Snap
 	p := s.Pool
 	down := ctx.stale()
@@ -19,7 +27,10 @@ func renderDashboard(ctx *Context, w, h int) []string {
 		p = lastSeen(p)
 	}
 
-	cw := (w - 2) / 3
+	cw := (w-2)/3 - 1 // the Pool box gets the spare columns: its labels are wider
+	if w >= 110 {
+		cw -= 3 // room for the two-digit worker counts next to the 16-wide labels
+	}
 	lw := w - 2 - 2*cw
 	cardH := 11
 
@@ -66,27 +77,27 @@ func renderDashboard(ctx *Context, w, h int) []string {
 	}
 
 	live, stale, idle, off := ctx.countStates(s.Workers)
-	alive := dash
-	if !p.AllAliveSince.IsZero() {
-		alive = fmtCoarse(ctx.Now.Sub(p.AllAliveSince))
-	}
-	longest := dash
-	if p.LongestSession > 0 {
-		longest = fmtCoarse(p.LongestSession) + " " + shortWorker(p.LongestSessionName, ctx.sym.Ellipsis)
+	lastPool := coarseAgoOrDash(ctx.Now, p.LastBlock)
+	topRound := dash
+	if len(s.Round.Miners) > 0 {
+		m := s.Round.Miners[0]
+		topRound = shortAddr(m.Address, ctx.sym.Ellipsis) + " " + fmtPct(m.Pct)
 	}
 	rej := dash
 	if tot := p.Accepted + p.Rejected; tot > 0 {
 		rej = fmtPct(p.Rejected / tot * 100)
 	}
 	pool := []string{
-		kv(ctx, "workers", 10, ctx.Theme.Good.Render(itoa(live)+" live")+ctx.sym.Sep+itoa(stale)+" stale"+ctx.sym.Sep+itoa(idle)+" idle"+ctx.sym.Sep+itoa(off)+" off"),
-		kv(ctx, "reported", 10, ctx.count(p.Workers)+" conn"+ctx.sym.Sep+ctx.count(p.Idle)+" idle"+ctx.sym.Sep+ctx.count(p.Disconnected)+" resum"),
-		kv(ctx, "users", 10, ctx.count(p.Users)),
-		kv(ctx, "uptime", 10, uptimeStr(ctx, p.Runtime)),
-		kv(ctx, "all alive", 10, alive),
-		kv(ctx, "longest", 10, longest),
-		kv(ctx, "height", 10, heightStr(p.Height)),
-		kv(ctx, "rejected", 10, rej),
+		kv(ctx, "workers", 16, joinFit(ctx, lw-2-16,
+			ctx.Theme.Good.Render(itoa(live)+" live"), itoa(stale)+" stale", itoa(idle)+" idle", itoa(off)+" off")),
+		kv(ctx, "reported", 16, joinFit(ctx, lw-2-16,
+			ctx.count(p.Workers)+" conn", ctx.count(p.Idle)+" idle", ctx.count(p.Disconnected)+" resum")),
+		kv(ctx, "users", 16, ctx.count(p.Users)),
+		kv(ctx, "uptime", 16, uptimeStr(ctx, p.Runtime)),
+		kv(ctx, "height", 16, heightStr(p.Height)),
+		kv(ctx, "rejected", 16, rej),
+		kv(ctx, "last pool block", 16, lastPool),
+		kv(ctx, "top round", 16, topRound),
 	}
 
 	out := hjoin(
@@ -106,7 +117,7 @@ func renderDashboard(ctx *Context, w, h int) []string {
 	if rest >= 4 {
 		half := (w - 1) / 2
 		out = append(out, hjoin(
-			box(ctx, "Best shares since last block", leaderboard(ctx, half-2, rest-2), half, rest),
+			box(ctx, roundTitle(ctx), roundTableSel(ctx, half-2, rest-2, sel), half, rest),
 			box(ctx, "Recent blocks", recentBlocks(ctx, w-1-half-2, rest-2, etaS), w-1-half, rest),
 		)...)
 	}
@@ -257,32 +268,80 @@ func ageCoarse(now, t time.Time) string {
 	return fmtCoarse(d)
 }
 
-func leaderboard(ctx *Context, w, h int) []string {
+// coarseAgoOrDash is the age of t as "<span> ago", or a dash when unknown.
+func coarseAgoOrDash(now, t time.Time) string {
+	if t.IsZero() {
+		return dash
+	}
+	return fmtCoarse(now.Sub(t)) + " ago"
+}
+
+// roundTitle names the round table: the last block's height and how long the
+// round has been running.
+func roundTitle(ctx *Context) string {
 	s := ctx.Snap
-	if len(s.BestShares) == 0 {
+	h := dash
+	if len(s.Blocks) > 0 {
+		h = itoa(s.Blocks[0].Height)
+	}
+	since := s.Round.Since
+	if since.IsZero() {
+		since = s.Pool.LastBlock
+	}
+	return "Round since last block (" + h + ", " + coarseAgoOrDash(ctx.Now, since) + ")"
+}
+
+var roundCols = []column{
+	{title: "#", width: 3, prio: 0},
+	{title: "address", width: 12, prio: 0, flex: 20},
+	{title: "% round", width: 8, right: true, prio: 0},
+	{title: "effort", width: 8, right: true, prio: 1},
+	{title: "best", width: 8, right: true, prio: 2},
+	{title: "of net", width: 9, right: true, prio: 3},
+}
+
+// roundTable lists each address's slice of the round in progress, biggest
+// first.
+func roundTable(ctx *Context, w, h int) []string { return roundTableSel(ctx, w, h, -1) }
+
+// roundTableSel is roundTable with row sel highlighted; negative highlights none.
+func roundTableSel(ctx *Context, w, h, sel int) []string {
+	r := ctx.Snap.Round
+	if len(r.Miners) == 0 {
 		return []string{ctx.Theme.Dim.Render("no shares since the last block yet")}
 	}
-	out := []string{ctx.Theme.Dim.Render(fit("#", 3) + fit("worker", w-30) + right("best", 9) + right("of net", 10) + right("when", 8))}
-	for i, b := range s.BestShares {
+	keep := fitColumns(roundCols, w)
+	cols := growFlex(roundCols, keep, w)
+	out := []string{tableHead(ctx, cols, keep)}
+	for i, m := range r.Miners {
 		if i >= h-1 {
 			break
 		}
-		pct := dash
-		if s.Pool.NetworkDiff > 0 {
-			pct = fmtOfNet(b.Diff / s.Pool.NetworkDiff * 100)
+		effort := dash
+		if m.OwnLuckOK {
+			effort = fmtPct(m.OwnLuck)
 		}
-		when := dash
-		if !b.Time.IsZero() {
-			when = coarseAgo(ctx.Now, b.Time)
-		}
+		row := tableRow(cols, keep, []string{itoa(i + 1), shortAddr(m.Address, ctx.sym.Ellipsis),
+			fmtPct(m.Pct), effort, fmtDiff(m.Best), fmtOfNet(m.BestOfNet)})
 		st := ctx.Theme.Text
 		if i == 0 {
 			st = ctx.Theme.Gold
 		}
-		out = append(out, st.Render(fit(itoa(i+1), 3)+fit(shortWorker(b.Worker, ctx.sym.Ellipsis), w-30)+
-			right(fmtDiff(b.Diff), 9)+right(pct, 10)+right(when, 8)))
+		if i == sel {
+			st = ctx.Theme.Selected
+		}
+		out = append(out, st.Render(row))
 	}
 	return out
+}
+
+var recentCols = []column{
+	{title: "height", width: 8, prio: 0},
+	{title: "when", width: 7, prio: 3},
+	{title: "found by", width: 12, prio: 4, flex: 24},
+	{title: "finder", width: 7, right: true, prio: 0},
+	{title: "pool", width: 7, right: true, prio: 1},
+	{title: "status", width: 9, prio: 2},
 }
 
 func recentBlocks(ctx *Context, w, h int, eta string) []string {
@@ -299,13 +358,16 @@ func recentBlocks(ctx *Context, w, h int, eta string) []string {
 			kv(ctx, "hunting for", 16, fmtCoarse(s.Pool.Runtime)),
 		}
 	}
-	out := []string{t.Dim.Render(fit("height", 9) + fit("when", 10) + fit("finder", w-38) + right("effort", 9) + " " + fit("status", 9))}
+	keep := fitColumns(recentCols, w)
+	cols := growFlex(recentCols, keep, w)
+	out := []string{tableHead(ctx, cols, keep)}
 	for i, b := range s.Blocks {
 		if i >= h-1 {
 			break
 		}
-		out = append(out, fit(itoa(b.Height), 9)+fit(coarseAgo(ctx.Now, b.Time), 10)+
-			fit(shortWorker(b.Finder, ctx.sym.Ellipsis), w-38)+right(fmtPct(b.Luck), 9)+" "+statusStyled(ctx, b.Status, 9))
+		row := tableRow(cols, keep, []string{itoa(b.Height), coarseAgo(ctx.Now, b.Time),
+			shortWorker(b.Finder, ctx.sym.Ellipsis), finderEffort(ctx, b, !badBlock(b)), poolEffort(b), statusStyled(ctx, b.Status, 9)})
+		out = append(out, row)
 	}
 	return out
 }
@@ -322,4 +384,16 @@ func statusStyled(ctx *Context, s BlockStatus, w int) string {
 		return t.Warn.Render(v)
 	}
 	return t.Dim.Render(fit(dash, w))
+}
+
+// joinFit joins segs with the separator and drops trailing segments until the
+// result fits width cells, so a value is never cut mid-word.
+func joinFit(ctx *Context, width int, segs ...string) string {
+	for n := len(segs); n > 1; n-- {
+		out := strings.Join(segs[:n], ctx.sym.Sep)
+		if ansi.StringWidth(out) <= width {
+			return out
+		}
+	}
+	return segs[0]
 }

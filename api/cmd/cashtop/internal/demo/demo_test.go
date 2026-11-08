@@ -148,3 +148,48 @@ func TestShowcaseDrillDownMatchesWorkers(t *testing.T) {
 		}
 	}
 }
+
+func TestShowcaseNewFields(t *testing.T) {
+	s := Showcase(Options{Seed: 7, Now: now}).Snapshot()
+	var unknownFinder, differs int
+	for _, b := range s.Blocks {
+		if !b.LuckOK {
+			t.Fatalf("block %d has no pool effort", b.Height)
+		}
+		if !b.FinderLuckOK {
+			unknownFinder++
+		} else if b.FinderLuck != b.Luck {
+			differs++
+		}
+	}
+	if unknownFinder == 0 || differs == 0 {
+		t.Fatalf("want a mix of known and unknown finder efforts, got %d unknown, %d differing", unknownFinder, differs)
+	}
+	if n := len(s.Round.Miners); n < 4 || n > 5 {
+		t.Fatalf("round has %d miners, want 4-5", n)
+	}
+	var dropped int
+	for _, w := range s.Workers {
+		if !w.Disconnected.IsZero() && w.DropReason != "" {
+			dropped++
+		}
+	}
+	if dropped != 1 {
+		t.Fatalf("want exactly one dropped worker, got %d", dropped)
+	}
+	if len(s.Network.Recent) < 10 || len(s.Network.DiffSeries) == 0 {
+		t.Fatalf("network fixtures missing: %d recent, %d diff points", len(s.Network.Recent), len(s.Network.DiffSeries))
+	}
+	var ours, unknown int
+	for _, r := range s.Network.Recent {
+		if r.Ours {
+			ours++
+		}
+		if r.Pool == "" {
+			unknown++
+		}
+	}
+	if ours != 1 || unknown == 0 {
+		t.Fatalf("want one of ours and an unknown pool, got %d ours, %d unknown", ours, unknown)
+	}
+}

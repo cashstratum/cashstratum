@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -104,8 +105,9 @@ var rigCols = []column{
 	{title: "1m", width: 10, right: true, prio: 0},
 	{title: "1h", width: 10, right: true, prio: 2},
 	{title: "diff", width: 7, right: true, prio: 1},
+	{title: "best", width: 7, right: true, prio: 4},
 	{title: "last share", width: 10, right: true, prio: 0},
-	{title: "state", width: 8, prio: 0},
+	{title: "state", width: 22, prio: 0},
 }
 
 var submitCols = []column{
@@ -155,6 +157,7 @@ func (a *addressView) Render(ctx *Context, w, h int) []string {
 	if data.Height > 0 {
 		ht = strconv.FormatInt(data.Height, 10)
 	}
+	out = append(out, minerSection(ctx, a.addr)...)
 	out = append(out,
 		" "+kv(ctx, "since last network block", 33, mine)+t.Dim.Render("  work of this address at height "+ht+", resets at each new block"),
 		" "+kv(ctx, "pool round since our last block", 33, fmtPct(PoolLuck(s.Pool.Accepted, nd)))+t.Dim.Render("  whole pool, resets only when the pool finds a block"),
@@ -166,16 +169,17 @@ func (a *addressView) Render(ctx *Context, w, h int) []string {
 	if len(ws) == 0 {
 		out = append(out, " "+t.Dim.Render("No connected workers for this address."))
 	} else {
-		keep := fitColumns(rigCols, w-1)
-		out = append(out, " "+tableHead(ctx, rigCols, keep))
+		cols := withStateWidth(rigCols, stateWidth(ctx, ws))
+		keep := fitColumns(cols, w-1)
+		out = append(out, " "+tableHead(ctx, cols, keep))
 		for _, r := range sortedWorkers(ws, ctx.Now) {
 			badge, tag := rigBadge(ctx, r)
 			last := dash
 			if !r.LastShare.IsZero() {
 				last = fmtDur(ctx.Now.Sub(r.LastShare))
 			}
-			row := tableRow(rigCols, keep, []string{badge + " " + tag, rigName(r.Name), agentShort(r.UserAgent),
-				ctx.hash(r.Hashrate1m), ctx.longHash(r, r.Hashrate1h), fmtDiff(r.Diff), last, stateLabel(ctx, ctx.classify(r))})
+			row := tableRow(cols, keep, []string{badge + " " + tag, rigName(r.Name), agentShort(r.UserAgent),
+				ctx.hash(r.Hashrate1m), ctx.longHash(r, r.Hashrate1h), fmtDiff(r.Diff), fmtDiff(r.BestShare), last, workerState(ctx, r, ctx.classify(r))})
 			if st := ctx.classify(r); st == StateOff || st == StateIdle {
 				row = t.Dim.Render(row)
 			}
@@ -237,6 +241,89 @@ func tableRowStyled(keep []bool, cells []string) string {
 		b.WriteByte(' ')
 	}
 	return b.String()
+}
+
+// roundMiner finds the address in the current round's breakdown.
+func roundMiner(r RoundInfo, addr string) (RoundMiner, bool) {
+	for _, m := range r.Miners {
+		if sameAddr(m.Address, addr) {
+			return m, true
+		}
+	}
+	return RoundMiner{}, false
+}
+
+// finderBlocks lists the pool's blocks found by the address, newest first.
+func finderBlocks(blocks []BlockRow, addr string) []BlockRow {
+	var out []BlockRow
+	for _, b := range blocks {
+		if a, _ := poolfmt.SplitWorker(b.Finder); sameAddr(a, addr) {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// medianFinderEffort is the median of the known finder efforts; n counts them.
+func medianFinderEffort(blocks []BlockRow) (med float64, n int) {
+	var v []float64
+	for _, b := range blocks {
+		if b.FinderLuckOK {
+			v = append(v, b.FinderLuck)
+		}
+	}
+	if len(v) == 0 {
+		return 0, 0
+	}
+	sort.Float64s(v)
+	if len(v)%2 == 1 {
+		return v[len(v)/2], len(v)
+	}
+	return (v[len(v)/2-1] + v[len(v)/2]) / 2, len(v)
+}
+
+// maxFinderRows caps the per-block lines of the miner view.
+const maxFinderRows = 5
+
+// minerSection renders the miner's own effort this round, share of the round
+// and the blocks it found with the effort of each. Unknown values are dashes.
+func minerSection(ctx *Context, addr string) []string {
+	t := ctx.Theme
+	s := ctx.Snap
+	own, pct := dash, dash
+	var note string
+	if m, ok := roundMiner(s.Round, addr); ok {
+		if m.OwnLuckOK {
+			own = fmtPct(m.OwnLuck)
+		}
+		pct = fmtPct(m.Pct)
+		if m.Best > 0 {
+			note = "  round best share " + fmtDiff(m.Best) + " (" + fmtOfNet(m.BestOfNet) + " of net)"
+		}
+	}
+	out := []string{
+		" " + kv(ctx, "own effort this round", 33, own) + t.Dim.Render("  this address alone, percent of network difficulty"),
+		" " + kv(ctx, "share of the round", 33, pct) + t.Dim.Render(note),
+	}
+	found := finderBlocks(s.Blocks, addr)
+	med, n := medianFinderEffort(found)
+	medTxt := dash
+	if n > 0 {
+		medTxt = fmtPct(med) + t.Dim.Render("  over "+itoa(n)+" blocks")
+	}
+	out = append(out, " "+kv(ctx, "blocks found", 33, itoa(len(found))), " "+kv(ctx, "median finder effort", 33, medTxt))
+	for i, b := range found {
+		if i == maxFinderRows {
+			out = append(out, " "+t.Dim.Render("  "+ctx.sym.Ellipsis+" "+itoa(len(found)-maxFinderRows)+" more"))
+			break
+		}
+		eff := dash
+		if b.FinderLuckOK {
+			eff = fmtPct(b.FinderLuck)
+		}
+		out = append(out, " "+t.Dim.Render("  #"+itoa(b.Height)+"  effort ")+t.Text.Render(eff))
+	}
+	return append(out, "")
 }
 
 // rigName is the part of a worker name after the address.

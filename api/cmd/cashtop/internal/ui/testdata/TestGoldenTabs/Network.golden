@@ -10,27 +10,27 @@
 │                                                         │ │P(block 1h)     0.0000735%                                │
 │                                                         │ │P(block 24h)    0.00176%                                  │
 └─────────────────────────────────────────────────────────┘ └──────────────────────────────────────────────────────────┘
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
+┌─ Recent network blocks ──────────────────────────────────────────────────────────────────────────────────────────────┐
+│height   age      gap     pool                   coinbase tag                                                         │
+│899999   4m       11m     Pool Alpha             /Pool Alpha/                                                         │
+│899998   15m      4m      Pool Beta              /Pool Beta/                                                          │
+│899997   19m      17m     unknown                                                                                     │
+│899996   37m      8m      Pool Alpha             /Pool Alpha/                                                         │
+│899995   46m      2m      Pool Gamma             /Pool Gamma/                                                         │
+│899994   48m      13m     Pool Beta              /Pool Beta/                                                          │
+│899993   1h 1m    9m      pool.example.com (us)  /pool.example.com/                                                   │
+│899992   1h 11m   21m     Pool Alpha             /Pool Alpha/                                                         │
+│899991   1h 32m   6m      Pool Delta             /Pool Delta/                                                         │
+│899990   1h 38m   10m     Pool Beta              /Pool Beta/                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│difficulty                ⣰⣸⣇⣆⣿⣰⣸⣇⣆⣿⣠⣸⣇⣄⣇  4.50T -> 4.50T                                                             │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
  1-5 tabs · / search · enter open · ? help · q quit                                                           cashgreen 

@@ -18,7 +18,7 @@ import (
 // bump forces a rescan.
 const (
 	SchemaVersion = 1
-	ParserVersion = 4
+	ParserVersion = 5
 )
 
 const (
@@ -46,6 +46,13 @@ type workDelta struct {
 	Files  map[string]int64   `json:"files,omitempty"`
 }
 
+// luckDelta carries changed per-address luck values and the addresses whose
+// value was consumed by a solve.
+type luckDelta struct {
+	Set  map[string]float64 `json:"set,omitempty"`
+	Gone []string           `json:"gone,omitempty"`
+}
+
 type transient struct {
 	LastZMQ    string    `json:"last_zmq"`
 	LastReject string    `json:"last_reject"`
@@ -68,6 +75,7 @@ type rec struct {
 	Luck   *seriesDelta `json:"luck,omitempty"`
 	Work   *workDelta   `json:"work,omitempty"`
 	Round  *Round       `json:"round,omitempty"`
+	Lucks  *luckDelta   `json:"lucks,omitempty"`
 	Tr     *transient   `json:"tr,omitempty"`
 	Cur    *tail.Cursor `json:"cur,omitempty"`
 }
@@ -138,6 +146,12 @@ func (ix *Index) load() (gen int, err error) {
 	}
 	if st.Round.Best == nil {
 		st.Round.Best = map[string]BestShare{}
+	}
+	if st.Round.Sums == nil {
+		st.Round.Sums = map[string]float64{}
+	}
+	if st.LastLuck == nil {
+		st.LastLuck = map[string]float64{}
 	}
 	if st.Work.Files == nil {
 		st.Work.Files = map[string]int64{}
@@ -241,6 +255,16 @@ func (ix *Index) applyRec(r rec) {
 		if s.Round.Best == nil {
 			s.Round.Best = map[string]BestShare{}
 		}
+		if s.Round.Sums == nil {
+			s.Round.Sums = map[string]float64{}
+		}
+	case "lucks":
+		for k, v := range r.Lucks.Set {
+			s.LastLuck[k] = v
+		}
+		for _, k := range r.Lucks.Gone {
+			delete(s.LastLuck, k)
+		}
 	case "cur":
 		s.Cursor = *r.Cur
 	}
@@ -294,6 +318,17 @@ func (ix *Index) flush() error {
 	}
 	if d.round {
 		emit(rec{K: "round", Round: &s.Round})
+	}
+	if len(d.lucks) > 0 {
+		ld := &luckDelta{Set: map[string]float64{}}
+		for a := range d.lucks {
+			if v, ok := s.LastLuck[a]; ok {
+				ld.Set[a] = v
+			} else {
+				ld.Gone = append(ld.Gone, a)
+			}
+		}
+		emit(rec{K: "lucks", Lucks: ld})
 	}
 	if d.trans {
 		emit(rec{K: "tr", Tr: &transient{s.LastZMQ, s.LastReject, s.OpenSolve, s.Solved, s.Tip}})

@@ -209,6 +209,10 @@ func Showcase(o Options) *Provider {
 	}
 	s.Pool.BestShare = s.BestShares[0].Diff
 
+	fillEffort(&s)
+	fillRound(&s)
+	fillDrop(&s, now)
+	fillNetwork(&s, ShowcaseHost)
 	s.Feed = showFeed(s, now, rng)
 	p.snap = s
 	p.shares = showShares(s, now, rng)
@@ -320,4 +324,137 @@ func workerState(w ui.WorkerRow, now time.Time) byte {
 		return 'i'
 	}
 	return 'o'
+}
+
+// finderShare is the finder's own fraction of the pool effort at each find,
+// repeated down the block list; a negative entry leaves the finder effort
+// unknown.
+var finderShare = []float64{0.42, 1.0, 0.18, 0.67, -1, 0.31, 0.88, 0.09, 0.55, 0.74}
+
+// fillEffort sets the effort-known flags and the finder effort on every block.
+func fillEffort(s *ui.Snapshot) {
+	for i := range s.Blocks {
+		b := &s.Blocks[i]
+		b.LuckOK = b.Luck > 0
+		f := finderShare[i%len(finderShare)]
+		if f < 0 || !b.LuckOK {
+			continue
+		}
+		b.FinderLuck, b.FinderLuckOK = b.Luck*f, true
+	}
+}
+
+// fillRound builds the per-miner round table from the workers, biggest first.
+func fillRound(s *ui.Snapshot) {
+	type acc struct {
+		addr string
+		rate float64
+		best float64
+	}
+	var order []string
+	by := map[string]*acc{}
+	for _, w := range s.Workers {
+		if w.Address == "" || w.Hashrate1m <= 0 {
+			continue
+		}
+		a := by[w.Address]
+		if a == nil {
+			a = &acc{addr: w.Address}
+			by[w.Address] = a
+			order = append(order, w.Address)
+		}
+		a.rate += w.Hashrate1m
+		a.best = max(a.best, w.BestShare)
+	}
+	if len(order) == 0 {
+		return
+	}
+	var total, rates float64
+	for _, k := range order {
+		rates += by[k].rate
+	}
+	total = s.Pool.Accepted
+	for _, k := range order {
+		a := by[k]
+		d := total * a.rate / rates
+		best := a.best * 0.9 // the round's best is never above the worker's lifetime best
+		m := ui.RoundMiner{Address: a.addr, Diff: d, Best: best}
+		if total > 0 {
+			m.Pct = d / total * 100
+		}
+		if s.Pool.NetworkDiff > 0 {
+			m.OwnLuck, m.OwnLuckOK = d/s.Pool.NetworkDiff*100, true
+			m.BestOfNet = best / s.Pool.NetworkDiff * 100
+		}
+		s.Round.Miners = append(s.Round.Miners, m)
+	}
+	// Biggest slice first; ties keep the worker order.
+	ms := s.Round.Miners
+	for i := 1; i < len(ms); i++ {
+		for j := i; j > 0 && ms[j].Diff > ms[j-1].Diff; j-- {
+			ms[j], ms[j-1] = ms[j-1], ms[j]
+		}
+	}
+	if len(ms) > 5 {
+		s.Round.Miners = ms[:5]
+	}
+	s.Round.Total, s.Round.Height, s.Round.Since = total, s.Pool.Height, s.Pool.LastBlock
+}
+
+// fillDrop marks the first worker that is off as dropped.
+func fillDrop(s *ui.Snapshot, now time.Time) {
+	for i, w := range s.Workers {
+		if ui.Classify(w, now) == ui.StateOff {
+			s.Workers[i].Disconnected = now.Add(-26 * time.Hour)
+			s.Workers[i].DropReason = "peer_reset"
+			return
+		}
+	}
+}
+
+// netPools names the pools in the recent-network-blocks fixture; an empty
+// name is a block whose coinbase tag matched nothing.
+var netPools = []string{"Pool Alpha", "Pool Beta", "", "Pool Alpha", "Pool Gamma", "Pool Beta", "", "Pool Alpha", "Pool Delta", "Pool Beta"}
+
+var netIntervals = []time.Duration{
+	11*time.Minute + 38*time.Second, 4*time.Minute + 9*time.Second, 17*time.Minute + 52*time.Second,
+	8*time.Minute + 21*time.Second, 2*time.Minute + 47*time.Second, 13*time.Minute + 5*time.Second,
+	9*time.Minute + 30*time.Second, 21*time.Minute + 14*time.Second, 6*time.Minute + 3*time.Second,
+	10*time.Minute + 40*time.Second,
+}
+
+// fillNetwork lists ten recent network blocks, one of them found by this
+// pool, and a trailing difficulty series.
+func fillNetwork(s *ui.Snapshot, host string) {
+	n := &s.Network
+	t := n.TipTime
+	for i := 0; i < 10; i++ {
+		iv := netIntervals[i]
+		r := ui.NetBlockRow{
+			Height: n.Tip - i, Hash: fixturegen.Hash(9001 + i), Time: t, Interval: iv,
+			Pool: netPools[i], Tag: tagFor(netPools[i]),
+		}
+		if i == 6 {
+			r.Pool, r.Tag, r.Ours = host, "/"+host+"/", true
+		}
+		n.Recent = append(n.Recent, r)
+		t = t.Add(-iv)
+	}
+	d := n.Difficulty
+	if d <= 0 {
+		return
+	}
+	for i := 0; i < 30; i++ {
+		step := 1 + 0.004*float64((i*7)%5-2)
+		d /= step
+		n.DiffSeries = append([]float64{d}, n.DiffSeries...)
+	}
+	n.DiffSeries[len(n.DiffSeries)-1] = n.Difficulty
+}
+
+func tagFor(pool string) string {
+	if pool == "" {
+		return ""
+	}
+	return "/" + pool + "/"
 }

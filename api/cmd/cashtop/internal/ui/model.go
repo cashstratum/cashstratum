@@ -90,6 +90,9 @@ type Model struct {
 	sel        [numTabs]int
 	feedOffset int // rows scrolled up from the newest; 0 follows
 	rain       bool
+	showOff    bool // the Workers tab lists off workers
+	helpOff    int  // rows the help screen is scrolled
+	dashPick   bool // the round-table cursor is in use; set by the first move
 
 	page     Page
 	overlays []Overlay
@@ -174,7 +177,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if t, ok := msg.(tickMsg); ok {
 		fwd = TickMsg{Time: time.Time(t), Frame: m.frame + 1}
 	}
+	// A key that dismisses an overlay is consumed by it, so test activity
+	// both before and after the overlays have seen the message.
 	takeover := false
+	for _, ov := range m.overlays {
+		takeover = takeover || ov.Active()
+	}
 	for _, ov := range m.overlays {
 		cmds = append(cmds, ov.Update(fwd, ctx))
 		takeover = takeover || ov.Active()
@@ -224,6 +232,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.snap.Blocks[i].Height == msg.Height {
 				if msg.Luck > 0 {
 					m.snap.Blocks[i].Luck = msg.Luck
+					m.snap.Blocks[i].LuckOK = true
 				}
 				if msg.Hash != "" {
 					m.snap.Blocks[i].Hash = msg.Hash
@@ -238,6 +247,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
+		}
+		if msg.String() == "ctrl+l" {
+			cmds = append(cmds, tea.ClearScreen)
+			return m, tea.Batch(cmds...)
 		}
 		if takeover {
 			return m, tea.Batch(cmds...)
@@ -267,7 +280,19 @@ func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
 	if m.help {
 		switch s {
 		case "?", "esc", "q", "enter":
-			m.help = false
+			m.help, m.helpOff = false, 0
+		case "down", "j":
+			m.helpOff++
+		case "up", "k":
+			m.helpOff = max(m.helpOff-1, 0)
+		case "pgdown":
+			m.helpOff += 10
+		case "pgup":
+			m.helpOff = max(m.helpOff-10, 0)
+		case "home", "g":
+			m.helpOff = 0
+		case "end", "G":
+			m.helpOff = 1 << 20
 		}
 		return nil
 	}
@@ -321,6 +346,11 @@ func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
 				m.rain = !m.rain
 			}
 		}
+	case "o":
+		if m.tab == TabWorkers {
+			m.showOff = !m.showOff
+			m.sel[TabWorkers] = min(m.sel[TabWorkers], max(m.rows()-1, 0))
+		}
 	case "enter":
 		return m.enter()
 	}
@@ -338,6 +368,9 @@ func (m *Model) move(d int) {
 		}
 		return
 	}
+	if m.tab == TabDashboard {
+		m.dashPick = true
+	}
 	n := m.rows()
 	i := m.sel[m.tab] + d
 	if i >= n {
@@ -352,9 +385,11 @@ func (m *Model) move(d int) {
 func (m *Model) rows() int {
 	switch m.tab {
 	case TabWorkers:
-		return len(m.snap.Workers)
+		return len(visibleWorkers(m.snap.Workers, m.opt.Now(), m.showOff))
 	case TabBlocks:
 		return len(m.snap.Blocks)
+	case TabDashboard:
+		return len(m.snap.Round.Miners)
 	}
 	return 0
 }
@@ -365,8 +400,12 @@ func (m *Model) enter() tea.Cmd {
 		if i := m.sel[TabBlocks]; i < len(m.snap.Blocks) {
 			return m.openDrill(m.snap.Blocks[i].Height)
 		}
+	case TabDashboard:
+		if i := m.sel[TabDashboard]; m.dashPick && i < len(m.snap.Round.Miners) && m.snap.Round.Miners[i].Address != "" {
+			m.page = addressPage(m.snap.Round.Miners[i].Address)
+		}
 	case TabWorkers:
-		ws := sortedWorkers(m.snap.Workers, m.opt.Now())
+		ws := visibleWorkers(m.snap.Workers, m.opt.Now(), m.showOff)
 		if i := m.sel[TabWorkers]; i < len(ws) && ws[i].Address != "" {
 			m.page = addressPage(ws[i].Address)
 		}
@@ -425,7 +464,7 @@ func (m *Model) render() string {
 	var body []string
 	switch {
 	case m.help:
-		body = renderHelp(ctx, w, bodyH)
+		body = renderHelpAt(ctx, w, bodyH, m.helpOff)
 	case m.page != nil:
 		body = m.page.Render(ctx, w, bodyH)
 	default:
@@ -453,7 +492,7 @@ func (m *Model) render() string {
 func (m *Model) renderTab(ctx *Context, w, h int) []string {
 	switch m.tab {
 	case TabWorkers:
-		return renderWorkers(ctx, w, h, m.sel[TabWorkers])
+		return renderWorkersShow(ctx, w, h, m.sel[TabWorkers], m.showOff)
 	case TabBlocks:
 		return renderBlocks(ctx, w, h, m.sel[TabBlocks])
 	case TabFeed:
@@ -464,7 +503,11 @@ func (m *Model) renderTab(ctx *Context, w, h int) []string {
 	case TabNetwork:
 		return renderNetwork(ctx, w, h)
 	}
-	return renderDashboard(ctx, w, h)
+	sel := -1
+	if m.dashPick {
+		sel = m.sel[TabDashboard]
+	}
+	return renderDashboardSel(ctx, w, h, sel)
 }
 
 func (m *Model) header(ctx *Context, w int) string {
@@ -512,6 +555,8 @@ func (m *Model) footer(ctx *Context, w int) string {
 		keys = " esc back" + sep + "j/k scroll" + sep + "? help" + sep + "q quit"
 	} else if m.tab == TabFeed {
 		keys += sep + "j/k scroll" + sep + "G follow"
+	} else if m.tab == TabWorkers {
+		keys += sep + "o off workers"
 	}
 	mode := m.theme.Name
 	if m.opt.Caps.Glyphs == termcap.ASCII {

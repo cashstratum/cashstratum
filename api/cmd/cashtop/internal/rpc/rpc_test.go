@@ -172,3 +172,24 @@ func TestBlockRewardTruncatedResponse(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestBlockCoinbase(t *testing.T) {
+	c, n := server(t, map[string]string{
+		"getblock":          `{"hash":"hh","height":42,"time":1700000000,"difficulty":12.5,"previousblockhash":"pp","tx":["cb01","tx02"]}`,
+		"getrawtransaction": `{"vin":[{"coinbase":"03aabbcc2f4d696e65642f"}]}`,
+	})
+	got, err := c.BlockCoinbase(context.Background(), "hh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Height != 42 || got.Time != 1700000000 || got.Difficulty != 12.5 || got.PreviousHash != "pp" || got.ScriptHex != "03aabbcc2f4d696e65642f" {
+		t.Fatalf("got %+v", got)
+	}
+	if *n != 2 {
+		t.Fatalf("calls %d", *n)
+	}
+	empty, _ := server(t, map[string]string{"getblock": `{"tx":[]}`})
+	if _, err := empty.BlockCoinbase(context.Background(), "hh"); err == nil {
+		t.Fatal("block without transactions must fail")
+	}
+}

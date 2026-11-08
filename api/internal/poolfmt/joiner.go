@@ -50,7 +50,7 @@ func (j *Joiner) Feed(line string, offset int64) []Joined {
 				gap = a - b
 			}
 		}
-		if gap >= 0 && gap <= JoinGapMs {
+		if gap >= 0 && gap <= JoinGapMs && !j.complete(line[len(ts)+1:]) {
 			j.pendTS = ts
 			c := line[len(ts)+1:]
 			j.pend += c
@@ -69,6 +69,50 @@ func (j *Joiner) Feed(line string, offset int64) []Joined {
 		return out
 	}
 	return append(out, Joined{line, offset})
+}
+
+// complete reports whether the held text cannot have a continuation: it
+// already ends in a closed JSON object, or the next body starts a message the
+// parser recognises. A body of exactly ChunkBody bytes that happens to end on
+// a message boundary is otherwise indistinguishable from a split one.
+func (j *Joiner) complete(next string) bool {
+	if jsonClosed(j.pend[len(j.pendTS)+1:]) {
+		return true
+	}
+	return ParseBody(next).Kind != KindUnknown
+}
+
+// jsonClosed reports whether body holds a JSON object that opens at its first
+// '{' and closes exactly at its last byte.
+func jsonClosed(body string) bool {
+	i := strings.IndexByte(body, '{')
+	if i < 0 || body[len(body)-1] != '}' {
+		return false
+	}
+	depth, inStr, esc := 0, false, false
+	for k := i; k < len(body); k++ {
+		c := body[k]
+		switch {
+		case esc:
+			esc = false
+		case inStr:
+			if c == '\\' {
+				esc = true
+			} else if c == '"' {
+				inStr = false
+			}
+		case c == '"':
+			inStr = true
+		case c == '{':
+			depth++
+		case c == '}':
+			depth--
+			if depth == 0 {
+				return k == len(body)-1
+			}
+		}
+	}
+	return false
 }
 
 // Flush releases a held line, for use when the log has gone quiet.

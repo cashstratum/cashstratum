@@ -183,3 +183,66 @@ func TestEnrichAndOrphan(t *testing.T) {
 		t.Fatal("not orphan")
 	}
 }
+
+const niceUser = "bitcoincash:qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh"
+
+func userLine(stamp string, luck string) string {
+	if luck == "" { // the solve-time form
+		return "[" + stamp + "] User " + niceUser + `:{"hashrate1m":"4.5T","hashrate5m":"4.4T","hashrate1hr":"4.3T","hashrate1d":"4T","hashrate7d":"4T","shares":175954,"authorised":1700000000}`
+	}
+	return "[" + stamp + "] User " + niceUser + `:{"hashrate1m":"4.5T","hashrate5m":"4.4T","hashrate1hr":"4.3T","hashrate1d":"4T","hashrate7d":"4T","lastshare":1762480786,"shares":175954,"roundshares":1966086000000,"luck":` + luck + `,"networkdiff":552305174002.9905,"authorised":1700000000}`
+}
+
+// A live find carries the finder's own effort from its last periodic User
+// line; the solve-time User line without luck does not disturb it, and the
+// update that brings the pool effort keeps it.
+func TestFinderLuckOnLiveFind(t *testing.T) {
+	f := &feeder{e: New(0)}
+	out := f.feed([]string{
+		userLine("2026-11-07 01:59:46.947", "355.978196935985"),
+		userLine("2026-11-07 01:59:50.000", ""),
+		"[2026-11-07 02:00:00.646] Solved and confirmed block 976298 by qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh.nice on SV1",
+		userLine("2026-11-07 02:00:00.646", ""),
+		"[2026-11-07 02:00:00.646] Block solved after 65606500000 shares at 11.9% diff",
+	})
+	n, b := finds(out)
+	if n != 1 || !b.FinderLuckOK || b.FinderLuck != 355.978196935985 {
+		t.Fatalf("%d %+v", n, b)
+	}
+	var u BlockUpdate
+	for _, o := range out {
+		if x, ok := o.(BlockUpdate); ok {
+			u = x
+		}
+	}
+	if u.LuckPct != 11.9 || !u.FinderLuckOK || u.FinderLuck != 355.978196935985 {
+		t.Fatalf("update %+v", u)
+	}
+
+	// The finder's round restarted: its next solve before a new User line
+	// has no known effort.
+	_, b = finds(f.feed([]string{"[2026-11-07 02:00:30.000] Solved and confirmed block 976299 by " + niceUser + ".nice on SV1"}))
+	if b.Height != 976299 || b.FinderLuckOK {
+		t.Fatalf("second find %+v", b)
+	}
+}
+
+// Luck seeded from the index serves a find whose User line sits before the
+// engine's start, and a solve in the history consumes it.
+func TestSeedLuck(t *testing.T) {
+	e := New(0)
+	e.SeedLuck(map[string]float64{niceUser: 42.5})
+	f := &feeder{e: e}
+	_, b := finds(f.feed([]string{"[2026-11-07 02:00:00.646] Solved and confirmed block 976298 by qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh.nice on SV1"}))
+	if !b.FinderLuckOK || b.FinderLuck != 42.5 {
+		t.Fatalf("%+v", b)
+	}
+
+	h := New(1 << 40)
+	h.SeedLuck(map[string]float64{"qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh": 42.5})
+	hf := &feeder{e: h}
+	hf.feed([]string{"[2026-11-07 02:00:00.646] Solved and confirmed block 976300 by " + niceUser + ".nice on SV1"})
+	if _, ok := h.lucks["qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh"]; ok {
+		t.Fatal("a solve in the history must consume the luck")
+	}
+}

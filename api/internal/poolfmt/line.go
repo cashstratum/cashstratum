@@ -37,6 +37,7 @@ const (
 	KindPatternDiff      // "Client N workername 'W' matched pattern 'P', ..."
 	KindPasswordDiff     // "Client N set difficulty to D via password parameter[ (pinned[, requested R])]"
 	KindReaping          // "Reaping client id N addr idle why for S seconds"
+	KindPoolStart        // "<name> stratifier starting": the pool process (re)started
 )
 
 var kindNames = [...]string{
@@ -44,7 +45,7 @@ var kindNames = [...]string{
 	"zmq-block", "network-diff", "block-hash-changed", "possible-solve", "submitting",
 	"block-accepted", "submit-returned", "submit-no-response", "solved", "solved-no-height",
 	"solve-shares", "block-rejected", "sv2-accepted", "sv2-hash", "sv2-rejected",
-	"rental-detected", "pattern-diff", "password-diff", "reaping",
+	"rental-detected", "pattern-diff", "password-diff", "reaping", "pool-start",
 }
 
 func (k Kind) String() string {
@@ -121,6 +122,7 @@ var (
 	rePattern    = regexp.MustCompile(`^Client (\S+) workername '(.*)' matched pattern '(.*)', applied difficulty (\d+)$`)
 	rePassword   = regexp.MustCompile(`^Client (\S+) set difficulty to (\d+) via password parameter(?: \((pinned)(?:, requested (\d+))?\))?$`)
 	reReaping    = regexp.MustCompile(`^Reaping client id (\S+) (\S+) idle (.*) for (\d+) seconds$`)
+	rePoolStart  = regexp.MustCompile(`^(\S+) stratifier starting$`)
 )
 
 func i64(s string) (int64, bool) {
@@ -265,6 +267,12 @@ func ParseBody(body string) Event {
 			if n, ok := i64(m[4]); ok {
 				return Event{Kind: KindReaping, ClientID: m[1], Address: m[2], Message: m[3], Count: n}
 			}
+		}
+	default:
+		// The stratifier announces itself under the process name, which is
+		// "cashstratum" by default ("ckpool" upstream) and can be renamed.
+		if m := rePoolStart.FindStringSubmatch(body); m != nil {
+			return Event{Kind: KindPoolStart, Extra: m[1]}
 		}
 	}
 	return Event{}

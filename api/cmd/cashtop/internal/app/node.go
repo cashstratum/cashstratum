@@ -90,6 +90,7 @@ func (a *App) nodeLoop(ctx context.Context, send func(tea.Msg)) {
 		if m, ok := a.refreshTip(ctx); ok {
 			send(m)
 		}
+		a.refreshRecent(ctx)
 		a.enrichMissing(ctx, enrichPerCycle)
 		if n := a.netBlks.Load(); n-checked >= int64(a.cfg.OrphanEvery) {
 			checked = n

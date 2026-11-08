@@ -6,6 +6,15 @@ import (
 	"cashstratumapi/internal/poolfmt"
 )
 
+// SeedLuck sets the newest known per-user luck, keyed by payout address with
+// or without its network prefix, as remembered from the log before the
+// engine's start offset. Later User lines replace it.
+func (e *Engine) SeedLuck(lucks map[string]float64) {
+	for k, v := range lucks {
+		e.lucks[poolfmt.NormalizeAddress(k)] = v
+	}
+}
+
 // Heights is a SeenSource over a fixed list.
 type Heights []int64
 

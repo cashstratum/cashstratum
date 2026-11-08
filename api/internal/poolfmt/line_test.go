@@ -256,6 +256,18 @@ func TestParseLineFamilies(t *testing.T) {
 		{"password near miss", "Client 12 set difficulty to 2048 via password parameter (pinned, requested)", KindUnknown, nil},
 		{"password near miss suffix", "Client 12 set difficulty to 2048 via password parameter (other)", KindUnknown, nil},
 		{"reaping", "Reaping client id 7 192.0.2.9:4444 idle pre-session for 30 seconds", KindReaping, nil},
+		{"pool start", "cashstratum stratifier starting", KindPoolStart, func(t *testing.T, e Event) {
+			if e.Extra != "cashstratum" {
+				t.Fatalf("%+v", e)
+			}
+		}},
+		{"pool start upstream name", "ckpool stratifier starting", KindPoolStart, func(t *testing.T, e Event) {
+			if e.Extra != "ckpool" {
+				t.Fatalf("%+v", e)
+			}
+		}},
+		{"pool ready is not a start", "cashstratum stratifier ready", KindUnknown, nil},
+		{"pool start trailing text", "cashstratum stratifier starting now", KindUnknown, nil},
 		{"unknown", "Something entirely new happened", KindUnknown, nil},
 		{"empty body", "", KindUnknown, nil},
 		{"bad number", "Network diff set to 1.2.3", KindUnknown, nil},
@@ -293,7 +305,7 @@ func TestParseLineEdges(t *testing.T) {
 	if e := ParseLine(ts + strings.Repeat("User ", 1<<18)); e.Kind != KindUnknown {
 		t.Error("pathological")
 	}
-	if Kind(99).String() != "unknown" || KindSolved.String() != "solved" {
+	if Kind(99).String() != "unknown" || KindSolved.String() != "solved" || KindPoolStart.String() != "pool-start" {
 		t.Error("String")
 	}
 }

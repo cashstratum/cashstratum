@@ -34,26 +34,32 @@ type PreSolve struct {
 
 // BlockFound is a confirmed block solved by the pool.
 type BlockFound struct {
-	Height    int64
-	Finder    string // full address.worker
-	Address   string
-	Rig       string
-	Proto     string
-	Hash      string // may be empty until a BlockUpdate arrives
-	LuckPct   float64
-	Shares    int64
-	Time      time.Time
-	Reward    float64 // BCH, valid when HasReward
-	HasReward bool
-	Replayed  bool
+	Height  int64
+	Finder  string // full address.worker
+	Address string
+	Rig     string
+	Proto   string
+	Hash    string // may be empty until a BlockUpdate arrives
+	LuckPct float64
+	Shares  int64
+	// FinderLuck is the finder's own effort at the solve, from the last
+	// periodic User line of its address; valid when FinderLuckOK.
+	FinderLuck   float64
+	FinderLuckOK bool
+	Time         time.Time
+	Reward       float64 // BCH, valid when HasReward
+	HasReward    bool
+	Replayed     bool
 }
 
 // BlockUpdate carries fields that arrive after the solve line.
 type BlockUpdate struct {
-	Height  int64
-	Hash    string
-	LuckPct float64
-	Shares  int64
+	Height       int64
+	Hash         string
+	LuckPct      float64
+	Shares       int64
+	FinderLuck   float64
+	FinderLuckOK bool
 }
 
 // BlockRejected is a submit the node refused.
@@ -96,12 +102,13 @@ type Engine struct {
 	reason      string
 	pending     *BlockFound
 	pendingN    int
+	lucks       map[string]float64 // newest per-user luck by payout address
 }
 
 // New returns an Engine. Events at or before startOffset never produce
 // outputs; solves among them still mark their heights as seen.
 func New(startOffset int64, sources ...SeenSource) *Engine {
-	e := &Engine{startOffset: startOffset, seen: map[int64]bool{}}
+	e := &Engine{startOffset: startOffset, seen: map[int64]bool{}, lucks: map[string]float64{}}
 	for _, s := range sources {
 		if s != nil {
 			e.Seed(s.SeenHeights()...)
@@ -156,6 +163,12 @@ func (e *Engine) Feed(ev poolfmt.Event, off int64) []Output {
 		if live {
 			return []Output{PreSolve{Accepted: ev.Kind == poolfmt.KindBlockAccepted, Time: ev.Time, Expires: ev.Time.Add(preWindow)}}
 		}
+	case poolfmt.KindUser:
+		// The User line printed with a solve has no luck and must not
+		// overwrite the periodic value.
+		if ev.Stats.Luck.OK {
+			e.lucks[poolfmt.NormalizeAddress(ev.Name)] = ev.Stats.Luck.V
+		}
 	case poolfmt.KindSubmitReturned:
 		e.reason = ev.Message
 	case poolfmt.KindBlockRejected:
@@ -169,13 +182,13 @@ func (e *Engine) Feed(ev poolfmt.Event, off int64) []Output {
 	case poolfmt.KindSolveShares:
 		if p := e.pending; p != nil && e.within(ev.Time, ev.HasTime, p.Time, true, fillWindow, e.n, e.pendingN) {
 			p.LuckPct, p.Shares = ev.Percent, ev.Count
-			return []Output{BlockUpdate{Height: p.Height, Hash: p.Hash, LuckPct: ev.Percent, Shares: ev.Count}}
+			return []Output{p.update()}
 		}
 	case poolfmt.KindBlockHashChanged:
 		var out []Output
 		if p := e.pending; p != nil && p.Hash == "" && e.within(ev.Time, ev.HasTime, p.Time, true, fillWindow, e.n, e.pendingN) {
 			p.Hash = ev.Hash
-			out = append(out, BlockUpdate{Height: p.Height, Hash: p.Hash, LuckPct: p.LuckPct, Shares: p.Shares})
+			out = append(out, p.update())
 		}
 		if live {
 			ours := e.pending != nil && e.pending.Hash == ev.Hash
@@ -186,15 +199,26 @@ func (e *Engine) Feed(ev poolfmt.Event, off int64) []Output {
 	return nil
 }
 
+func (b *BlockFound) update() BlockUpdate {
+	return BlockUpdate{Height: b.Height, Hash: b.Hash, LuckPct: b.LuckPct, Shares: b.Shares,
+		FinderLuck: b.FinderLuck, FinderLuckOK: b.FinderLuckOK}
+}
+
 func (e *Engine) solved(ev poolfmt.Event, live bool) []Output {
 	dup := e.seen[ev.Height]
 	e.seen[ev.Height] = true
 	e.pending = nil
+	addr, rig := SplitFinder(ev.Worker)
+	// The finder's own round restarts at its solve, so its remembered luck
+	// is consumed here, whether or not the solve is announced.
+	key := poolfmt.NormalizeAddress(addr)
+	fl, flOK := e.lucks[key]
+	delete(e.lucks, key)
 	if !live || dup {
 		return nil
 	}
-	addr, rig := SplitFinder(ev.Worker)
-	b := BlockFound{Height: ev.Height, Finder: ev.Worker, Address: addr, Rig: rig, Proto: ev.Protocol, Time: ev.Time}
+	b := BlockFound{Height: ev.Height, Finder: ev.Worker, Address: addr, Rig: rig, Proto: ev.Protocol, Time: ev.Time,
+		FinderLuck: fl, FinderLuckOK: flOK}
 	if e.zmq.hash != "" && e.within(ev.Time, ev.HasTime, e.zmq.t, e.zmq.has, hashWindow, e.n, e.zmq.n) {
 		b.Hash = e.zmq.hash
 	}

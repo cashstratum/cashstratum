@@ -12,9 +12,10 @@ var blockCols = []column{
 	{title: "found (UTC)", width: 16, prio: 0},
 	{title: "ago", width: 8, prio: 3},
 	{title: "round", width: 8, prio: 7},
-	{title: "finder", width: 22, prio: 0},
+	{title: "found by", width: 22, prio: 0},
 	{title: "proto", width: 5, prio: 5},
-	{title: "effort", width: 8, right: true, prio: 0},
+	{title: "finder", width: 8, right: true, prio: 0},
+	{title: "pool", width: 8, right: true, prio: 1},
 	{title: "status", width: 9, prio: 0},
 	{title: "conf", width: 5, right: true, prio: 4},
 	{title: "reward", width: 12, right: true, prio: 2},
@@ -60,18 +61,47 @@ func renderBlocks(ctx *Context, w, h, sel int) []string {
 		cells := []string{
 			cur, itoa(b.Height), fmtStamp(b.Time), coarseAgo(ctx.Now, b.Time),
 			roundLength(bs, i),
-			shortWorker(b.Finder, ctx.sym.Ellipsis), b.Proto, fmtPct(b.Luck), string(b.Status), conf,
+			shortWorker(b.Finder, ctx.sym.Ellipsis), b.Proto,
+			finderEffort(ctx, b, i != sel && !badBlock(b)), poolEffort(b), string(b.Status), conf,
 			fmtBCH(b.Reward), blockHash(b.Hash, hashW, ctx.sym.Ellipsis),
 		}
 		row := tableRow(cols, keep, cells)
 		if i == sel {
 			row = t.Selected.Render(row)
-		} else if b.Status == BlockOrphaned || b.Status == BlockRejected {
+		} else if badBlock(b) {
 			row = t.Bad.Render(row)
 		}
 		out = append(out, " "+row)
 	}
 	return out
+}
+
+func badBlock(b BlockRow) bool { return b.Status == BlockOrphaned || b.Status == BlockRejected }
+
+// finderEffort is the finder's own effort at the find, coloured with the
+// block meter's thresholds when colour is wanted; unknown is a dash.
+func finderEffort(ctx *Context, b BlockRow, colour bool) string {
+	if !b.FinderLuckOK {
+		return dash
+	}
+	v := fmtPct(b.FinderLuck)
+	if colour {
+		return effortStyle(ctx.Theme, b.FinderLuck).Render(v)
+	}
+	return v
+}
+
+// poolEffort is the pool's effort at the find; unknown is a dash.
+func poolEffort(b BlockRow) string {
+	if !b.LuckOK {
+		return dash
+	}
+	return fmtPct(b.Luck)
+}
+
+// effortPair is the "finder x%   pool y%" line shown for one block.
+func effortPair(ctx *Context, b BlockRow) string {
+	return "finder " + finderEffort(ctx, b, false) + "   pool " + poolEffort(b)
 }
 
 // blockHash shows the whole hash when the column is wide enough for it,

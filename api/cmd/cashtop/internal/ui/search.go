@@ -72,13 +72,16 @@ func (m *Model) resolve(q string) tea.Cmd {
 		m.page = addressPage(addr)
 		return nil
 	}
-	ws := sortedWorkers(m.snap.Workers, m.opt.Now())
-	for i, w := range ws {
-		if strings.Contains(strings.ToLower(w.Name), lq) {
-			m.page = nil
-			m.tab = TabWorkers
-			m.sel[TabWorkers] = i
-			return nil
+	// A match among the hidden off workers reveals them.
+	for _, showOff := range []bool{m.showOff, true} {
+		for i, w := range visibleWorkers(m.snap.Workers, m.opt.Now(), showOff) {
+			if strings.Contains(strings.ToLower(w.Name), lq) {
+				m.showOff = showOff
+				m.page = nil
+				m.tab = TabWorkers
+				m.sel[TabWorkers] = i
+				return nil
+			}
 		}
 	}
 	m.status = "no height, address or worker matches " + strconv.Quote(q)

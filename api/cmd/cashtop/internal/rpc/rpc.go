@@ -244,3 +244,48 @@ func (c *Client) Latency(ctx context.Context) (time.Duration, error) {
 	}
 	return time.Since(start), nil
 }
+
+// Coinbase is a block's header fields plus the coinbase input script.
+type Coinbase struct {
+	Hash         string
+	Height       int64
+	Time         int64
+	Difficulty   float64
+	PreviousHash string
+	ScriptHex    string // vin[0].coinbase, hex
+}
+
+// BlockCoinbase reads a block's summary (verbosity 1) and then only its
+// coinbase transaction, so the response does not grow with the block size.
+func (c *Client) BlockCoinbase(ctx context.Context, hash string) (Coinbase, error) {
+	var blk struct {
+		Hash       string   `json:"hash"`
+		Height     int64    `json:"height"`
+		Time       int64    `json:"time"`
+		Difficulty float64  `json:"difficulty"`
+		Previous   string   `json:"previousblockhash"`
+		Tx         []string `json:"tx"`
+	}
+	if err := c.into(ctx, &blk, "getblock", hash, 1); err != nil {
+		return Coinbase{}, err
+	}
+	if len(blk.Tx) == 0 {
+		return Coinbase{}, fmt.Errorf("block %s has no transactions", hash)
+	}
+	var cb struct {
+		Vin []struct {
+			Coinbase string `json:"coinbase"`
+		} `json:"vin"`
+	}
+	if err := c.into(ctx, &cb, "getrawtransaction", blk.Tx[0], true, hash); err != nil {
+		return Coinbase{}, err
+	}
+	out := Coinbase{Hash: blk.Hash, Height: blk.Height, Time: blk.Time, Difficulty: blk.Difficulty, PreviousHash: blk.Previous}
+	if len(cb.Vin) > 0 {
+		out.ScriptHex = cb.Vin[0].Coinbase
+	}
+	if out.Hash == "" {
+		out.Hash = hash
+	}
+	return out, nil
+}

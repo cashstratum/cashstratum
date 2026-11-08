@@ -1,6 +1,11 @@
 package app
 
 import (
+	"encoding/hex"
+	"os"
+	"path/filepath"
+
+	"cashstratumapi/cmd/cashtop/internal/ui"
 	"context"
 	"testing"
 	"time"
@@ -90,4 +95,74 @@ func (a *App) fillNetBlockProbe() (n struct{ Difficulty, PrevDifficulty float64 
 	a.fillNetBlock(&ni, time.Time{}, time.Time{})
 	n.Difficulty, n.PrevDifficulty = ni.Difficulty, ni.PrevDifficulty
 	return
+}
+
+func TestRefreshRecentWindowAndOurs(t *testing.T) {
+	_, dir := tree(t, false)
+	a := open(t, dir)
+	t0 := fixturegen.FixtureStart
+	chain := map[string]rpc.Coinbase{
+		"c1": {Hash: "c1", Height: 1, Time: t0.Unix(), Difficulty: 10, ScriptHex: hex.EncodeToString([]byte("/Mined by F2Pool/"))},
+		"c2": {Hash: "c2", Height: 2, Time: t0.Add(10 * time.Minute).Unix(), Difficulty: 11, PreviousHash: "c1", ScriptHex: hex.EncodeToString([]byte("/our-sig-9/"))},
+		"c3": {Hash: "c3", Height: 3, Time: t0.Add(15 * time.Minute).Unix(), Difficulty: 12, PreviousHash: "c2", ScriptHex: hex.EncodeToString([]byte("/nobody known/"))},
+	}
+	calls := 0
+	fetch := func(_ context.Context, h string) (rpc.Coinbase, error) {
+		calls++
+		return chain[h], nil
+	}
+	setTip(a, "c3", 3)
+	a.track().mu.Lock()
+	a.track().sig, a.track().sigRead = "our-sig-9", true
+	a.track().mu.Unlock()
+	a.refreshRecentWith(context.Background(), fetch)
+	if calls != 3 {
+		t.Fatalf("calls %d", calls)
+	}
+	a.refreshRecentWith(context.Background(), fetch)
+	if calls != 3 {
+		t.Fatalf("cached blocks refetched: %d", calls)
+	}
+	var n ui.NetworkInfo
+	n.TipHash = "c3"
+	a.track().mu.Lock()
+	a.fillRecent(&n)
+	a.track().mu.Unlock()
+	if len(n.Recent) != 3 || n.Recent[0].Hash != "c3" || n.Recent[0].Interval != 5*time.Minute {
+		t.Fatalf("rows %+v", n.Recent)
+	}
+	if !n.Recent[1].Ours || n.Recent[1].Pool != "CashStratum" || n.Recent[0].Ours {
+		t.Fatalf("ours detection wrong: %+v", n.Recent)
+	}
+	if n.Recent[2].Pool != "F2Pool" || n.Recent[0].Pool != "" {
+		t.Fatalf("pool names wrong: %+v", n.Recent)
+	}
+	if len(n.DiffSeries) != 3 || n.DiffSeries[0] != 10 || n.DiffSeries[2] != 12 {
+		t.Fatalf("series %v", n.DiffSeries)
+	}
+}
+
+func TestRefreshRecentBudget(t *testing.T) {
+	_, dir := tree(t, false)
+	a := open(t, dir)
+	calls := 0
+	fetch := func(_ context.Context, h string) (rpc.Coinbase, error) {
+		calls++
+		return rpc.Coinbase{Hash: h, Height: 1, PreviousHash: h + "x"}, nil
+	}
+	setTip(a, "t", 1)
+	a.refreshRecentWith(context.Background(), fetch)
+	if calls != recentBudget {
+		t.Fatalf("budget not honored: %d", calls)
+	}
+}
+
+func TestReadBtcSig(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "c.conf")
+	if err := os.WriteFile(p, []byte(`{"btcsig":" /x/ "}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if readBtcSig(p) != "/x/" || readBtcSig("") != "" || readBtcSig(p+"nope") != "" {
+		t.Fatal("btcsig read wrong")
+	}
 }

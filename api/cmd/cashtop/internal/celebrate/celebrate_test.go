@@ -96,3 +96,14 @@ func dataOf(p []Step) []string {
 	}
 	return o
 }
+
+func TestITerm2GetsNoAttentionRequest(t *testing.T) {
+	c := termcap.Caps{Notify: termcap.NotifyAuto, Terminal: termcap.ITerm2}
+	p := Plan(c, blk)
+	if !hasOSC(p) || count(p, "\a") != 3 {
+		t.Fatalf("%q", p)
+	}
+	if strings.Contains(strings.Join(dataOf(p), ""), "1337") {
+		t.Fatalf("attention request emitted: %q", p)
+	}
+}

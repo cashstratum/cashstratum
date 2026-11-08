@@ -151,6 +151,9 @@ func Open(cfg Config) (*App, error) {
 	// at or before its start offset as history, so the boundary is one byte
 	// earlier or a solve on the very first new line would be swallowed.
 	a.ev = events.New(start-1, sources...)
+	// The finder's own effort needs the last per-user luck before the solve,
+	// which can sit far behind the backlog; the index remembers it.
+	a.ev.SeedLuck(v.LastLuck)
 	a.fe = feed.NewEngine(feed.Config{})
 	a.backlog(start)
 
@@ -436,7 +439,8 @@ func protoLabel(p string) string {
 
 func blockRow(b events.BlockFound) ui.BlockRow {
 	r := ui.BlockRow{Height: int(b.Height), Hash: b.Hash, Finder: b.Finder, Proto: protoLabel(b.Proto),
-		Time: b.Time, Luck: b.LuckPct, Status: ui.BlockPending}
+		Time: b.Time, Luck: b.LuckPct, LuckOK: b.LuckPct > 0, Status: ui.BlockPending,
+		FinderLuck: b.FinderLuck, FinderLuckOK: b.FinderLuckOK}
 	if b.HasReward {
 		r.Reward = int64(b.Reward*1e8 + 0.5)
 	}

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	celebrationTicks = 24 // ~6 s at one tick per 250 ms
+	celebrationTicks = 24 // particles run ~6 s at one tick per 250 ms; the banner stays until dismissed
 	maxParticles     = 48
 	burstEvery       = 8 // a new burst every this many ticks
 	burstSize        = 24
@@ -43,6 +43,7 @@ type celebration struct {
 	spring    harmonica.Spring
 	rng       *rand.Rand
 	particles []particle
+	queue     []BlockFoundMsg // finds that arrived while the banner was up
 }
 
 func (c *celebration) Active() bool { return c.active }
@@ -50,11 +51,15 @@ func (c *celebration) Active() bool { return c.active }
 func (c *celebration) Update(msg tea.Msg, ctx *Context) tea.Cmd {
 	switch m := msg.(type) {
 	case BlockFoundMsg:
-		c.start(m, ctx)
+		if c.active {
+			c.queue = append(c.queue, m)
+		} else {
+			c.start(m, ctx)
+		}
 	case BlockUpdateMsg:
 		if c.active && c.block.Height == m.Height {
 			if m.Luck > 0 {
-				c.block.Luck = m.Luck
+				c.block.Luck, c.block.LuckOK = m.Luck, true
 			}
 			if m.Hash != "" {
 				c.block.Hash = m.Hash
@@ -64,8 +69,11 @@ func (c *celebration) Update(msg tea.Msg, ctx *Context) tea.Cmd {
 		if c.active {
 			for _, b := range m.Snapshot.Blocks {
 				if b.Height == c.block.Height {
-					if b.Luck > 0 {
-						c.block.Luck = b.Luck
+					if b.LuckOK || b.Luck > 0 {
+						c.block.Luck, c.block.LuckOK = b.Luck, true
+					}
+					if b.FinderLuckOK {
+						c.block.FinderLuck, c.block.FinderLuckOK = b.FinderLuck, true
 					}
 					if b.Reward > 0 {
 						c.block.Reward = b.Reward
@@ -82,9 +90,21 @@ func (c *celebration) Update(msg tea.Msg, ctx *Context) tea.Cmd {
 			c.advance(ctx)
 		}
 	case tea.KeyPressMsg:
-		if c.active && m.String() != "ctrl+c" {
-			c.active = false
+		if !c.active {
+			break
+		}
+		switch m.String() {
+		case "esc", "enter", "space", " ":
 			c.particles = c.particles[:0]
+			if len(c.queue) > 0 {
+				next := c.queue[0]
+				c.queue = c.queue[1:]
+				c.start(next, ctx)
+			} else {
+				c.active = false
+			}
+			// The overlay and the page differ cell by cell; repaint everything.
+			return tea.ClearScreen
 		}
 	}
 	return nil
@@ -127,13 +147,19 @@ func (c *celebration) animated(ctx *Context) bool {
 }
 
 func (c *celebration) advance(ctx *Context) {
-	c.tick++
 	if c.tick >= celebrationTicks {
-		c.active = false
+		// The animation is over; the banner stays with the final count.
 		c.particles = c.particles[:0]
+		c.counter, c.counterV = float64(c.total), 0
 		return
 	}
+	c.tick++
 	if !c.animated(ctx) {
+		return
+	}
+	if c.tick >= celebrationTicks {
+		c.particles = c.particles[:0]
+		c.counter, c.counterV = float64(c.total), 0
 		return
 	}
 	c.counter, c.counterV = c.spring.Update(c.counter, c.counterV, float64(c.total))
@@ -258,12 +284,17 @@ func (c *celebration) Render(ctx *Context, width, height int) string {
 	if c.block.Reward > 0 {
 		reward = "reward " + fmtBCH(c.block.Reward)
 	}
-	put(row+1, th.Text.Render(reward+"   luck "+fmtPct(c.block.Luck)))
+	put(row+1, th.Text.Render(reward))
+	put(row+2, th.Text.Render(effortPair(ctx, c.block)))
 	count := int(math.Round(c.counter))
 	if !c.animated(ctx) {
 		count = c.total
 	}
-	put(row+3, th.Dim.Render("blocks found ")+th.Gold.Render(strconv.Itoa(count)))
-	put(row+5, th.Dim.Render("press any key to dismiss"))
+	put(row+4, th.Dim.Render("blocks found ")+th.Gold.Render(strconv.Itoa(count)))
+	hint := "Esc, Enter or Space to dismiss"
+	if n := len(c.queue); n > 0 {
+		hint += "  (" + strconv.Itoa(n) + " more)"
+	}
+	put(row+6, th.Dim.Render(hint))
 	return strings.Join(lines, "\n")
 }

@@ -190,7 +190,7 @@ func (ix *Index) resetState() {
 		if b.Status == StatusOrphaned {
 			ix.orphans[h] = true
 		}
-		if b.Reward > 0 || b.Hash != "" || b.Luck != nil || b.Proto != "" {
+		if b.Reward > 0 || b.Hash != "" || b.Luck != nil || b.FinderLuck != nil || b.Proto != "" {
 			ix.carry[h] = *b
 		}
 	}
@@ -389,6 +389,19 @@ type View struct {
 	RoundBest []BestShare
 	RoundSeen bool
 	Tip       int64
+
+	// RoundSince and RoundHeight identify the block the round started
+	// after (zero before the first). RoundSums is the accepted share
+	// difficulty per payout address since then; RoundAddrBest the best
+	// accepted share per payout address, over all of its workers.
+	RoundSince    time.Time
+	RoundHeight   int64
+	RoundSums     map[string]float64
+	RoundAddrBest map[string]float64
+
+	// LastLuck is the newest per-user luck logged for each payout address
+	// since that address's last solve.
+	LastLuck map[string]float64
 }
 
 // Snapshot copies the current state.
@@ -400,8 +413,22 @@ func (ix *Index) Snapshot() View {
 		Hashrate: append([]Point(nil), s.Hashrate...), PoolLuck: append([]Point(nil), s.PoolLuck...),
 		Work: Work{Height: s.Work.Height, Sums: map[string]float64{}, Files: map[string]int64{}}}
 	v.RoundSeen, v.Tip = s.Round.Seen, s.Tip
-	for _, b := range s.Round.Best {
+	v.RoundSince, v.RoundHeight = s.Round.Since, s.Round.Height
+	v.RoundSums = make(map[string]float64, len(s.Round.Sums))
+	for k, x := range s.Round.Sums {
+		v.RoundSums[k] = x
+	}
+	v.LastLuck = make(map[string]float64, len(s.LastLuck))
+	for k, x := range s.LastLuck {
+		v.LastLuck[k] = x
+	}
+	v.RoundAddrBest = map[string]float64{}
+	for k, b := range s.Round.Best {
 		v.RoundBest = append(v.RoundBest, b)
+		addr, _ := poolfmt.SplitWorker(k)
+		if b.Diff > v.RoundAddrBest[addr] {
+			v.RoundAddrBest[addr] = b.Diff
+		}
 	}
 	sort.Slice(v.RoundBest, func(i, j int) bool {
 		if v.RoundBest[i].Diff != v.RoundBest[j].Diff {

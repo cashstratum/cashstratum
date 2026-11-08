@@ -143,6 +143,9 @@ func build(o Options) ui.Snapshot {
 		}
 		s.Pool.LastBlock = s.Blocks[0].Time
 	}
+	fillEffort(&s)
+	fillRound(&s)
+	fillNetwork(&s, "pool.example.com")
 	s.Feed = feed(s, now)
 	return s
 }

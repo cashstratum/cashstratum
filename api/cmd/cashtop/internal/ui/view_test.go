@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -363,4 +364,88 @@ func TestGoldenBlocksWide(t *testing.T) {
 		t.Fatal("round column missing at 200 columns")
 	}
 	golden.RequireEqual(t, out)
+}
+
+func TestCtrlLRequestsFullRepaint(t *testing.T) {
+	m := ui.New(demo.New(demo.Options{Seed: 1, Now: fixedNow}), ui.Options{Caps: termcap.Detect(utf8Env, termcap.Flags{}), Now: func() time.Time { return fixedNow }})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("no command")
+	}
+	if got := fmt.Sprintf("%T", cmd()); got != "tea.clearScreenMsg" {
+		t.Fatalf("msg = %s", got)
+	}
+}
+
+func showcaseModel(caps termcap.Caps) (*ui.Model, ui.Snapshot) {
+	p := demo.Showcase(demo.Options{Seed: 7, Now: demo.ShowcaseNow})
+	m := ui.New(p, ui.Options{Caps: caps, Now: func() time.Time { return demo.ShowcaseNow }})
+	return m, p.Snapshot()
+}
+
+func TestDashboardEnterOpensMinerView(t *testing.T) {
+	caps := termcap.Detect(utf8Env, termcap.Flags{})
+	m, snap := showcaseModel(caps)
+	if len(snap.Round.Miners) < 4 {
+		t.Fatalf("showcase round has %d miners, want 4 or more", len(snap.Round.Miners))
+	}
+	drive(m, goldenW, goldenH, "j", "enter")
+	out := ansi.Strip(m.Render())
+	if !strings.Contains(out, "Address "+snap.Round.Miners[1].Address) {
+		t.Fatalf("enter on the second round row did not open its miner view:\n%s", out)
+	}
+	drive(m, goldenW, goldenH, "esc")
+	if strings.Contains(ansi.Strip(m.Render()), "Address "+snap.Round.Miners[1].Address) {
+		t.Fatal("esc did not leave the miner view")
+	}
+}
+
+func TestDashboardEnterWithoutPickDoesNothing(t *testing.T) {
+	caps := termcap.Detect(utf8Env, termcap.Flags{})
+	m, snap := showcaseModel(caps)
+	drive(m, goldenW, goldenH, "enter")
+	if strings.Contains(ansi.Strip(m.Render()), "Address "+snap.Round.Miners[0].Address) {
+		t.Fatal("enter opened a miner before any row was picked")
+	}
+}
+
+func TestOffWorkersToggle(t *testing.T) {
+	caps := termcap.Detect(utf8Env, termcap.Flags{})
+	m, _ := showcaseModel(caps)
+	drive(m, goldenW, goldenH, "2")
+	if strings.Contains(ansi.Strip(m.Render()), "nerdq-2") {
+		t.Fatal("off worker listed before o")
+	}
+	drive(m, goldenW, goldenH, "o")
+	out := ansi.Strip(m.Render())
+	if !strings.Contains(out, "nerdq-2") || !strings.Contains(out, "peer_reset") {
+		t.Fatalf("o should list the off worker with its drop reason:\n%s", out)
+	}
+	drive(m, goldenW, goldenH, "o")
+	if strings.Contains(ansi.Strip(m.Render()), "nerdq-2") {
+		t.Fatal("second o should hide off workers again")
+	}
+}
+
+func TestHelpExplainsNewScreens(t *testing.T) {
+	caps := termcap.Detect(utf8Env, termcap.Flags{})
+	m, _ := showcaseModel(caps)
+	drive(m, goldenW, 60, "?")
+	out := ansi.Strip(m.Render())
+	for _, want := range []string{"top round", "finder effort", "peer_reset", "near miss", "ctrl+l", "Esc"} {
+		if !strings.Contains(strings.ToLower(out), strings.ToLower(want)) {
+			t.Errorf("help is missing %q", want)
+		}
+	}
+}
+
+func TestHelpScrolls(t *testing.T) {
+	caps := termcap.Detect(utf8Env, termcap.Flags{})
+	m, _ := showcaseModel(caps)
+	drive(m, goldenW, goldenH, "?")
+	first := ansi.Strip(m.Render())
+	drive(m, goldenW, goldenH, "G")
+	if last := ansi.Strip(m.Render()); last == first || !strings.Contains(last, "Network") {
+		t.Fatalf("G did not scroll the help to the end:\n%s", last)
+	}
 }

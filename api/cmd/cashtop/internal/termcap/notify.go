@@ -34,9 +34,6 @@ func OSC777(title, body string) string {
 	return esc + "]777;notify;" + Sanitize(title) + ";" + Sanitize(body) + bel
 }
 
-// ITerm2Fireworks builds the iTerm2 attention request.
-func ITerm2Fireworks() string { return esc + "]1337;RequestAttention=fireworks" + bel }
-
 // TmuxWrap wraps seq in a tmux DCS passthrough.
 func TmuxWrap(seq string) string {
 	return esc + "Ptmux;" + strings.ReplaceAll(seq, esc, esc+esc) + esc + "\\"
@@ -65,7 +62,7 @@ func Notifications(c Caps, title, body string) []string {
 		out = append(out, bel)
 		switch c.Terminal {
 		case ITerm2:
-			seqs = []string{OSC9(text), ITerm2Fireworks()}
+			seqs = []string{OSC9(text)}
 		case WezTerm:
 			seqs = []string{OSC9(text)}
 		case Ghostty, VTE:

@@ -2,6 +2,7 @@ package app
 
 import (
 	"sort"
+	"strings"
 	"time"
 
 	"cashstratumapi/cmd/cashtop/internal/index"
@@ -82,6 +83,9 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 	for _, addr := range addrs {
 		u := st.users[addr]
 		for _, w := range u.Worker {
+			if strings.HasSuffix(w.Name, ".cashstratum-api") {
+				continue // the pool API's own health probe, never a miner
+			}
 			row := ui.WorkerRow{
 				Name: w.Name, Address: addr, UserAgent: st.agents[w.Name],
 				Hashrate1m: w.Hashrate1m, Hashrate5m: w.Hashrate5m, Hashrate1h: w.Hashrate1hr, Hashrate1d: w.Hashrate1d,
@@ -99,6 +103,9 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 			}
 			if ok && iw.Online {
 				row.Connected = iw.Since
+			}
+			if ok && !iw.Online && !iw.Disconnected.IsZero() {
+				row.Disconnected, row.DropReason = iw.Disconnected, iw.DropReason
 			}
 			// The sharelog window only knows workers that submitted at the
 			// current height; the index remembers the last value from any height.
@@ -154,7 +161,10 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 		r := ui.BlockRow{Height: int(b.Height), Hash: b.Hash, Finder: b.Finder, Proto: protoLabel(b.Proto),
 			Time: b.Time, Reward: max(b.Reward, a.rewards[b.Height])}
 		if b.Luck != nil {
-			r.Luck = *b.Luck
+			r.Luck, r.LuckOK = *b.Luck, true
+		}
+		if b.FinderLuck != nil {
+			r.FinderLuck, r.FinderLuckOK = *b.FinderLuck, true
 		}
 		switch b.Status {
 		case index.StatusRejected:
@@ -218,6 +228,9 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 		s.Pool.Height = s.Network.Tip + 1
 	}
 
+	s.Round = roundInfo(v, st.users, nd)
+	s.Round.Height = s.Pool.Height
+
 	from := max(len(st.recent)-ui.MaxShareDrops, 0)
 	for _, sh := range st.recent[from:] {
 		t, _ := shareTime(sh)
@@ -233,6 +246,47 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 		}
 	}
 	return s
+}
+
+// roundInfo is each payout address's slice of the pool round in progress:
+// its accepted share difficulty since the pool's last block as a share of
+// the total, its own effort (the per-user luck, which restarts only at that
+// address's own blocks) and its best share. The total is the sum over the
+// sharelogs, which the pool's status figure can lag behind.
+func roundInfo(v index.View, users map[string]poolfmt.UserFile, netDiff float64) ui.RoundInfo {
+	ri := ui.RoundInfo{Since: v.RoundSince}
+	own := make(map[string]float64, len(users))
+	for k, u := range users {
+		if u.Luck.OK {
+			own[poolfmt.NormalizeAddress(k)] = u.Luck.V
+		}
+	}
+	for addr, d := range v.RoundSums {
+		if d <= 0 {
+			continue
+		}
+		ri.Total += d
+		m := ui.RoundMiner{Address: addr, Diff: d, Best: v.RoundAddrBest[addr]}
+		if l, ok := own[addr]; ok {
+			m.OwnLuck, m.OwnLuckOK = l, true
+		} else if l, ok := v.LastLuck[addr]; ok {
+			m.OwnLuck, m.OwnLuckOK = l, true
+		}
+		if netDiff > 0 {
+			m.BestOfNet = m.Best / netDiff * 100
+		}
+		ri.Miners = append(ri.Miners, m)
+	}
+	for i := range ri.Miners {
+		ri.Miners[i].Pct = ri.Miners[i].Diff / ri.Total * 100
+	}
+	sort.Slice(ri.Miners, func(i, j int) bool {
+		if ri.Miners[i].Diff != ri.Miners[j].Diff {
+			return ri.Miners[i].Diff > ri.Miners[j].Diff
+		}
+		return ri.Miners[i].Address < ri.Miners[j].Address
+	})
+	return ri
 }
 
 func rigOf(name string) string {

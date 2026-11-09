@@ -193,3 +193,14 @@ func TestBlockCoinbase(t *testing.T) {
 		t.Fatal("block without transactions must fail")
 	}
 }
+
+func TestTemplateCoinbaseValue(t *testing.T) {
+	c, _ := server(t, map[string]string{"getblocktemplate": `{"coinbasevalue":312512345,"height":900}`})
+	if v, err := c.TemplateCoinbaseValue(context.Background()); err != nil || v != 312512345 {
+		t.Fatalf("coinbase value %d %v", v, err)
+	}
+	bad, _ := server(t, map[string]string{"getblocktemplate": `{"height":900}`})
+	if _, err := bad.TemplateCoinbaseValue(context.Background()); err == nil {
+		t.Fatal("a template without a coinbase value must fail")
+	}
+}

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"cashstratumapi/cmd/cashtop/internal/index"
 	"cashstratumapi/internal/fixturegen"
+	"cashstratumapi/internal/poolindex"
 )
 
 // The pool's best share is a truncated integer while the logged difficulty
@@ -24,7 +24,7 @@ func TestRoundBestToleratesTruncatedPoolBest(t *testing.T) {
 	t.Cleanup(func() { a.Close() })
 
 	last := fixturegen.FixtureStart
-	v := index.View{Best: []index.BestShare{
+	v := poolindex.View{Best: []poolindex.BestShare{
 		{Address: "worker-a", Diff: 80419206527.0, Time: last.Add(time.Minute)},
 	}}
 	got := a.roundBest(v, last, 80419206526, 0)
@@ -57,7 +57,7 @@ func TestRoundBestSharelogWinsOverStalePoolBest(t *testing.T) {
 	t.Cleanup(func() { a.Close() })
 
 	last := fixturegen.FixtureStart
-	v := index.View{RoundSeen: true, RoundBest: []index.BestShare{
+	v := poolindex.View{RoundSeen: true, RoundBest: []poolindex.BestShare{
 		{Address: "rental.nice", Diff: 400e9, Time: last.Add(time.Hour)},
 		{Address: "finder.rig", Diff: 263e9, Time: last.Add(2 * time.Hour)},
 	}}

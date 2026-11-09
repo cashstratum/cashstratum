@@ -219,6 +219,27 @@ func (c *Client) BlockReward(ctx context.Context, hash string) (Reward, error) {
 	return Reward{BCH: float64(sats) / 1e8, Satoshis: sats}, nil
 }
 
+// TemplateCoinbaseValue is the coinbase value in satoshis of the node's
+// current block template. getblocktemplate stays off the allowlist of Call:
+// this one method issues it with fixed parameters and keeps only the value.
+func (c *Client) TemplateCoinbaseValue(ctx context.Context) (int64, error) {
+	raw, err := c.inner.Call(ctx, "getblocktemplate", []any{map[string]any{"capabilities": []string{"workid"}}})
+	if err != nil {
+		return 0, c.redact(err)
+	}
+	var t struct {
+		Value json.Number `json:"coinbasevalue"`
+	}
+	if err := json.Unmarshal(raw, &t); err != nil {
+		return 0, fmt.Errorf("decode getblocktemplate: %w", err)
+	}
+	v, err := t.Value.Int64()
+	if err != nil || v <= 0 {
+		return 0, fmt.Errorf("getblocktemplate: no usable coinbasevalue")
+	}
+	return v, nil
+}
+
 // IsOrphaned reports whether the block at height with the given hash is no
 // longer on the best chain.
 func (c *Client) IsOrphaned(ctx context.Context, height int64, hash string) (bool, error) {
@@ -234,6 +255,18 @@ func (c *Client) IsOrphaned(ctx context.Context, height int64, hash string) (boo
 		return false, err
 	}
 	return got != hash, nil
+}
+
+// GetBlockHash is BlockHash under the name the shared solve check expects.
+func (c *Client) GetBlockHash(ctx context.Context, height int64) (string, error) {
+	return c.BlockHash(ctx, height)
+}
+
+// GetBlockCoinbase returns the outputs and input script of a block's coinbase
+// transaction. It issues getblock, which is on the allowlist.
+func (c *Client) GetBlockCoinbase(ctx context.Context, hash string) (noderpc.BlockCoinbase, error) {
+	cb, err := c.inner.GetBlockCoinbase(ctx, hash)
+	return cb, c.redact(err)
 }
 
 // Latency measures one round trip to the node using a cheap query.

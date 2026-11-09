@@ -164,3 +164,32 @@ func TestCallRejectsOversizedResponse(t *testing.T) {
 		t.Fatalf("err = %v, want ErrResponseTooLarge", err)
 	}
 }
+
+func TestParseBlockCoinbase(t *testing.T) {
+	raw := []byte(`{"tx":[{"vout":[
+		{"value":1.56495,"n":0,"scriptPubKey":{"addresses":["bitcoincash:qaaa"]}},
+		{"value":1.56495001,"n":1,"scriptPubKey":{"address":"bitcoincash:qbbb"}},
+		{"value":0,"n":2,"scriptPubKey":{}}]}]}`)
+	cb, err := parseBlockCoinbase(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cb.Outputs) != 3 || cb.Outputs[0].Sats != 156495000 || cb.Outputs[0].Address != "bitcoincash:qaaa" ||
+		cb.Outputs[1].Sats != 156495001 || cb.Outputs[1].Address != "bitcoincash:qbbb" || cb.Outputs[2].Address != "" {
+		t.Fatalf("outputs %+v", cb.Outputs)
+	}
+	if _, err := parseBlockCoinbase([]byte(`{"tx":[]}`)); err == nil {
+		t.Fatal("empty block accepted")
+	}
+}
+
+func TestCoinToSats(t *testing.T) {
+	for in, want := range map[string]int64{"0": 0, "1e-05": 1000, "3.1299": 312990000, "0.00000001": 1} {
+		if got, err := coinToSats(in); err != nil || got != want {
+			t.Errorf("%s = %d, %v", in, got, err)
+		}
+	}
+	if _, err := coinToSats("0.000000001"); err == nil {
+		t.Error("sub-satoshi accepted")
+	}
+}

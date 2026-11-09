@@ -18,6 +18,22 @@ type Snapshot struct {
 
 	// Round is the current round's per-miner breakdown.
 	Round RoundInfo
+
+	// Prop describes a pool that pays its miners pro rata from a shared
+	// payroll output; its zero value is a solo pool.
+	Prop PropInfo
+}
+
+// PropInfo is the pro-rata payout view of the round in progress. Every
+// amount is in satoshis and an estimate until the block confirms; zero means
+// the template's coinbase value is not known yet.
+type PropInfo struct {
+	On           bool
+	Reward       int64 // coinbase value of the current template
+	MinersPot    int64 // part of the reward shared pro rata
+	FinderBonus  int64 // finder output, which the estimates exclude
+	MinersShown  int   // addresses with an estimate
+	BelowMinimum int   // addresses under the eligibility threshold
 }
 
 // RoundInfo is the share accounting of the round in progress.
@@ -37,6 +53,12 @@ type RoundMiner struct {
 	OwnLuckOK bool    // OwnLuck is known
 	Best      float64 // best share difficulty this round
 	BestOfNet float64 // Best as a percent of network difficulty
+
+	// EstSats is the estimated pro-rata reward in satoshis and Eligible
+	// whether the address clears the eligibility threshold; both are set
+	// only on a pro-rata pool with a known reward.
+	EstSats  int64
+	Eligible bool
 }
 
 // MaxShareDrops caps Snapshot.Shares.

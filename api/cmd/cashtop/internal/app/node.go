@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -10,10 +11,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"cashstratumapi/cmd/cashtop/internal/events"
-	"cashstratumapi/cmd/cashtop/internal/index"
 	"cashstratumapi/cmd/cashtop/internal/rpc"
 	"cashstratumapi/cmd/cashtop/internal/ui"
 	"cashstratumapi/internal/ckconf"
+	"cashstratumapi/internal/poolindex"
+	"cashstratumapi/internal/solvecheck"
 	"cashstratumapi/internal/zmqsub"
 )
 
@@ -87,6 +89,7 @@ func (a *App) nodeLoop(ctx context.Context, send func(tea.Msg)) {
 	checked := int64(0)
 	for {
 		a.RefreshNode(ctx)
+		a.refreshCoinbase(ctx)
 		if m, ok := a.refreshTip(ctx); ok {
 			send(m)
 		}
@@ -152,6 +155,18 @@ func (a *App) enrich(height int64) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*rpcTimeout)
 	defer cancel()
+	// The node's block at a height is ours only by its coinbase; after a
+	// reorg it can be a competitor's, whose reward and hash must not be taken.
+	owned := false
+	if a.owner.Known() && a.chain != nil {
+		switch v, _, _ := solvecheck.Classify(ctx, a.chain, a.owner, height); v {
+		case solvecheck.Unknown:
+			return fmt.Errorf("block %d: owner not confirmed", height)
+		case solvecheck.NotOurs:
+			return nil // the orphan check settles it
+		}
+		owned = true
+	}
 	b, err := events.Enrich(ctx, a.enricher, events.BlockFound{Height: height})
 	if err != nil {
 		return err
@@ -161,7 +176,9 @@ func (a *App) enrich(height int64) error {
 	}
 	sats := int64(b.Reward*1e8 + 0.5)
 	a.ix.SetBlockReward(height, sats)
-	a.ix.SetBlockHash(height, b.Hash)
+	if owned || a.recordedHash(height) == "" {
+		a.ix.SetBlockHash(height, b.Hash)
+	}
 	a.mu.Lock()
 	a.rewards[height] = sats
 	delete(a.retries, height)
@@ -183,7 +200,7 @@ func (a *App) enrichMissing(ctx context.Context, n int) {
 		_, have := a.rewards[b.Height]
 		rs := a.retries[b.Height]
 		a.mu.Unlock()
-		if have || b.Reward > 0 || b.Status != index.StatusAccepted || a.cfg.Now().Before(rs.next) {
+		if have || b.Reward > 0 || b.Status != poolindex.StatusAccepted || a.cfg.Now().Before(rs.next) {
 			continue
 		}
 		n--
@@ -199,21 +216,45 @@ func (a *App) enrichMissing(ctx context.Context, n int) {
 	}
 }
 
-// checkOrphans re-checks the newest accepted blocks against the chain.
+// recordedHash is the hash the index holds for a height; empty when none.
+func (a *App) recordedHash(height int64) string {
+	for _, b := range a.ix.Snapshot().Blocks {
+		if b.Height == height {
+			return b.Hash
+		}
+	}
+	return ""
+}
+
+// checkOrphans re-checks the newest accepted blocks against the chain. When
+// the pool's coinbase marker is known the rule is the API's: the chain block
+// at the height must be ours, whatever hash is on record. Without one, the
+// recorded hash is compared with the chain's.
 func (a *App) checkOrphans(ctx context.Context, n int) {
+	byOwner := a.owner.Known() && a.chain != nil
+	a.mu.Lock()
+	tip := int64(a.net.Tip)
+	a.mu.Unlock()
 	for _, b := range a.ix.Snapshot().Blocks {
 		if n == 0 || ctx.Err() != nil {
 			return
 		}
-		if b.Status != index.StatusAccepted || b.Hash == "" {
+		if b.Status != poolindex.StatusAccepted || (!byOwner && b.Hash == "") {
 			continue
 		}
 		n--
 		c, cancel := context.WithTimeout(ctx, rpcTimeout)
+		if byOwner {
+			if _, _, _, err := solvecheck.Settle(c, a.ix, a.chain, a.owner, b.Height, tip, b.Status); err != nil {
+				a.cfg.Log.Printf("block %d: settling: %v", b.Height, err)
+			}
+			cancel()
+			continue
+		}
 		orphan, err := events.CheckOrphan(c, a.node, events.BlockFound{Height: b.Height, Hash: b.Hash})
 		cancel()
 		if err == nil && orphan {
-			a.ix.SetBlockStatus(b.Height, index.StatusOrphaned)
+			a.ix.SetBlockStatus(b.Height, poolindex.StatusOrphaned)
 		}
 	}
 }
@@ -223,7 +264,7 @@ func (a *App) RewardsComplete() bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	for _, b := range a.ix.Snapshot().Blocks {
-		if b.Status == index.StatusAccepted && b.Reward == 0 && a.rewards[b.Height] == 0 {
+		if b.Status == poolindex.StatusAccepted && b.Reward == 0 && a.rewards[b.Height] == 0 {
 			return false
 		}
 	}

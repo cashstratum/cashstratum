@@ -9,6 +9,22 @@ import (
 func helpLines(ctx *Context) []string {
 	t := ctx.Theme
 	k := func(key, what string) string { return t.Accent.Render(fit(key, 14)) + t.Text.Render(what) }
+	lines := helpBase(ctx, t, k)
+	if !ctx.Snap.Prop.On {
+		return lines
+	}
+	// A pro-rata pool gets its own section at the top: it is the view the
+	// operator opened the tool for.
+	return append([]string{
+		t.Title.Render("PROP view"),
+		k("est. reward", "an address's share of the miners' pot (48% of the coinbase), in BCH, an estimate"),
+		k("", "until the block confirms; under 1% of the round is unpaid and shared by the rest"),
+		k("finder bonus", "the finder's 50% output; it is not part of the estimates"),
+		"",
+	}, lines...)
+}
+
+func helpBase(ctx *Context, t Theme, k func(key, what string) string) []string {
 	return []string{
 		t.Title.Render("Keys"),
 		k("1 2 3 4 5", "Dashboard, Workers, Blocks, Feed, Network"),

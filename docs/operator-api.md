@@ -91,6 +91,10 @@ out of the log.
 | `GET /coinbase?user=` | decode the coinbase the miner is currently working on |
 | `GET /metrics` | service-level counters |
 | `GET /ping` | **unauthenticated** round-trip-time probe for a browser |
+| `GET /round` | pro-rata pool only: the live round, per address — see [Round API](#round-api-pro-rata-pool) |
+| `GET /rounds/solved?since=` | pro-rata pool only: solved blocks above a height, oldest first |
+| `GET /round/{height}` | pro-rata pool only: one frozen round, with its finder and coinbase outputs |
+| `GET /round/history?hours=&bucket_minutes=` | pro-rata pool only: hashrate and best share per time bucket |
 
 All examples below assume:
 
@@ -645,6 +649,212 @@ never carry data, and it is not a general CORS opening of the other routes.
 
 ---
 
+## Round API (pro-rata pool)
+
+Four routes describe a pro-rata (PROP) pool's round: the live round, the solved blocks, one frozen
+round and a time-bucketed history. They answer `503` when the round index cannot open, while the rest
+of the API keeps working. The index opens at startup from the pool's own state directory (see
+[Configuration](#configuration)).
+
+They take the same `Authorization: Bearer` key and the **default** rate budget (20 requests per 60 s
+per IP, `CASHSTRATUM_RATE_LIMIT`). A consumer that polls `GET /round` every 15 s uses four of those
+twenty requests a minute. Successful bodies are cached for **5 s**.
+
+> **Errors here are JSON.** The round routes answer `{"error": "<message>"}`, unlike the plain-text
+> bodies elsewhere in this API. A `401` or a `429` still comes from the shared middleware, as plain
+> text.
+
+### Encoding rules
+
+- **Times** are unix seconds as JSON integers, in UTC. A time that is not known is `null`, never `0`.
+  There are no ISO-8601 strings.
+- **Work, total work, shares and every `*_sats` field** are JSON **strings**. Work is a decimal, not
+  an integer: an assigned difficulty can be fractional on a low-difficulty network, so do not round
+  it or parse it as a number you cannot represent.
+- **Hashrates** are decimal strings in H/s, `null` when the figure is unknown. These are raw values,
+  not the suffixed form used by the log-based routes (see [Hashrate strings](#hashrate-strings)).
+- **`best_share`** and **`best_of_net`** are JSON numbers. `best_of_net` is a percentage of the
+  network difficulty and is `null` when that difficulty is unknown.
+- **Addresses** are the bare, lowercase CashAddr, with no `bitcoincash:` prefix. A legacy Base58
+  address is converted first. `username` keeps the string the miner authorised with. Two spellings
+  of one address merge into a single row, both in the live sums and in a frozen round.
+- An address with zero work is omitted from a round.
+
+### `GET /round`
+
+The live round since the last accepted block. The round starts after that block, so
+`last_block_height` and `started_at` describe the window that `total_work` covers.
+
+```bash
+curl -H "$AUTH" "$POOL/round"
+```
+
+```json
+{
+  "timestamp": 1762650000,
+  "last_block_height": 976535,
+  "started_at": 1762635660,
+  "total_work": "682330000000",
+  "network_difficulty": 527345678901.2,
+  "coinbase_value_sats": "312990000",
+  "hashrate_1m": "108000000000000000",
+  "hashrate_1h": "105000000000000000",
+  "addresses": [
+    {
+      "address": "qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh",
+      "username": "qqnwep7p0802q2e4mpkeze7afer9zj3l8qryyg3chh",
+      "work": "609912000000",
+      "shares": "1342",
+      "last_share_at": 1762649997,
+      "best_share": 187000000000.0,
+      "best_of_net": 35.5,
+      "online": true,
+      "hashrate_1h": "2000000000000"
+    }
+  ]
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `timestamp` | integer | when the response was built |
+| `last_block_height` | integer or `null` | the last accepted solve the round starts after |
+| `started_at` | integer or `null` | start of the round window |
+| `total_work` | string | the round's total work |
+| `network_difficulty` | number, or null when unknown (for example right after a restart while the node is unreachable) | the network difficulty `best_of_net` is measured against |
+| `coinbase_value_sats` | string or `null` | the node's current block template value; `null` when the node cannot be reached |
+| `hashrate_1m`, `hashrate_1h` | string or `null` | the pool's one-minute and one-hour hashrate, H/s |
+| `addresses` | array | one row per address with work, in no particular order |
+
+Each `addresses` row:
+
+| Field | Type | Notes |
+|---|---|---|
+| `address` | string | canonical lowercase CashAddr, no prefix |
+| `username` | string | the string the miner authorised with |
+| `work` | string | the address's work in this round |
+| `shares` | string | accepted shares in this round |
+| `last_share_at` | integer or `null` | time of its last accepted share |
+| `best_share` | number | the best share this round, in difficulty |
+| `best_of_net` | number or `null` | `best_share` as a percentage of the network difficulty |
+| `online` | boolean | at least one accepted share in the last 10 minutes |
+| `hashrate_1h` | string or `null` | the address's one-hour hashrate, H/s |
+
+Addresses that have disconnected stay in the list until the round closes.
+
+### `GET /rounds/solved?since=<height>`
+
+Solved blocks with a height **strictly greater** than `since`, oldest first. `since` is optional, a
+non-negative integer, and defaults to `0` (every solve). A non-numeric or negative `since` is `400`.
+A solve the daemon rejected never appears here.
+
+```json
+{
+  "solves": [
+    { "height": 976535, "hash": "0000…", "solved_at": 1762635660, "status": "accepted" }
+  ],
+  "timestamp": 1762650000
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `height` | integer | the solved block's height |
+| `hash` | string | the block hash the index holds; it can be provisional until verified |
+| `solved_at` | integer or `null` | when the pool found it |
+| `status` | string | `accepted` or `orphaned` |
+
+### `GET /round/{height}`
+
+One frozen round. A frozen round is kept indefinitely. Its outputs and totals do not change once
+they are filled, with one exception: `status` can move from `accepted` to `orphaned`. The `orphaned`
+status is terminal for a payout consumer, which should re-check the hash at that height against its
+own node before it pays anything.
+
+- `400` for a height that is not a positive integer.
+- `404` (`"not a solve height"`) for a height that is not a PROP solve.
+- An orphaned height returns `200` with `"status": "orphaned"`.
+
+```json
+{
+  "height": 976535,
+  "hash": "0000…",
+  "status": "accepted",
+  "solved_at": 1762635660,
+  "prev_block_height": 976456,
+  "started_at": 1762589400,
+  "finder_address": "qrfc9t…eshhfq",
+  "finder_worker": "qrfc9t…eshhfq.doctor95",
+  "coinbase_value_sats": "312990000",
+  "finder_output":  { "address": "qrfc9t…eshhfq", "vout": 0, "value_sats": "156495000" },
+  "payroll_output": { "address": "qpayroll…",    "vout": 1, "value_sats": "156495000" },
+  "total_work": "990000000000",
+  "addresses": [
+    { "address": "…", "username": "…", "work": "…", "shares": "…", "last_share_at": 1762635650 }
+  ]
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `height`, `hash`, `status`, `solved_at`, `started_at` | as in the live round | `status` is `accepted` or `orphaned` |
+| `prev_block_height` | integer or `null` | the accepted block the round started after; for a rolled-forward round it is older than the orphan |
+| `finder_address`, `finder_worker` | string | the address and the full worker name that found the block |
+| `coinbase_value_sats` | string or `null` | the block's coinbase value, taken from the node |
+| `finder_output` | object or `null` | coinbase output `vout` 0: `address`, `vout`, `value_sats` (string) |
+| `payroll_output` | object or `null` | coinbase output `vout` 1, the pool's payroll output |
+| `total_work` | string | the round's total work |
+| `addresses` | array | `address`, `username`, `work`, `shares`, `last_share_at`, as in the live round |
+
+The outputs and the coinbase value come from the node's record of the solved block, not from a
+block template. They are `null` until the node has filled them.
+
+### `GET /round/history?hours=&bucket_minutes=`
+
+Time buckets of pool hashrate and best share.
+
+- `hours`: `1` to `72`, default `24`. Anything else is `400`.
+- `bucket_minutes`: one of `5`, `10`, `15`, `30`, `60`, default `60`. Anything else is `400`.
+
+Buckets are aligned to UTC, oldest first. The newest bucket has `"partial": true` while it is still
+filling. A bucket with no data has `null` for `hashrate` and `best_share`.
+
+```json
+{
+  "bucket_minutes": 60,
+  "buckets": [
+    { "bucket_start": 1762635600, "hashrate": "105000000000000000", "best_share": "187000000000", "partial": false },
+    { "bucket_start": 1762639200, "hashrate": null, "best_share": null, "partial": false },
+    { "bucket_start": 1762642800, "hashrate": "108000000000000000", "best_share": "9000000000", "partial": true }
+  ],
+  "timestamp": 1762645000
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `bucket_minutes` | integer | the bucket width you asked for |
+| `buckets[].bucket_start` | integer | start of the bucket, unix seconds, UTC-aligned |
+| `buckets[].hashrate` | string or `null` | the mean of the pool's per-minute hashrate points in the bucket, H/s |
+| `buckets[].best_share` | string or `null` | the highest accepted share difficulty in the bucket |
+| `buckets[].partial` | boolean | `true` for the bucket still filling |
+| `timestamp` | integer | when the response was built |
+
+### How the round is kept
+
+- **Ownership decides the orphan check.** The index asks the node, about once a minute, what block
+  is at each solve's height. A block that pays this pool is ours: its hash is recorded, its coinbase
+  value and outputs are filled, and the solve is `accepted`. A block at that height that pays someone
+  else, once the chain has moved past it, makes the solve `orphaned`. A pool with a `pooladdress`
+  recognises its blocks by the output at vout 1. A pool without one recognises them by its `btcsig`
+  in the coinbase. Solves 100 or more blocks deep are settled and no longer re-checked.
+- **An orphan returns its work to the round.** When the newest solve is orphaned, the live round
+  falls back to the previous accepted block, so the orphaned round's work joins the current one. A
+  later `accepted` status undoes that.
+- **A failed node call changes nothing.** The index keeps the last state it had.
+
+---
+
 ## Shared conventions
 
 ### Worker names
@@ -705,6 +915,13 @@ the `CASHSTRATUM_*` prefix, with `CKPOOL_*` supported for backwards compatibilit
 | `CASHSTRATUM_SHARES_RATE_LIMIT` | `60` | per-IP budget for `/shares` only (fallback: `CKPOOL_SHARES_RATE_LIMIT`) |
 | `CASHSTRATUM_PING_RATE_LIMIT` | `60` | per-IP budget for `/ping` only (fallback: `CKPOOL_PING_RATE_LIMIT`) |
 | `DAYS_TO_KEEP` | `60` | sharelog retention in days, used by the pruning timer (`cashstratum-logprune.timer`) |
+| `CASHSTRATUM_INDEX_DIR` | `<root>/api-state/index` | round index cache (fallback: `CKPOOL_INDEX_DIR`) |
+| `CASHSTRATUM_ROUNDS_DIR` | `<root>/api-state/rounds` | frozen round store, kept indefinitely; back it up with the pool (fallback: `CKPOOL_ROUNDS_DIR`) |
+
+`<root>` is the directory above the log directory: for `CASHSTRATUM_LOG_PATH=~/cashstratum/logs/cashstratum.log`,
+the defaults are `~/cashstratum/api-state/index` and `~/cashstratum/api-state/rounds`. Two pool
+instances whose log directories share a parent also share this state directory, so give each
+instance its own pair of variables.
 
 ### Node RPC credentials come from the pool's own configuration
 
@@ -896,3 +1113,7 @@ disable that.
 | `405` | `/ping` called with a method other than `GET` or `HEAD` |
 | `429` | rate limit exceeded — plain-text body, `Retry-After` header |
 | `504` | `/coinbase` timed out waiting for the pool to broadcast a job |
+| `400` | round routes only: a bad `since`, `hours`, `bucket_minutes` or `height` — JSON body `{"error": …}` |
+| `404` | `/round/{height}` only: the height is not a PROP solve — JSON body |
+| `405` | round routes only: a method other than `GET` — JSON body |
+| `503` | round routes only: the round index is unavailable — JSON body |

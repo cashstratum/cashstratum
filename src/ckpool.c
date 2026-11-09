@@ -1727,6 +1727,7 @@ static void parse_config(void)
 	 * yyjson_obj_get_bool only writes when the key is present, so this
 	 * survives unless the config overrides it. */
 	ckpool.reconnect = true;
+	ckpool.poolfee_strict = true;
 
 	doc = yyjson_read_file(ckpool.config, YYJSON_READ_STOP_WHEN_DONE, NULL, &err_val);
 	if (!doc) {
@@ -1752,6 +1753,7 @@ static void parse_config(void)
 	}
 	yyjson_obj_get_string(&ckpool.pooladdress, json_conf, "pooladdress");
 	yyjson_obj_get_double(&ckpool.poolfee, json_conf, "poolfee");
+	yyjson_obj_get_bool(&ckpool.poolfee_strict, json_conf, "poolfee_strict");
 	/* Clamp poolfee to a sane range. Negative values make no sense and
 	 * values above 50% are certainly a config typo (2.0 is a realistic
 	 * production value); an unclamped poolfee > 100 causes g64 -= d64 to
@@ -2065,6 +2067,7 @@ static void report_config(void)
 	printf("btcaddress = %s\n", ckpool.btcaddress ? ckpool.btcaddress : "(none)");
 	printf("pooladdress = %s\n", ckpool.pooladdress ? ckpool.pooladdress : "(none)");
 	printf("poolfee = %.2f\n", ckpool.poolfee);
+	printf("poolfee_strict = %s\n", ckpool.poolfee_strict ? "true" : "false");
 	printf("cashaddr_prefix = %s\n", ckpool.cashaddr_prefix ? ckpool.cashaddr_prefix : "(autodetect)");
 	printf("mindiff_overrides = %d\n", ckpool.mindiff_overrides_count);
 	printf("btcsig = %s\n", ckpool.btcsig ? ckpool.btcsig : "(none)");

@@ -18,12 +18,12 @@ import (
 
 	"cashstratumapi/cmd/cashtop/internal/app"
 	"cashstratumapi/cmd/cashtop/internal/demo"
-	"cashstratumapi/cmd/cashtop/internal/index"
 	"cashstratumapi/cmd/cashtop/internal/termcap"
 	"cashstratumapi/cmd/cashtop/internal/ui"
+	"cashstratumapi/internal/poolindex"
 )
 
-const version = "1.6.1"
+const version = "1.7.0"
 
 type options struct {
 	showVersion     bool
@@ -37,6 +37,7 @@ type options struct {
 	replayLastBlock bool
 	conf            string
 	root            string
+	logPath         string
 	snapshotOnce    bool
 	snapshotWait    time.Duration
 	renderFrame     string
@@ -97,6 +98,7 @@ func parseFlags(args []string) (options, error) {
 	fs.BoolVar(&o.replayLastBlock, "replay-last-block", false, "replay the most recent block celebration")
 	fs.StringVar(&o.conf, "conf", "", "path to the pool configuration file")
 	fs.StringVar(&o.root, "root", "", "pool root directory")
+	fs.StringVar(&o.logPath, "log", "", "pool log file; default <logdir>/<name>.log from the conf, else <root>/logs/cashstratum.log")
 	fs.BoolVar(&o.snapshotOnce, "snapshot-once", false, "")
 	fs.DurationVar(&o.snapshotWait, "snapshot-wait", 0, "")
 	fs.StringVar(&o.renderFrame, "render-frame", "", "")
@@ -158,13 +160,20 @@ func printFrame(o options, caps termcap.Caps, stdout io.Writer) error {
 // openLive resolves the pool directory and opens the live data source.
 // Diagnostics go to a file in the cache directory, never to the terminal.
 func openLive(o options, caps termcap.Caps, getenv func(string) string) (*app.App, func(), error) {
-	root, conf, err := app.ResolveRoot(o.root, o.conf, getenv)
+	rootArg := o.root
+	if rootArg == "" && o.conf == "" && o.logPath != "" {
+		// The log lives in <root>/<logdir>/, so a lone --log names its tree.
+		if abs, err := filepath.Abs(o.logPath); err == nil {
+			rootArg = filepath.Dir(filepath.Dir(abs))
+		}
+	}
+	root, conf, err := app.ResolveRoot(rootArg, o.conf, getenv)
 	if err != nil {
 		return nil, nil, err
 	}
 	lg := log.New(io.Discard, "", log.LstdFlags)
 	closeLog := func() {}
-	dir := index.CacheDirFor(root)
+	dir := poolindex.CacheDirFor(root)
 	if err := os.MkdirAll(dir, 0o700); err == nil {
 		if f, err := os.OpenFile(filepath.Join(dir, "cashtop.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
 			lg.SetOutput(f)
@@ -172,7 +181,7 @@ func openLive(o options, caps termcap.Caps, getenv func(string) string) (*app.Ap
 		}
 	}
 	log.SetOutput(lg.Writer())
-	a, err := app.Open(app.Config{Root: root, Conf: conf, Caps: caps, Log: lg})
+	a, err := app.Open(app.Config{Root: root, Conf: conf, LogPath: o.logPath, Caps: caps, Log: lg})
 	if err != nil {
 		closeLog()
 		return nil, nil, err

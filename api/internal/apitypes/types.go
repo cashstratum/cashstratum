@@ -162,3 +162,95 @@ type SharesResponse struct {
 	Timestamp  int64  `json:"timestamp"`
 	Error      string `json:"error,omitempty"`
 }
+
+// RoundAddress is one address's row in GET /round. Work and Shares are
+// decimal strings: work is a sum of assigned difficulties and may be
+// fractional.
+type RoundAddress struct {
+	Address     string   `json:"address"`
+	Username    string   `json:"username"`
+	Work        string   `json:"work"`
+	Shares      string   `json:"shares"`
+	LastShareAt *int64   `json:"last_share_at"`
+	BestShare   float64  `json:"best_share"`
+	BestOfNet   *float64 `json:"best_of_net"`
+	Online      bool     `json:"online"`
+	Hashrate1h  *string  `json:"hashrate_1h"`
+}
+
+// RoundResponse is GET /round: the live pool round since the last accepted block.
+type RoundResponse struct {
+	Timestamp         int64          `json:"timestamp"`
+	LastBlockHeight   *int64         `json:"last_block_height"`
+	StartedAt         *int64         `json:"started_at"`
+	TotalWork         string         `json:"total_work"`
+	NetworkDifficulty *float64       `json:"network_difficulty"`
+	CoinbaseValueSats *string        `json:"coinbase_value_sats"`
+	Hashrate1m        *string        `json:"hashrate_1m"`
+	Hashrate1h        *string        `json:"hashrate_1h"`
+	Addresses         []RoundAddress `json:"addresses"`
+}
+
+// RoundSolve is one entry of GET /rounds/solved.
+type RoundSolve struct {
+	Height   int64  `json:"height"`
+	Hash     string `json:"hash"`
+	SolvedAt *int64 `json:"solved_at"`
+	Status   string `json:"status"`
+}
+
+// RoundSolvedResponse is GET /rounds/solved.
+type RoundSolvedResponse struct {
+	Solves    []RoundSolve `json:"solves"`
+	Timestamp int64        `json:"timestamp"`
+}
+
+// RoundOutput is a coinbase output of a solved block.
+type RoundOutput struct {
+	Address   string `json:"address"`
+	Vout      int    `json:"vout"`
+	ValueSats string `json:"value_sats"`
+}
+
+// FrozenAddress is one address's row in a frozen round.
+type FrozenAddress struct {
+	Address     string `json:"address"`
+	Username    string `json:"username"`
+	Work        string `json:"work"`
+	Shares      string `json:"shares"`
+	LastShareAt *int64 `json:"last_share_at"`
+}
+
+// FrozenRoundResponse is GET /round/{height}.
+type FrozenRoundResponse struct {
+	Height            int64           `json:"height"`
+	Hash              string          `json:"hash"`
+	Status            string          `json:"status"`
+	SolvedAt          *int64          `json:"solved_at"`
+	PrevBlockHeight   *int64          `json:"prev_block_height"`
+	StartedAt         *int64          `json:"started_at"`
+	FinderAddress     string          `json:"finder_address"`
+	FinderWorker      string          `json:"finder_worker"`
+	CoinbaseValueSats *string         `json:"coinbase_value_sats"`
+	FinderOutput      *RoundOutput    `json:"finder_output"`
+	PayrollOutput     *RoundOutput    `json:"payroll_output"`
+	TotalWork         string          `json:"total_work"`
+	Addresses         []FrozenAddress `json:"addresses"`
+}
+
+// RoundHistoryBucket is one bucket of GET /round/history. Hashrate (H/s,
+// mean of the per-minute pool points) and BestShare (max accepted sdiff) are
+// decimal strings, null when the bucket has no data.
+type RoundHistoryBucket struct {
+	BucketStart int64   `json:"bucket_start"`
+	Hashrate    *string `json:"hashrate"`
+	BestShare   *string `json:"best_share"`
+	Partial     bool    `json:"partial"`
+}
+
+// RoundHistoryResponse is GET /round/history.
+type RoundHistoryResponse struct {
+	BucketMinutes int                  `json:"bucket_minutes"`
+	Buckets       []RoundHistoryBucket `json:"buckets"`
+	Timestamp     int64                `json:"timestamp"`
+}

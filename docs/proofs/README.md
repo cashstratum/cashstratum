@@ -16,10 +16,10 @@ every coinbase carries an EloPool or BlockSniper tag.
 | BlockSniper | 1 | 2026-09-01 → 2026-09-01 | 3.12542747 |
 | CashStratum v1.2.1 | 12 | 2026-10-06 → 2026-10-12 | 37.51657353 |
 
-## 47 additional blocks since this collection
+## 48 additional blocks since this collection
 
-**128 verified blocks in total.** [`recent-blocks.json`](recent-blocks.json) adds forty-seven more
-heights found by the reference deployment between **2026-10-12 and 2026-11-08** (972548 → 976456).
+**129 verified blocks in total.** [`recent-blocks.json`](recent-blocks.json) adds forty-eight more
+heights found by the reference deployment between **2026-10-12 and 2026-11-08** (972548 → 976535).
 They are kept in a separate file so the 81-block collection above stays unchanged.
 
 The first nine were found between **2026-10-12 and 2026-10-23**, all on CashStratum: two on the
@@ -28,20 +28,21 @@ lists 21 blocks for that miner. 12 are already in the collection above, which le
 has a redacted solve excerpt with SHA-256 checksums for the excerpt and its source, and a saved
 price snapshot.
 
-The thirty-eight later heights (974758 → 976456, 2026-10-27 → 2026-11-08) were recovered from the
+The thirty-nine later heights (974758 → 976535, 2026-10-27 → 2026-11-08) were recovered from the
 reference deployment's solve logs: seven on the released **v1.2.1** build, one on the released
-**v1.3.0** build, two on the released **v1.3.1** build, six on the released **v1.4.0** build, one on the released **v1.4.1** build, two on the released **v1.5.0** build and nineteen on the released **v1.6.0** build.
+**v1.3.0** build, two on the released **v1.3.1** build, six on the released **v1.4.0** build, one on the released **v1.4.1** build, two on the released **v1.5.0** build and twenty on the released **v1.6.0** build.
 Each has a redacted
 solve excerpt with a SHA-256 checksum for the excerpt only: there is no sidecar or database-hash
 check for them. No saved BlockSniper price exists for them, so they have no saved historical
 valuation; their values use the documented historical fallback: the last completed, nonzero-volume Coinbase BCH/USD minute candle
 at or before the block-header timestamp.
 
-Every one of the forty-seven was checked the same way: mainchain header, coinbase, pool tag and gross
+Every one of the forty-eight was checked the same way: mainchain header, coinbase, pool tag and gross
 reward against the public BCH API.
 
 | Height | Block time (UTC) | Software | Gross BCH | Value |
 |---|---|---|---|---|
+| [976535](https://www.blockchain.com/explorer/blocks/bch/976535) | 2026-11-08T21:01:16Z | CashStratum v1.6.0 | 3.12989197 | $770.45 (fallback) |
 | [976456](https://www.blockchain.com/explorer/blocks/bch/976456) | 2026-11-08T08:10:03Z | CashStratum v1.6.0 | 3.12596970 | $766.99 (fallback) |
 | [976385](https://www.blockchain.com/explorer/blocks/bch/976385) | 2026-11-07T18:37:12Z | CashStratum v1.6.0 | 3.12675048 | $805.17 (fallback) |
 | [976322](https://www.blockchain.com/explorer/blocks/bch/976322) | 2026-11-07T05:56:16Z | CashStratum v1.6.0 | 3.12534304 | $819.03 (fallback) |

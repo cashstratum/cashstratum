@@ -122,3 +122,59 @@ func TestOverlayEffortLine(t *testing.T) {
 	}
 	t.Log("\n" + out)
 }
+
+func propFixture(ctx *Context) {
+	roundFixture(ctx)
+	ctx.Snap.Prop = PropInfo{On: true, Reward: 312_500_000, MinersPot: 150_000_000, FinderBonus: 156_250_000}
+	m := ctx.Snap.Round.Miners
+	m[0].EstSats, m[0].Eligible = 93_750_000, true
+	m[1].EstSats, m[1].Eligible = 45_000_000, true
+	m[2].Eligible = false
+}
+
+func TestPropRoundTable(t *testing.T) {
+	ctx := effortCtx()
+	propFixture(ctx)
+	out := plain(roundTable(ctx, 90, 10))
+	for _, want := range []string{"est. reward", "0.93750000", "0.45000000", "<1%", "yes"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("PROP table lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "effort") {
+		t.Fatalf("the solo effort column must be gone:\n%s", out)
+	}
+	for _, l := range roundTable(ctx, 60, 10) {
+		if ansi.StringWidth(l) > 60 {
+			t.Fatalf("line wider than 60: %q", l)
+		}
+	}
+	ctx.Snap.Prop.Reward = 0
+	if got := plain(roundTable(ctx, 90, 10)); strings.Contains(got, "0.9375") || !strings.Contains(got, "est. reward") {
+		t.Fatalf("unknown reward must render dashes:\n%s", got)
+	}
+}
+
+func TestPropDashboardAndAddress(t *testing.T) {
+	ctx := effortCtx()
+	propFixture(ctx)
+	txt := plain(renderDashboard(ctx, 120, 40))
+	for _, want := range []string{"block reward", "3.12500000 BCH", "finder bonus", "1.56250000 BCH", "pool work"} {
+		if !strings.Contains(txt, want) {
+			t.Fatalf("dashboard lacks %q:\n%s", want, txt)
+		}
+	}
+	addr := ctx.Snap.Round.Miners[2].Address
+	sec := plain(minerSection(ctx, addr))
+	if !strings.Contains(sec, "est. reward") || !strings.Contains(sec, "under 1%") {
+		t.Fatalf("address view:\n%s", sec)
+	}
+	if strings.Contains(sec, "own effort") || strings.Contains(sec, "median finder effort") {
+		t.Fatalf("solo figures must be hidden:\n%s", sec)
+	}
+	ctx.Snap.Prop = PropInfo{}
+	solo := plain(minerSection(ctx, addr))
+	if !strings.Contains(solo, "own effort this round") || !strings.Contains(solo, "median finder effort") || strings.Contains(solo, "est. reward") {
+		t.Fatalf("solo view changed:\n%s", solo)
+	}
+}

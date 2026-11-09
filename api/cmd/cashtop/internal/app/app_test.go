@@ -15,11 +15,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"cashstratumapi/cmd/cashtop/internal/index"
 	"cashstratumapi/cmd/cashtop/internal/rpc"
 	"cashstratumapi/cmd/cashtop/internal/ui"
 	"cashstratumapi/internal/fixturegen"
 	"cashstratumapi/internal/poolfmt"
+	"cashstratumapi/internal/poolindex"
 )
 
 func tree(t *testing.T, solves bool) (*fixturegen.Tree, string) {
@@ -218,8 +218,8 @@ func TestSharesAndAddress(t *testing.T) {
 		t.Fatalf("address data: height %d, %d submits, work %v, %d last", d.Height, len(d.Submits), d.Work, len(d.LastShare))
 	}
 	for _, sh := range d.Submits {
-		if index.PayoutAddress(sh) != poolfmt.NormalizeAddress(tr.Users[0]) {
-			t.Fatalf("submit of another address: %s", index.PayoutAddress(sh))
+		if poolindex.PayoutAddress(sh) != poolfmt.NormalizeAddress(tr.Users[0]) {
+			t.Fatalf("submit of another address: %s", poolindex.PayoutAddress(sh))
 		}
 	}
 }
@@ -318,6 +318,76 @@ func TestResolveRoot(t *testing.T) {
 	}
 	if _, _, err := ResolveRoot("", "", env(map[string]string{"HOME": t.TempDir()})); err != ErrNoRoot {
 		t.Fatalf("want ErrNoRoot, got %v", err)
+	}
+}
+
+func TestResolveLogPath(t *testing.T) {
+	write := func(p, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root := t.TempDir()
+	def := filepath.Join(root, "logs", "cashstratum.log")
+
+	if got := ResolveLogPath(root, "", ""); got != def {
+		t.Fatalf("no conf: %q, want %q", got, def)
+	}
+	explicit := filepath.Join(t.TempDir(), "other.log")
+	if got := ResolveLogPath(root, "", explicit); got != explicit {
+		t.Fatalf("--log: %q, want %q", got, explicit)
+	}
+
+	// An instance named after its conf, logdir unset: logs/<name>.log.
+	prop := filepath.Join(root, "cashstratum-prop.conf")
+	write(prop, `{"btcsolo": true}`)
+	if got := ResolveLogPath(root, prop, ""); got != def {
+		t.Fatalf("derived log missing: %q, want fallback %q", got, def)
+	}
+	propLog := filepath.Join(root, "logs", "cashstratum-prop.log")
+	write(propLog, "")
+	if got := ResolveLogPath(root, prop, ""); got != propLog {
+		t.Fatalf("derived log: %q, want %q", got, propLog)
+	}
+	if got := ResolveLogPath(root, prop, explicit); got != explicit {
+		t.Fatalf("--log over conf: %q, want %q", got, explicit)
+	}
+
+	// A relative logdir is under root; an absolute one is used as is.
+	write(prop, `{"logdir": "prop-logs"}`)
+	relLog := filepath.Join(root, "prop-logs", "cashstratum-prop.log")
+	write(relLog, "")
+	if got := ResolveLogPath(root, prop, ""); got != relLog {
+		t.Fatalf("relative logdir: %q, want %q", got, relLog)
+	}
+	absDir := t.TempDir()
+	write(prop, `{"logdir": "`+absDir+`/"}`)
+	absLog := filepath.Join(absDir, "cashstratum-prop.log")
+	write(absLog, "")
+	if got := ResolveLogPath(root, prop, ""); got != absLog {
+		t.Fatalf("absolute logdir: %q, want %q", got, absLog)
+	}
+
+	// No instance name can be read from a conf not named *.conf.
+	odd := filepath.Join(root, "pool.json")
+	write(odd, `{}`)
+	write(filepath.Join(root, "logs", "pool.log"), "")
+	if got := ResolveLogPath(root, odd, ""); got != def {
+		t.Fatalf("non-.conf: %q, want %q", got, def)
+	}
+
+	// ResolveRoot accepts a tree that only holds the conf-named log.
+	propRoot := t.TempDir()
+	propConf := filepath.Join(propRoot, "cashstratum-prop.conf")
+	write(propConf, `{}`)
+	write(filepath.Join(propRoot, "logs", "cashstratum-prop.log"), "")
+	r, c, err := ResolveRoot("", propConf, func(string) string { return "" })
+	if err != nil || r != propRoot || c != propConf {
+		t.Fatalf("ResolveRoot via conf log: %q %q %v", r, c, err)
 	}
 }
 
@@ -640,7 +710,7 @@ func TestEnrichMissingBacksOffFailingHeights(t *testing.T) {
 
 	var heights []int64
 	for _, b := range a.ix.Snapshot().Blocks {
-		if b.Status == index.StatusAccepted {
+		if b.Status == poolindex.StatusAccepted {
 			heights = append(heights, b.Height)
 		}
 	}
@@ -989,7 +1059,7 @@ func TestRoundInfo(t *testing.T) {
 		c = "qpdap8727zduldlgyk7x94yxq49cu4l7lc29tat3a3"
 	)
 	since := time.Date(2026, 11, 8, 8, 10, 50, 0, time.UTC)
-	v := index.View{
+	v := poolindex.View{
 		RoundSince:    since,
 		RoundSums:     map[string]float64{a: 247_833_000_000, b: 140_812_000_000, c: 240_532_690_000, "zero": 0},
 		RoundAddrBest: map[string]float64{a: 5_523_051_740, b: 1_000_000},
@@ -1023,7 +1093,7 @@ func TestRoundInfo(t *testing.T) {
 	if sum < 99.999 || sum > 100.001 {
 		t.Fatalf("pct sum %v", sum)
 	}
-	if empty := roundInfo(index.View{}, nil, 0); empty.Total != 0 || len(empty.Miners) != 0 {
+	if empty := roundInfo(poolindex.View{}, nil, 0); empty.Total != 0 || len(empty.Miners) != 0 {
 		t.Fatalf("empty %+v", empty)
 	}
 }

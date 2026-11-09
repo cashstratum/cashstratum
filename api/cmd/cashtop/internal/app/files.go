@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"time"
 
-	"cashstratumapi/cmd/cashtop/internal/index"
 	"cashstratumapi/cmd/cashtop/internal/ui"
 	"cashstratumapi/internal/poolfmt"
+	"cashstratumapi/internal/poolindex"
 )
 
 // fileStats is the last good state of the pool's stats files.
@@ -153,7 +153,7 @@ func (a *App) Address(addr string) ui.AddressData {
 	d := ui.AddressData{Height: st.shareHeight, LogShares: !st.noSharelogs, LastShare: map[string]time.Time{}}
 	var sum float64
 	for _, sh := range st.recent {
-		if index.PayoutAddress(sh) != key {
+		if poolindex.PayoutAddress(sh) != key {
 			continue
 		}
 		d.Submits = append(d.Submits, sh)

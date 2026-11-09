@@ -1,4 +1,4 @@
-package index
+package poolindex
 
 import (
 	"encoding/json"
@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"cashstratumapi/cmd/cashtop/internal/tail"
 	"cashstratumapi/internal/fixturegen"
 	"cashstratumapi/internal/poolfmt"
+	"cashstratumapi/internal/poolindex/tail"
 )
 
 type env struct {

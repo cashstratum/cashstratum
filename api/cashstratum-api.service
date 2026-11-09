@@ -15,6 +15,12 @@
 #   printf 'CASHSTRATUM_API_KEY=%s\n' "$(openssl rand -hex 32)" \
 #       | sudo tee /etc/cashstratum-api/cashstratum-api.env >/dev/null
 #
+# Optional, for the round routes (/round, /rounds/solved, /round/{height},
+# /round/history). Both default to <logdir>/../api-state/{index,rounds}; the
+# rounds directory holds the frozen per-solve records and must be kept.
+#   CASHSTRATUM_INDEX_DIR=/var/lib/cashstratum-api/index
+#   CASHSTRATUM_ROUNDS_DIR=/var/lib/cashstratum-api/rounds
+#
 # Never put the key in an Environment= line here: unit files are world readable
 # and `systemctl show` prints them to any user.
 

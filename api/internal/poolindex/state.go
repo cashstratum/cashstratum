@@ -1,12 +1,12 @@
-package index
+package poolindex
 
 import (
 	"sort"
 	"strings"
 	"time"
 
-	"cashstratumapi/cmd/cashtop/internal/tail"
 	"cashstratumapi/internal/poolfmt"
+	"cashstratumapi/internal/poolindex/tail"
 )
 
 // Block statuses.
@@ -20,6 +20,9 @@ const (
 	bestShareN   = 50
 	seriesBucket = 60 // seconds per downsampled point
 	seriesMax    = 7 * 24 * 60
+	// bestSeriesKeep is how far back the per-minute best-share series
+	// reaches, measured from its newest minute.
+	bestSeriesKeep = 7 * 24 * time.Hour
 )
 
 // Block is one block the pool submitted.
@@ -100,7 +103,8 @@ type Work struct {
 // per payout address, since the pool's last accepted block, read from the
 // sharelogs. Since and Height identify that block; a different block starts
 // the round over. Files holds the read offsets of every sharelog scanned for
-// the round, keyed "dir/file".
+// the round, keyed "dir/file". Sums and Addrs are keyed by canonical address
+// (poolfmt.CanonicalAddress); Best is keyed by worker (RoundKey).
 type Round struct {
 	Since  time.Time            `json:"since"`
 	Height int64                `json:"height"`
@@ -108,10 +112,36 @@ type Round struct {
 	Files  map[string]int64     `json:"files"`
 	Best   map[string]BestShare `json:"best"`
 	Sums   map[string]float64   `json:"sums"`
+	Addrs  map[string]AddrStat  `json:"addrs"`
+}
+
+// AddrStat is the accepted-share count of one canonical address in a round,
+// the createdate of its newest accepted share, and the username that share
+// was submitted under.
+type AddrStat struct {
+	Username string    `json:"username,omitempty"`
+	Shares   int64     `json:"shares"`
+	Last     time.Time `json:"last,omitzero"`
 }
 
 func newRound() Round {
-	return Round{Files: map[string]int64{}, Best: map[string]BestShare{}, Sums: map[string]float64{}}
+	return Round{Files: map[string]int64{}, Best: map[string]BestShare{}, Sums: map[string]float64{}, Addrs: map[string]AddrStat{}}
+}
+
+// fill replaces nil maps, as left by a decoded snapshot or journal record.
+func (r *Round) fill() {
+	if r.Files == nil {
+		r.Files = map[string]int64{}
+	}
+	if r.Best == nil {
+		r.Best = map[string]BestShare{}
+	}
+	if r.Sums == nil {
+		r.Sums = map[string]float64{}
+	}
+	if r.Addrs == nil {
+		r.Addrs = map[string]AddrStat{}
+	}
 }
 
 // State is everything the index remembers.
@@ -134,15 +164,19 @@ type State struct {
 	// LastLuck is the newest per-user "luck" logged for each payout address
 	// (no network prefix) since that address's last solve.
 	LastLuck map[string]float64 `json:"last_luck,omitempty"`
+	// BestSeries is the highest sdiff of an accepted share per minute
+	// (unix seconds of the minute start), pool-wide.
+	BestSeries map[int64]float64 `json:"best_series,omitempty"`
 }
 
 func newState() *State {
 	return &State{
-		Blocks:   map[int64]*Block{},
-		Workers:  map[string]*Worker{},
-		Work:     Work{Sums: map[string]float64{}, Files: map[string]int64{}},
-		Round:    newRound(),
-		LastLuck: map[string]float64{},
+		Blocks:     map[int64]*Block{},
+		Workers:    map[string]*Worker{},
+		Work:       Work{Sums: map[string]float64{}, Files: map[string]int64{}},
+		Round:      newRound(),
+		LastLuck:   map[string]float64{},
+		BestSeries: map[int64]float64{},
 	}
 }
 
@@ -159,6 +193,7 @@ type dirty struct {
 	round    bool
 	trans    bool
 	lucks    map[string]bool
+	bseries  map[int64]bool
 }
 
 func newDirty(s *State) *dirty {
@@ -166,12 +201,14 @@ func newDirty(s *State) *dirty {
 		blocks: map[int64]bool{}, workers: map[string]bool{},
 		hrFrom: -1, luckFrom: -1,
 		work: map[string]bool{}, files: map[string]bool{}, lucks: map[string]bool{},
+		bseries: map[int64]bool{},
 	}
 }
 
 func (d *dirty) empty() bool {
 	return len(d.blocks) == 0 && len(d.workers) == 0 && !d.best && d.hrFrom < 0 &&
-		d.luckFrom < 0 && len(d.work) == 0 && len(d.files) == 0 && !d.workRst && !d.round && !d.trans && len(d.lucks) == 0
+		d.luckFrom < 0 && len(d.work) == 0 && len(d.files) == 0 && !d.workRst && !d.round && !d.trans && len(d.lucks) == 0 &&
+		len(d.bseries) == 0
 }
 
 // applyEvent folds one parsed log event into the state.
@@ -260,8 +297,11 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 			}
 			ix.noteBest(poolfmt.NormalizeAddress(ev.Name), b.V, ev.Time)
 		}
-	case poolfmt.KindZMQBlock, poolfmt.KindSV2Hash:
-		s.LastZMQ, d.trans = ev.Hash, true
+	case poolfmt.KindZMQBlock, poolfmt.KindSV2Hash, poolfmt.KindBlockHashChanged:
+		if ev.Kind != poolfmt.KindBlockHashChanged {
+			s.LastZMQ, d.trans = ev.Hash, true
+		}
+		ix.claimSolveHash(ev)
 	case poolfmt.KindSubmitReturned:
 		s.LastReject, d.trans = ev.Message, true
 	case poolfmt.KindSolved, poolfmt.KindSV2Accepted:
@@ -280,8 +320,12 @@ func (ix *Index) applyEvent(ev poolfmt.Event, off int64) {
 			delete(s.LastLuck, addr)
 			d.lucks[addr] = true
 		}
-		*b = Block{Height: ev.Height, Hash: s.LastZMQ, Finder: ev.Worker, Proto: ev.Protocol,
+		// The block hash logged before the solve line is the previous
+		// block's, so the hash stays empty until the solve's own hash line
+		// follows (see claimSolveHash).
+		*b = Block{Height: ev.Height, Finder: ev.Worker, Proto: ev.Protocol,
 			Time: ev.Time, Status: StatusAccepted, Offset: off, Reward: b.Reward, Luck: luck, FinderLuck: finderLuck}
+		ix.pendHeight, ix.pendTime = ev.Height, ev.Time
 		if old, ok := ix.carry[ev.Height]; ok && (old.Time.IsZero() || old.Time.Equal(b.Time)) {
 			if old.Reward > 0 {
 				b.Reward = old.Reward
@@ -450,4 +494,27 @@ func isLineOfInterest(line string) bool {
 		return strings.HasPrefix(body, "Block ")
 	}
 	return strings.HasSuffix(body, " stratifier starting")
+}
+
+// solveHashWindow is how soon after a solve line its own block hash is logged.
+const solveHashWindow = 5 * time.Second
+
+// claimSolveHash gives the newest solve the first block hash logged right
+// after it. The hash is provisional: a node check (VerifySolveHash) may
+// still correct it.
+func (ix *Index) claimSolveHash(ev poolfmt.Event) {
+	h := ix.pendHeight
+	if h == 0 || ev.Hash == "" {
+		return
+	}
+	if !ev.HasTime || ev.Time.Before(ix.pendTime) || ev.Time.Sub(ix.pendTime) > solveHashWindow {
+		ix.pendHeight = 0
+		return
+	}
+	ix.pendHeight = 0
+	if b := ix.st.Blocks[h]; b != nil && b.Hash == "" {
+		b.Hash = ev.Hash
+		ix.dirty.blocks[h] = true
+	}
+	ix.fillFrozenHash(h, ev.Hash)
 }

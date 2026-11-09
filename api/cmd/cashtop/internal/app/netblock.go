@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"cashstratumapi/cmd/cashtop/internal/index"
 	"cashstratumapi/cmd/cashtop/internal/pooltags"
 	"cashstratumapi/cmd/cashtop/internal/rpc"
 	"cashstratumapi/cmd/cashtop/internal/ui"
+	"cashstratumapi/internal/poolindex"
 )
 
 // netTrack follows the chain tip: when it last moved, the difficulty of the
@@ -254,7 +254,7 @@ func (a *App) fillRecent(n *ui.NetworkInfo) {
 	}
 	mine := map[string]bool{}
 	for _, b := range a.ix.Snapshot().Blocks {
-		if b.Hash != "" && b.Status != index.StatusOrphaned {
+		if b.Hash != "" && b.Status != poolindex.StatusOrphaned {
 			mine[b.Hash] = true
 		}
 	}

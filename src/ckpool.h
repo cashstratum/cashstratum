@@ -291,6 +291,7 @@ struct ckpool_instance {
 	bool poolscript; // Pool address is a script address
 	bool poolvalid; // Pool address is valid
 	double poolfee; // Pool operator fee percentage
+	bool poolfee_strict; // An invalid pooladdress with poolfee set is fatal at startup
 	char *btcsig; // Optional signature to add to coinbase
 	bool coinbase_valid; // Coinbase transaction confirmed valid
 

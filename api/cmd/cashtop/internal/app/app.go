@@ -20,12 +20,13 @@ import (
 	"cashstratumapi/cmd/cashtop/internal/celebrate"
 	"cashstratumapi/cmd/cashtop/internal/events"
 	"cashstratumapi/cmd/cashtop/internal/feed"
-	"cashstratumapi/cmd/cashtop/internal/index"
 	"cashstratumapi/cmd/cashtop/internal/rpc"
-	"cashstratumapi/cmd/cashtop/internal/tail"
 	"cashstratumapi/cmd/cashtop/internal/termcap"
 	"cashstratumapi/cmd/cashtop/internal/ui"
 	"cashstratumapi/internal/poolfmt"
+	"cashstratumapi/internal/poolindex"
+	"cashstratumapi/internal/poolindex/tail"
+	"cashstratumapi/internal/solvecheck"
 	"cashstratumapi/internal/zmqsub"
 )
 
@@ -33,7 +34,10 @@ import (
 type Config struct {
 	Root string // pool install directory
 	Conf string // pool configuration file; empty disables RPC and ZMQ
-	Caps termcap.Caps
+	// LogPath is the pool log to follow; empty resolves it from Root and
+	// Conf (see ResolveLogPath).
+	LogPath string
+	Caps    termcap.Caps
 
 	CacheDir string // index cache override
 	Memory   bool   // keep the index in memory only
@@ -60,14 +64,16 @@ type App struct {
 	cfg        Config
 	bestWarned map[string]bool
 	logPath    string
-	ix         *index.Index
+	ix         *poolindex.Index
 	tl         *tail.Tailer
 	fe         *feed.Engine
 	join       poolfmt.Joiner
 	ev         *events.Engine
 
 	node     *rpc.Client
-	enricher events.Node // reward and hash lookups; the node client unless replaced
+	enricher events.Node     // reward and hash lookups; the node client unless replaced
+	chain    solvecheck.Node // coinbase lookups for the ownership rule; the node client unless replaced
+	owner    solvecheck.Owner
 	zmqEP    string
 	zmqSub   atomic.Pointer[zmqsub.Subscriber]
 	kick     chan struct{}
@@ -85,6 +91,9 @@ type App struct {
 	rewards map[int64]int64
 	retries map[int64]retryState // failed reward lookups by height
 	hint    string
+
+	prop     bool  // the pool pays its miners pro rata
+	coinbase int64 // coinbase value of the node's current template; zero when unknown
 }
 
 // logNet is what the log itself says about the network and template.
@@ -122,11 +131,15 @@ func Open(cfg Config) (*App, error) {
 	if cfg.Log == nil {
 		cfg.Log = log.New(io.Discard, "", 0)
 	}
-	a := &App{cfg: cfg, logPath: filepath.Join(cfg.Root, "logs", "cashstratum.log"),
+	a := &App{cfg: cfg, logPath: ResolveLogPath(cfg.Root, cfg.Conf, cfg.LogPath),
 		kick: make(chan struct{}, 1), rewards: map[int64]int64{}, retries: map[int64]retryState{}}
 
-	ix, err := index.Open(index.Options{Root: cfg.Root, CacheDir: cfg.CacheDir, Memory: cfg.Memory,
-		Tail: tail.Options{Poll: cfg.Poll}})
+	if _, err := os.Stat(a.logPath); os.IsNotExist(err) {
+		cfg.Log.Printf("log file %s does not exist; if the daemon runs with another -n, pass --log", a.logPath)
+	}
+
+	ix, err := poolindex.Open(poolindex.Options{Root: cfg.Root, LogPath: a.logPath, CacheDir: cfg.CacheDir,
+		Memory: cfg.Memory, Tail: tail.Options{Poll: cfg.Poll}})
 	if err != nil {
 		return nil, err
 	}
@@ -174,8 +187,11 @@ func Open(cfg Config) (*App, error) {
 		a.node, a.zmqEP = loadNode(cfg.Conf, cfg.Log)
 		if a.node != nil {
 			a.enricher = a.node
+			a.chain = a.node
 		}
 	}
+	a.owner = solvecheck.LoadOwner(cfg.Conf)
+	a.prop = cfg.Conf != "" && IsProp(cfg.Conf)
 	a.refreshFiles()
 	return a, nil
 }

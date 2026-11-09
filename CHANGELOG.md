@@ -9,6 +9,50 @@ says so rather than implying one.
 
 ## Unreleased
 
+## 1.7.0 — 2026-11-09
+
+**The stratum server changed:** rebuild and restart the pool. The API and `cashtop` changed too.
+**One default changed:** a pool that sets a fee with a missing or invalid `pooladdress` no longer
+starts with the fee silently off. Read the first bullet before restarting such a pool.
+
+- **Behaviour change: a fee with a bad payout address refuses to start.** The new conf boolean
+  `poolfee_strict` defaults to `true`. With `poolfee > 0`, a `pooladdress` that is invalid, or
+  missing, is now a fatal startup error. Before, an invalid address logged a warning and turned the
+  fee off, and a missing address gave the finder the whole reward. A pool with a valid address needs
+  no change. To keep the previous warn-and-continue behaviour, set `"poolfee_strict": false`.
+  - The startup log now prints the fee address line (`Pool operator fee address valid …`) whenever
+    a `pooladdress` and a `poolfee` are both set.
+- **Round API (new routes, behind the same Bearer key).** An operator can read a pro-rata pool's live
+  round, the solved blocks and each frozen round over HTTP:
+  - `GET /round`: the live round since the last accepted block, per address, with work, shares,
+    best share, online state and hashrates;
+  - `GET /rounds/solved?since=<height>`: solves above a height, oldest first;
+  - `GET /round/{height}`: one frozen round, with its finder, coinbase outputs and per-address work;
+  - `GET /round/history?hours=&bucket_minutes=`: the pool hashrate and best share per time bucket.
+  - Times are unix seconds as integers, `null` when unknown. Work, shares and sats are strings. Full
+    shapes are in [`docs/operator-api.md`](docs/operator-api.md#round-api-pro-rata-pool).
+- **Frozen rounds.** Each solve is stored with its round as a frozen record and kept indefinitely.
+  A frozen record never changes except for two things: its status (`accepted` or `orphaned`), and a
+  one-time verification of its block hash against the node. The coinbase value and the finder and
+  payroll outputs are filled once, from the node.
+- **Orphan check by ownership.** A solve is accepted when the node's block at that height pays this
+  pool: the `pooladdress` at vout 1, or the `btcsig` in the coinbase when no `pooladdress` is set. A
+  block at that height that pays someone else, once the chain has moved past it, is marked orphaned.
+  The check runs once a minute and re-checks solves for 100 blocks. A failed node call changes nothing.
+- **Round index and its state.** The round index opens at startup and writes its cache and frozen
+  rounds beside the log directory, under `api-state/`. If it cannot open, the round routes answer
+  `503` and the rest of the API keeps working. The directories can be set with
+  `CASHSTRATUM_INDEX_DIR` and `CASHSTRATUM_ROUNDS_DIR`.
+- **`cashtop --log <file>`** reads the given pool log. Without it, the log path comes from the conf:
+  `<logdir>/<name>.log`, where `<name>` is the conf file's stem and `<logdir>` defaults to `logs`.
+  Pass `--log` when the daemon runs with a `-n` name that differs from the conf file name.
+- **`cashtop` PROP view.** It appears on its own when the conf has `poolfee` 50 with a `pooladdress`
+  set. It shows the block reward, the finder bonus, the pool work and each address's
+  estimated reward in BCH, from the coinbase value the node is currently offering. An address under
+  1% of the round is marked `<1%` and is not paid. Estimates are in BCH only.
+- **Two instances on one host.** The operator docs now cover running a second pool instance next to
+  the first: its own `-n` name, its own socket directory, `logdir`, stratum ports and conf file.
+- **Proofs:** one more block (976535) is in `docs/proofs/`, for 129 verified in total.
 ## 1.6.1 — 2026-11-08
 
 **Only `cashtop` changed.** The stratum server, the API and the notifier did not, so no pool restart

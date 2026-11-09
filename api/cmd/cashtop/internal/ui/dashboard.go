@@ -76,6 +76,10 @@ func renderDashboardSel(ctx *Context, w, h, sel int) []string {
 		kv(ctx, "blocks 7d/30d", 15, itoa(n7)+" / "+itoa(n30)+"  (all "+itoa(len(s.Blocks))+")"),
 	}
 
+	if s.Prop.On {
+		round = propRoundLines(ctx, round)
+	}
+
 	live, stale, idle, off := ctx.countStates(s.Workers)
 	lastPool := coarseAgoOrDash(ctx.Now, p.LastBlock)
 	topRound := dash
@@ -310,19 +314,29 @@ func roundTableSel(ctx *Context, w, h, sel int) []string {
 	if len(r.Miners) == 0 {
 		return []string{ctx.Theme.Dim.Render("no shares since the last block yet")}
 	}
-	keep := fitColumns(roundCols, w)
-	cols := growFlex(roundCols, keep, w)
+	rc := roundCols
+	if ctx.Snap.Prop.On {
+		rc = propRoundCols
+	}
+	keep := fitColumns(rc, w)
+	cols := growFlex(rc, keep, w)
 	out := []string{tableHead(ctx, cols, keep)}
 	for i, m := range r.Miners {
 		if i >= h-1 {
 			break
 		}
-		effort := dash
-		if m.OwnLuckOK {
-			effort = fmtPct(m.OwnLuck)
+		var cells []string
+		if ctx.Snap.Prop.On {
+			cells = propRoundRow(ctx, i, m)
+		} else {
+			effort := dash
+			if m.OwnLuckOK {
+				effort = fmtPct(m.OwnLuck)
+			}
+			cells = []string{itoa(i + 1), shortAddr(m.Address, ctx.sym.Ellipsis),
+				fmtPct(m.Pct), effort, fmtDiff(m.Best), fmtOfNet(m.BestOfNet)}
 		}
-		row := tableRow(cols, keep, []string{itoa(i + 1), shortAddr(m.Address, ctx.sym.Ellipsis),
-			fmtPct(m.Pct), effort, fmtDiff(m.Best), fmtOfNet(m.BestOfNet)})
+		row := tableRow(cols, keep, cells)
 		st := ctx.Theme.Text
 		if i == 0 {
 			st = ctx.Theme.Gold

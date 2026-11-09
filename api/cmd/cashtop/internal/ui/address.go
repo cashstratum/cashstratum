@@ -306,12 +306,18 @@ func minerSection(ctx *Context, addr string) []string {
 		" " + kv(ctx, "share of the round", 33, pct) + t.Dim.Render(note),
 	}
 	found := finderBlocks(s.Blocks, addr)
-	med, n := medianFinderEffort(found)
-	medTxt := dash
-	if n > 0 {
-		medTxt = fmtPct(med) + t.Dim.Render("  over "+itoa(n)+" blocks")
+	if s.Prop.On {
+		out = []string{" " + kv(ctx, "share of the round", 33, pct) + t.Dim.Render(note)}
+		out = append(out, propAddressLines(ctx, addr)...)
+		out = append(out, " "+kv(ctx, "blocks found", 33, itoa(len(found))))
+	} else {
+		med, n := medianFinderEffort(found)
+		medTxt := dash
+		if n > 0 {
+			medTxt = fmtPct(med) + t.Dim.Render("  over "+itoa(n)+" blocks")
+		}
+		out = append(out, " "+kv(ctx, "blocks found", 33, itoa(len(found))), " "+kv(ctx, "median finder effort", 33, medTxt))
 	}
-	out = append(out, " "+kv(ctx, "blocks found", 33, itoa(len(found))), " "+kv(ctx, "median finder effort", 33, medTxt))
 	for i, b := range found {
 		if i == maxFinderRows {
 			out = append(out, " "+t.Dim.Render("  "+ctx.sym.Ellipsis+" "+itoa(len(found)-maxFinderRows)+" more"))

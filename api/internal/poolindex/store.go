@@ -1,4 +1,4 @@
-package index
+package poolindex
 
 import (
 	"bufio"
@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"cashstratumapi/cmd/cashtop/internal/tail"
+	"cashstratumapi/internal/poolindex/tail"
 )
 
 // SchemaVersion changes when the persisted layout changes; ParserVersion
@@ -18,7 +18,7 @@ import (
 // bump forces a rescan.
 const (
 	SchemaVersion = 1
-	ParserVersion = 5
+	ParserVersion = 6
 )
 
 const (
@@ -64,20 +64,21 @@ type transient struct {
 // rec is one journal line. "cur" closes a batch: records before it only
 // count once the cursor record that follows has been read.
 type rec struct {
-	K      string       `json:"k"`
-	Schema int          `json:"schema,omitempty"`
-	Parser int          `json:"parser,omitempty"`
-	Gen    int          `json:"gen,omitempty"`
-	Block  *Block       `json:"block,omitempty"`
-	Worker *Worker      `json:"worker,omitempty"`
-	Best   []BestShare  `json:"best,omitempty"`
-	HR     *seriesDelta `json:"hr,omitempty"`
-	Luck   *seriesDelta `json:"luck,omitempty"`
-	Work   *workDelta   `json:"work,omitempty"`
-	Round  *Round       `json:"round,omitempty"`
-	Lucks  *luckDelta   `json:"lucks,omitempty"`
-	Tr     *transient   `json:"tr,omitempty"`
-	Cur    *tail.Cursor `json:"cur,omitempty"`
+	K      string            `json:"k"`
+	Schema int               `json:"schema,omitempty"`
+	Parser int               `json:"parser,omitempty"`
+	Gen    int               `json:"gen,omitempty"`
+	Block  *Block            `json:"block,omitempty"`
+	Worker *Worker           `json:"worker,omitempty"`
+	Best   []BestShare       `json:"best,omitempty"`
+	HR     *seriesDelta      `json:"hr,omitempty"`
+	Luck   *seriesDelta      `json:"luck,omitempty"`
+	Work   *workDelta        `json:"work,omitempty"`
+	Round  *Round            `json:"round,omitempty"`
+	Lucks  *luckDelta        `json:"lucks,omitempty"`
+	BS     map[int64]float64 `json:"bs,omitempty"`
+	Tr     *transient        `json:"tr,omitempty"`
+	Cur    *tail.Cursor      `json:"cur,omitempty"`
 }
 
 var errCorrupt = errors.New("index: corrupt cache")
@@ -141,14 +142,9 @@ func (ix *Index) load() (gen int, err error) {
 	if st.Work.Sums == nil {
 		st.Work.Sums = map[string]float64{}
 	}
-	if st.Round.Files == nil {
-		st.Round.Files = map[string]int64{}
-	}
-	if st.Round.Best == nil {
-		st.Round.Best = map[string]BestShare{}
-	}
-	if st.Round.Sums == nil {
-		st.Round.Sums = map[string]float64{}
+	st.Round.fill()
+	if st.BestSeries == nil {
+		st.BestSeries = map[int64]float64{}
 	}
 	if st.LastLuck == nil {
 		st.LastLuck = map[string]float64{}
@@ -249,14 +245,10 @@ func (ix *Index) applyRec(r rec) {
 		s.LastZMQ, s.LastReject, s.OpenSolve, s.Solved, s.Tip = r.Tr.LastZMQ, r.Tr.LastReject, r.Tr.OpenSolve, r.Tr.Solved, r.Tr.Tip
 	case "round":
 		s.Round = *r.Round
-		if s.Round.Files == nil {
-			s.Round.Files = map[string]int64{}
-		}
-		if s.Round.Best == nil {
-			s.Round.Best = map[string]BestShare{}
-		}
-		if s.Round.Sums == nil {
-			s.Round.Sums = map[string]float64{}
+		s.Round.fill()
+	case "bs":
+		for k, v := range r.BS {
+			s.BestSeries[k] = v
 		}
 	case "lucks":
 		for k, v := range r.Lucks.Set {
@@ -330,6 +322,15 @@ func (ix *Index) flush() error {
 		}
 		emit(rec{K: "lucks", Lucks: ld})
 	}
+	if len(d.bseries) > 0 {
+		bs := make(map[int64]float64, len(d.bseries))
+		for m := range d.bseries {
+			if v, ok := s.BestSeries[m]; ok {
+				bs[m] = v
+			}
+		}
+		emit(rec{K: "bs", BS: bs})
+	}
 	if d.trans {
 		emit(rec{K: "tr", Tr: &transient{s.LastZMQ, s.LastReject, s.OpenSolve, s.Solved, s.Tip}})
 	}
@@ -369,6 +370,7 @@ func (ix *Index) compact() error {
 	if len(s.PoolLuck) > seriesMax {
 		s.PoolLuck = append([]Point(nil), s.PoolLuck[len(s.PoolLuck)-seriesMax:]...)
 	}
+	pruneBestSeries(s.BestSeries)
 	ix.gen++
 	raw, err := json.Marshal(snapshot{Schema: SchemaVersion, Parser: ParserVersion, Gen: ix.gen, State: s})
 	if err != nil {

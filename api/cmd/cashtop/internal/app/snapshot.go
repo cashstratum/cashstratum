@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"cashstratumapi/cmd/cashtop/internal/index"
 	"cashstratumapi/cmd/cashtop/internal/ui"
 	"cashstratumapi/internal/poolfmt"
+	"cashstratumapi/internal/poolindex"
 )
 
 // networkDiff prefers the node, then the log, then the users files, then the
@@ -68,7 +68,7 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 
 	// Workers from users/*, with agent, difficulty and sub-minute liveness
 	// from the current sharelogs.
-	online := map[string]index.Worker{}
+	online := map[string]poolindex.Worker{}
 	for _, w := range v.Workers {
 		online[w.Name] = w
 	}
@@ -167,9 +167,9 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 			r.FinderLuck, r.FinderLuckOK = *b.FinderLuck, true
 		}
 		switch b.Status {
-		case index.StatusRejected:
+		case poolindex.StatusRejected:
 			r.Status = ui.BlockRejected
-		case index.StatusOrphaned:
+		case poolindex.StatusOrphaned:
 			r.Status = ui.BlockOrphaned
 		default:
 			r.Status = ui.BlockPending
@@ -230,6 +230,9 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 
 	s.Round = roundInfo(v, st.users, nd)
 	s.Round.Height = s.Pool.Height
+	if a.prop {
+		applyProp(&s, a.coinbase)
+	}
 
 	from := max(len(st.recent)-ui.MaxShareDrops, 0)
 	for _, sh := range st.recent[from:] {
@@ -253,7 +256,7 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 // the total, its own effort (the per-user luck, which restarts only at that
 // address's own blocks) and its best share. The total is the sum over the
 // sharelogs, which the pool's status figure can lag behind.
-func roundInfo(v index.View, users map[string]poolfmt.UserFile, netDiff float64) ui.RoundInfo {
+func roundInfo(v poolindex.View, users map[string]poolfmt.UserFile, netDiff float64) ui.RoundInfo {
 	ri := ui.RoundInfo{Since: v.RoundSince}
 	own := make(map[string]float64, len(users))
 	for k, u := range users {
@@ -303,7 +306,7 @@ func rigOf(name string) string {
 // the submitting connection's per-user-round best, so after a block found by
 // someone else a worker's genuine round maximum can sit above it for the
 // whole round. Sharelogs are the receipt, so they win.
-func (a *App) roundBest(v index.View, last time.Time, poolBest, netDiff float64) []ui.BestShare {
+func (a *App) roundBest(v poolindex.View, last time.Time, poolBest, netDiff float64) []ui.BestShare {
 	src := v.Best
 	if v.RoundSeen {
 		src = v.RoundBest
@@ -331,7 +334,7 @@ func (a *App) roundBest(v index.View, last time.Time, poolBest, netDiff float64)
 	return out
 }
 
-func (a *App) warnBest(b index.BestShare) {
+func (a *App) warnBest(b poolindex.BestShare) {
 	if a.bestWarned == nil {
 		a.bestWarned = map[string]bool{}
 	}

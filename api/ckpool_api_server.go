@@ -2708,6 +2708,7 @@ func newMux() *http.ServeMux {
 	mux.HandleFunc("/shares", authMiddlewareWithLimiter(sharesRateLimiter, handleShares))
 	mux.HandleFunc("/health", authMiddleware(handleHealth))
 	mux.HandleFunc("/metrics", authMiddleware(handleMetrics))
+	registerRoundRoutes(mux)
 	// Deliberately unauthenticated -- see pingMiddleware for why /health cannot
 	// be reused for this instead.
 	mux.HandleFunc("/ping", pingMiddleware(handlePing))
@@ -2822,6 +2823,13 @@ func main() {
 	log.Printf("Rate limit: %d req/min (general), %d req/min (/shares), %d req/min (/ping)", rateLimitRequests, sharesRateLimitRequests, pingRateLimitRequests)
 	log.Printf("Version: 3.0.0-go")
 	log.Printf("Features: High performance, low memory, concurrent requests")
+
+	// The round index (live PROP round, frozen rounds, history) is optional:
+	// when it cannot open, the other routes keep working and the round routes
+	// answer 503.
+	indexCtx, stopIndex := context.WithCancel(context.Background())
+	defer stopIndex()
+	startRoundIndex(indexCtx, confPath)
 
 	mux := newMux()
 

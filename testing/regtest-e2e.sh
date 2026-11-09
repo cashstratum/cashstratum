@@ -85,6 +85,13 @@ STRATUM_PORT=13333
 # the configured values, or a second "highdiff: 1" pin would be needed and
 # would defeat the point of testing highdiff-free policy).
 DIFFPOLICY_STRATUM_PORT=3336
+# Pool operator fee (percent) written into the baseline and difficulty-policy
+# confs and asserted by assert_split. The PROP scenarios use their own value.
+POOLFEE_PCT=2
+# The PROP-shaped instance (scenarios 20-21): 50% to a payroll address, run
+# with sharelogs beside the baseline daemon. Kept <= 4000 like the diff pool.
+PROP_STRATUM_PORT=3337
+PROP_FEE_PCT=50
 WALLET_NAME="e2e"
 RPC_USER="e2euser"
 RPC_PASS="e2epass"
@@ -93,6 +100,7 @@ WORKDIR=""
 BITCOIND_PID=""
 CKPOOL_PID=""
 DIFFPOOL_PID=""
+PROP_PID=""
 MINERD_PIDS=()
 SCENARIO8_ADDR_A=""
 
@@ -148,6 +156,10 @@ cleanup() {
 	if [[ -n "$DIFFPOOL_PID" ]] && kill -0 "$DIFFPOOL_PID" >/dev/null 2>&1; then
 		kill "$DIFFPOOL_PID" >/dev/null 2>&1 || true
 		wait "$DIFFPOOL_PID" 2>/dev/null || true
+	fi
+	if [[ -n "$PROP_PID" ]] && kill -0 "$PROP_PID" >/dev/null 2>&1; then
+		kill "$PROP_PID" >/dev/null 2>&1 || true
+		wait "$PROP_PID" 2>/dev/null || true
 	fi
 	if [[ -n "$BITCOIND_PID" ]] && kill -0 "$BITCOIND_PID" >/dev/null 2>&1; then
 		bch_cli stop >/dev/null 2>&1 || kill "$BITCOIND_PID" >/dev/null 2>&1 || true
@@ -331,11 +343,12 @@ write_ckpool_conf() {
 		--arg pooladdress "$FEE_ADDR" \
 		--arg serverurl "127.0.0.1:$STRATUM_PORT" \
 		--arg logdir "$LOGDIR" \
+		--argjson poolfee "$POOLFEE_PCT" \
 		'{
 			btcd: [ { url: $url, auth: $auth, pass: $pass, notify: true } ],
 			bchaddress: $bchaddress,
 			pooladdress: $pooladdress,
-			poolfee: 2.0,
+			poolfee: $poolfee,
 			btcsig: "/regtest-e2e/",
 			blockpoll: 100,
 			donation: 0,
@@ -390,11 +403,12 @@ write_diffpolicy_conf() {
 		--arg pooladdress "$FEE_ADDR" \
 		--arg serverurl "127.0.0.1:$DIFFPOLICY_STRATUM_PORT" \
 		--arg logdir "$DIFFLOGDIR" \
+		--argjson poolfee "$POOLFEE_PCT" \
 		'{
 			btcd: [ { url: $url, auth: $auth, pass: $pass, notify: true } ],
 			bchaddress: $bchaddress,
 			pooladdress: $pooladdress,
-			poolfee: 2.0,
+			poolfee: $poolfee,
 			btcsig: "/regtest-e2e-diff/",
 			blockpoll: 100,
 			donation: 0,
@@ -431,6 +445,69 @@ start_diffpolicy_pool() {
 }
 
 # ---------------------------------------------------------------------------
+# PROP-shaped instance: -B -L, poolfee 50, payroll pooladdress, its own
+# -n/-s/logdir/port. Shares the regtest bitcoind with the baseline daemon.
+# write_prop_conf TAG PORT POOLADDRESS STRICT(true|false|default)
+# POOLADDRESS "-" omits the key entirely.
+# writes $WORKDIR/ckpool-TAG.conf and sets PROPCONF/PROPSOCKDIR/PROPLOGDIR.
+# ---------------------------------------------------------------------------
+write_prop_conf() {
+	local tag="$1" port="$2" pooladdr="$3" strict="$4"
+	local strict_json="{}"
+	PROPCONF="$WORKDIR/ckpool-$tag.conf"
+	PROPSOCKDIR="$WORKDIR/sock-$tag/"
+	PROPLOGDIR="$WORKDIR/logs-$tag"
+	mkdir -p "$PROPSOCKDIR"
+	[[ "$strict" != "default" ]] && strict_json="{\"poolfee_strict\": $strict}"
+
+	jq -n \
+		--arg url "127.0.0.1:$RPC_PORT" \
+		--arg auth "$RPC_USER" \
+		--arg pass "$RPC_PASS" \
+		--arg bchaddress "$POOL_ADDR" \
+		--arg pooladdress "$pooladdr" \
+		--arg serverurl "127.0.0.1:$port" \
+		--arg logdir "$PROPLOGDIR" \
+		--argjson poolfee "$PROP_FEE_PCT" \
+		--argjson extra "$strict_json" \
+		'{
+			btcd: [ { url: $url, auth: $auth, pass: $pass, notify: true } ],
+			bchaddress: $bchaddress,
+			pooladdress: $pooladdress,
+			poolfee: $poolfee,
+			btcsig: "/regtest-e2e-prop/",
+			blockpoll: 100,
+			donation: 0,
+			nonce1length: 4,
+			nonce2length: 8,
+			update_interval: 30,
+			serverurl: [ $serverurl ],
+			mindiff: 1,
+			startdiff: 1,
+			maxdiff: 0,
+			logdir: $logdir
+		} + $extra' >"$PROPCONF"
+	if [[ "$pooladdr" == "-" ]]; then
+		jq 'del(.pooladdress)' "$PROPCONF" >"$PROPCONF.tmp" && mv "$PROPCONF.tmp" "$PROPCONF"
+	fi
+
+	log "wrote $PROPCONF (poolfee $PROP_FEE_PCT, pooladdress $pooladdr, strict=$strict)"
+}
+
+start_prop_pool() {
+	log "starting PROP-shaped ckpool -B -L ..."
+	"$CKPOOL_BIN" -B -c "$PROPCONF" -s "$PROPSOCKDIR" -n e2e-prop -l 7 -L \
+		>"$WORKDIR/ckpool-prop.stdout.log" 2>&1 &
+	PROP_PID=$!
+
+	if ! wait_for_tcp 127.0.0.1 "$PROP_STRATUM_PORT" 60; then
+		echo "regtest-e2e.sh: PROP ckpool stratum port $PROP_STRATUM_PORT never came up (see $WORKDIR/ckpool-prop.stdout.log and $PROPLOGDIR/e2e-prop.log)" >&2
+		exit 2
+	fi
+	log "PROP ckpool stratum listening on 127.0.0.1:$PROP_STRATUM_PORT"
+}
+
+# ---------------------------------------------------------------------------
 # minerd wrapper -- single place that knows minerd's actual CLI flags.
 # Confirms with --help at runtime rather than assuming a flag exists.
 # ---------------------------------------------------------------------------
@@ -450,7 +527,7 @@ run_miner() {
 	local user="$1"; shift || true
 	local safe_name; safe_name="$(printf '%s' "$user" | tr -c 'A-Za-z0-9._-' '_')"
 	local logfile="$WORKDIR/minerd-${safe_name}.log"
-	local args=(-a sha256d -o "stratum+tcp://127.0.0.1:$STRATUM_PORT" -u "$user" -p x)
+	local args=(-a sha256d -o "stratum+tcp://127.0.0.1:${MINER_PORT:-$STRATUM_PORT}" -u "$user" -p x)
 
 	# NOTE: deliberately no --coinbase-addr. That option belongs to solo
 	# getblocktemplate mining, where the miner builds its own coinbase. Under
@@ -627,9 +704,11 @@ vout_addr_payload() {
 	printf '%s' "${addr#*:}" | tr '[:upper:]' '[:lower:]'
 }
 
-# assert_split SCENARIO_NAME BLOCK_HASH EXPECTED_MINER_ADDR
+# assert_split SCENARIO_NAME BLOCK_HASH EXPECTED_MINER_ADDR [FEE_PCT] [FEE_ADDR]
+# FEE_PCT and FEE_ADDR default to the baseline daemon's POOLFEE_PCT / FEE_ADDR.
 assert_split() {
 	local scenario="$1" hash="$2" expected_miner="$3"
+	local fee_pct="${4:-$POOLFEE_PCT}" fee_addr="${5:-$FEE_ADDR}"
 	local block vout_count v0 v1 sats0 sats1 total fee_expected miner_expected
 	local expected_miner_payload expected_fee_payload got_miner_payload got_fee_payload
 
@@ -650,17 +729,17 @@ assert_split() {
 	total=$((sats0 + sats1))
 	# Fee-split arithmetic (README.md "What is canonical", stratifier.c
 	# :604-624): fee truncates down, miner absorbs the remainder.
-	fee_expected=$((total * 2 / 100))
+	fee_expected=$((total * fee_pct / 100))
 	miner_expected=$((total - fee_expected))
 	check "$scenario: vout[0] (miner, $sats0 sats) + vout[1] (fee, $sats1 sats) = coinbasevalue ($total sats)" \
 		"$([[ $((sats0 + sats1)) -eq "$total" ]] && echo true || echo false)"
-	check "$scenario: vout[0] is 98% of coinbasevalue truncated down (observed $sats0, expected $miner_expected)" \
+	check "$scenario: vout[0] is $((100 - fee_pct))% of coinbasevalue (fee truncated down) (observed $sats0, expected $miner_expected)" \
 		"$([[ "$sats0" -eq "$miner_expected" ]] && echo true || echo false)"
-	check "$scenario: vout[1] is exactly the 2% remainder (observed $sats1, expected $fee_expected)" \
+	check "$scenario: vout[1] is exactly the ${fee_pct}% fee (observed $sats1, expected $fee_expected)" \
 		"$([[ "$sats1" -eq "$fee_expected" ]] && echo true || echo false)"
 
 	expected_miner_payload=$(printf '%s' "${expected_miner#*:}" | tr '[:upper:]' '[:lower:]')
-	expected_fee_payload=$(printf '%s' "${FEE_ADDR#*:}" | tr '[:upper:]' '[:lower:]')
+	expected_fee_payload=$(printf '%s' "${fee_addr#*:}" | tr '[:upper:]' '[:lower:]')
 	got_miner_payload=$(vout_addr_payload 0 "$block")
 	got_fee_payload=$(vout_addr_payload 1 "$block")
 	check "$scenario: vout[0] pays the expected miner address (observed $got_miner_payload, expected $expected_miner_payload)" \
@@ -1745,6 +1824,88 @@ scenario_16_restored_bestshare_clamped() {
 }
 
 # ---------------------------------------------------------------------------
+# PROP-shaped instance scenarios
+# ---------------------------------------------------------------------------
+scenario_20_prop_fifty_percent_split() {
+	log "=== Scenario 20: PROP instance, poolfee $PROP_FEE_PCT, payroll output ==="
+	local payroll miner hash
+	payroll=$(bch_wallet getnewaddress "prop-payroll")
+	miner=$(bch_wallet getnewaddress "scenario20")
+	write_prop_conf prop "$PROP_STRATUM_PORT" "$payroll" default
+	start_prop_pool
+
+	check "scenario20 (PROP): startup log shows the operator fee line" \
+		"$(grep -q "${PROP_FEE_PCT}.0 percent pool operator fee to $payroll" "$PROPLOGDIR/e2e-prop.log" 2>/dev/null && echo true || echo false)"
+
+	hash=$(MINER_PORT="$PROP_STRATUM_PORT" mine_block_as "${miner}.w1")
+	assert_split "scenario20 (PROP 50/50)" "$hash" "$miner" "$PROP_FEE_PCT" "$payroll"
+
+	kill "$PROP_PID" >/dev/null 2>&1 || true
+	wait "$PROP_PID" 2>/dev/null || true
+	PROP_PID=""
+}
+
+scenario_21_poolfee_fail_closed() {
+	log "=== Scenario 21: invalid pooladdress with poolfee > 0 ==="
+	local bad="bchreg:notavalidaddress" pid i rc=""
+	local port=$((PROP_STRATUM_PORT + 1))
+
+	# Default (strict): the daemon must exit non-zero instead of paying the
+	# finder 100%.
+	write_prop_conf strict "$port" "$bad" default
+	"$CKPOOL_BIN" -B -c "$PROPCONF" -s "$PROPSOCKDIR" -n e2e-strict -l 7 -L \
+		>"$WORKDIR/ckpool-strict.stdout.log" 2>&1 &
+	pid=$!
+	for i in $(seq 1 60); do
+		kill -0 "$pid" >/dev/null 2>&1 || break
+		sleep 0.5
+	done
+	if kill -0 "$pid" >/dev/null 2>&1; then
+		kill "$pid" >/dev/null 2>&1 || true
+		wait "$pid" 2>/dev/null || true
+		check "scenario21: strict default exits on an invalid pooladdress" "false"
+	else
+		wait "$pid" 2>/dev/null && rc=0 || rc=$?
+		check "scenario21: strict default exits non-zero on an invalid pooladdress (rc=$rc)" \
+			"$([[ "$rc" != "0" ]] && echo true || echo false)"
+	fi
+	check "scenario21: strict exit names the address in the log" \
+		"$(grep -q "$bad" "$PROPLOGDIR/e2e-strict.log" 2>/dev/null && echo true || echo false)"
+
+	# poolfee set with no pooladdress at all is fatal too.
+	write_prop_conf missing "$port" "-" default
+	"$CKPOOL_BIN" -B -c "$PROPCONF" -s "$PROPSOCKDIR" -n e2e-missing -l 7 -L \
+		>"$WORKDIR/ckpool-missing.stdout.log" 2>&1 &
+	pid=$!
+	for i in $(seq 1 60); do
+		kill -0 "$pid" >/dev/null 2>&1 || break
+		sleep 0.5
+	done
+	if kill -0 "$pid" >/dev/null 2>&1; then
+		kill "$pid" >/dev/null 2>&1 || true
+		wait "$pid" 2>/dev/null || true
+		check "scenario21: strict default exits when pooladdress is missing" "false"
+	else
+		wait "$pid" 2>/dev/null && rc=0 || rc=$?
+		check "scenario21: strict default exits non-zero when pooladdress is missing (rc=$rc)" \
+			"$([[ "$rc" != "0" ]] && echo true || echo false)"
+	fi
+
+	# poolfee_strict=false: the old warn-and-disable behaviour, daemon runs.
+	write_prop_conf loose "$port" "$bad" false
+	"$CKPOOL_BIN" -B -c "$PROPCONF" -s "$PROPSOCKDIR" -n e2e-loose -l 7 -L \
+		>"$WORKDIR/ckpool-loose.stdout.log" 2>&1 &
+	pid=$!
+	if wait_for_tcp 127.0.0.1 "$port" 60; then
+		check "scenario21: poolfee_strict=false starts despite an invalid pooladdress" "true"
+	else
+		check "scenario21: poolfee_strict=false starts despite an invalid pooladdress" "false"
+	fi
+	kill "$pid" >/dev/null 2>&1 || true
+	wait "$pid" 2>/dev/null || true
+}
+
+# ---------------------------------------------------------------------------
 main() {
 	prereq_check
 	WORKDIR=$(mktemp -d "${TMPDIR:-/tmp}/ckpool-e2e.XXXXXX")
@@ -1766,6 +1927,9 @@ main() {
 	scenario_8_per_user_round_independence
 	scenario_9_prefixed_and_bare_same_user
 	scenario_10_coinbase_scriptsig
+
+	scenario_20_prop_fifty_percent_split
+	scenario_21_poolfee_fail_closed
 
 	write_diffpolicy_conf
 	start_diffpolicy_pool

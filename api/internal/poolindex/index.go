@@ -1,8 +1,8 @@
-// Package index keeps a small on-disk cache of what cashtop has learned from
+// Package poolindex keeps a small on-disk cache of what cashtop has learned from
 // a pool install, so a restart resumes from the saved log offset instead of
 // re-reading the whole log. The pool's own files are only ever read; all
 // writes go to the per-install cache directory.
-package index
+package poolindex
 
 import (
 	"context"
@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"cashstratumapi/cmd/cashtop/internal/tail"
 	"cashstratumapi/internal/poolfmt"
+	"cashstratumapi/internal/poolindex/tail"
 )
 
 // Options configures Open.
@@ -34,6 +34,10 @@ type Options struct {
 	Tail tail.Options
 	// WorkEvery throttles sharelog and solved-heights checks in Run.
 	WorkEvery time.Duration
+	// RoundStore, when set, is the directory where the round closed by each
+	// solve is frozen (see FrozenRound). It must lie outside the cache
+	// directory: a rescan wipes the cache but never the store.
+	RoundStore string
 }
 
 // Info describes how Open obtained its state.
@@ -63,6 +67,17 @@ type Index struct {
 	orphans map[int64]bool
 	carry   map[int64]Block // enrichment from before a rescan, by height
 	ctxRead map[int64]bool  // solves/<height>-<hash>.log already parsed
+
+	// pendHeight is the solve still waiting for its own hash line.
+	pendHeight int64
+	pendTime   time.Time
+
+	// frozen holds the round store's records by height; a nil value is a
+	// record that exists on disk but could not be read. frozenBase is the
+	// height at or below which nothing is frozen.
+	frozen     map[int64]*FrozenRound
+	frozenBase int64
+	baseKnown  bool
 
 	sigIdx, sigTSV fileSig
 	lastWork       time.Time
@@ -106,9 +121,15 @@ func Open(opt Options) (*Index, error) {
 	if opt.WorkEvery <= 0 {
 		opt.WorkEvery = 5 * time.Second
 	}
-	ix := &Index{opt: opt, orphans: map[int64]bool{}, carry: map[int64]Block{}, ctxRead: map[int64]bool{}}
+	ix := &Index{opt: opt, orphans: map[int64]bool{}, carry: map[int64]Block{}, ctxRead: map[int64]bool{},
+		frozen: map[int64]*FrozenRound{}}
 	ix.st = newState()
 	ix.dirty = newDirty(ix.st)
+	if opt.RoundStore != "" {
+		if err := ix.openRoundStore(); err != nil {
+			return nil, err
+		}
+	}
 
 	reason := ""
 	if !opt.Memory {
@@ -194,9 +215,14 @@ func (ix *Index) resetState() {
 			ix.carry[h] = *b
 		}
 	}
-	tip := ix.st.Tip
+	tip, bs := ix.st.Tip, ix.st.BestSeries
 	ix.st = newState()
 	ix.st.Tip = tip
+	// The best-share series reaches further back than a rebuilt round, so
+	// a rescan keeps what was already collected.
+	if len(bs) > 0 {
+		ix.st.BestSeries = bs
+	}
 	ix.dirty = newDirty(ix.st)
 	ix.dirty.trans = tip > 0
 	ix.written = tail.Cursor{}
@@ -348,6 +374,7 @@ func (ix *Index) SetBlockHash(height int64, hash string) {
 		ix.dirty.blocks[height] = true
 		_ = ix.flush()
 	}
+	ix.fillFrozenHash(height, hash)
 }
 
 // SetTip remembers the chain height last read from the node, so block
@@ -361,17 +388,17 @@ func (ix *Index) SetTip(tip int64) {
 	}
 }
 
-// SetBlockStatus records a verdict such as orphaned for a known height.
+// SetBlockStatus records a verdict such as orphaned for a known height. A
+// frozen round of that height takes an accepted or orphaned verdict too;
+// SetSolveStatus does the same and reports errors.
 func (ix *Index) SetBlockStatus(height int64, status string) {
+	if status == StatusAccepted || status == StatusOrphaned {
+		_ = ix.SetSolveStatus(height, status)
+		return
+	}
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
-	if b := ix.st.Blocks[height]; b != nil && b.Status != status {
-		b.Status = status
-		ix.dirty.blocks[height] = true
-		if status == StatusOrphaned {
-			ix.orphans[height] = true
-		}
-	}
+	ix.setStatusLocked(height, status)
 }
 
 // View is a copy of the index state that is safe to read without locks.
@@ -392,8 +419,9 @@ type View struct {
 
 	// RoundSince and RoundHeight identify the block the round started
 	// after (zero before the first). RoundSums is the accepted share
-	// difficulty per payout address since then; RoundAddrBest the best
-	// accepted share per payout address, over all of its workers.
+	// difficulty per canonical payout address since then; RoundAddrBest the
+	// best accepted share per canonical payout address, over all of its
+	// workers.
 	RoundSince    time.Time
 	RoundHeight   int64
 	RoundSums     map[string]float64
@@ -426,6 +454,7 @@ func (ix *Index) Snapshot() View {
 	for k, b := range s.Round.Best {
 		v.RoundBest = append(v.RoundBest, b)
 		addr, _ := poolfmt.SplitWorker(k)
+		addr = poolfmt.CanonicalAddress(addr)
 		if b.Diff > v.RoundAddrBest[addr] {
 			v.RoundAddrBest[addr] = b.Diff
 		}

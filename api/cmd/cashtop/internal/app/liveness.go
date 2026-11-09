@@ -48,10 +48,14 @@ func (a *App) liveness(now time.Time) poolLiveness {
 	a.mu.Lock()
 	since := a.lastLog
 	a.mu.Unlock()
-	if fi, err := os.Stat(a.logPath); err == nil && fi.ModTime().After(since) {
-		since = fi.ModTime()
-	}
 	var reasons []string
+	if fi, err := os.Stat(a.logPath); err == nil {
+		if fi.ModTime().After(since) {
+			since = fi.ModTime()
+		}
+	} else if os.IsNotExist(err) {
+		reasons = append(reasons, "log not found: "+a.logPath+" (pass --log)")
+	}
 	if !since.IsZero() && now.Sub(since) > StaleAfter {
 		reasons = append(reasons, "log idle")
 	}

@@ -914,6 +914,8 @@ static void generate_coinbase(workbase_t *wb)
 		free(cb);
 		ckpool.coinbase_valid = true;
 		LOGWARNING("Mining solo to any incoming valid BCH address username");
+		if (ckpool.poolfee > 0 && ckpool.poolvalid)
+			LOGWARNING("%.1f percent pool operator fee to %s", ckpool.poolfee, ckpool.pooladdress);
 	}
 
 	/* Set this just for node compatibility, though it's unused */
@@ -12227,10 +12229,25 @@ void *stratifier(void *arg)
 				}
 				LOGNOTICE("Pool operator fee address valid %s (%.1f%%)",
 					  ckpool.pooladdress, ckpool.poolfee);
+			} else if (ckpool.poolfee_strict) {
+				/* Continuing would pay the finder 100% and the operator
+				 * nothing, so refuse to start. Set "poolfee_strict": false
+				 * in the config to disable the fee instead. */
+				LOGEMERG("Fatal: pool fee address %s is invalid with poolfee %.1f, refusing to start "
+					 "(set \"poolfee_strict\": false to disable the fee instead)",
+					 ckpool.pooladdress, ckpool.poolfee);
+				goto out;
 			} else {
 				LOGWARNING("Pool fee address %s is invalid, disabling pool fee", ckpool.pooladdress);
 				ckpool.poolfee = 0;
 			}
+		} else if (ckpool.poolfee > 0 && ckpool.poolfee_strict) {
+			/* A fee with nowhere to pay it would silently give the
+			 * finder 100%. */
+			LOGEMERG("Fatal: poolfee %.1f is set but pooladdress is missing, refusing to start "
+				 "(set \"poolfee_strict\": false to run without the fee instead)",
+				 ckpool.poolfee);
+			goto out;
 		}
 	}
 

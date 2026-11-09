@@ -167,6 +167,96 @@ Systemd setup and optional API/notifier activation are
 provided by `sudo ./post-install.sh`. For RPC-validated, reproducible installations,
 prefer the solo installer above.
 
+## Running a second instance
+
+A host can run a second pool beside the first, for example a pro-rata pool with a fee next to a
+plain solo pool. Each instance is a separate daemon process with its own configuration file, name,
+socket directory, log directory and stratum ports. The two share only the Bitcoin Cash node, which
+must accept RPC from both.
+
+Give each instance its own values for these settings:
+
+| Setting | Where | Why it must differ |
+|---|---|---|
+| `-n <name>` | command line | names the instance. The log is `<logdir>/<name>.log`, and the default socket directory is `/tmp/<name>/`. |
+| `-s <dir>` | command line | the socket and pid directory. The daemon creates it if it is missing. `ckpmsg` and the daemon's `-k` (`killold`) find an instance through its socket and pid file here. |
+| `-c <file>` | command line | the configuration file. |
+| `logdir` | configuration | the log directory, relative to the working directory the daemon is started from. |
+| `serverurl` | configuration | a stratum port that no other process on the host listens on. |
+
+The `sockdir` configuration key is **not read**. Set the socket directory with `-s` only.
+
+Two other points:
+
+- `-B` selects solo mode on the command line. It is not a configuration key, so start every
+  solo-mode instance with it.
+- `-L` (`--log-shares`) writes a sharelog for each share, under `<logdir>/<height>/`. The log-prune
+  timer applies the `DAYS_TO_KEEP` retention (60 days by default) to sharelogs. Check that it covers
+  the second instance's log directory before relying on it. Turn `-L` on for an instance whose
+  payouts you audit from the share records.
+
+### Example: a pro-rata pool with a finder's fee
+
+This is a generic example of a shared pool that pays a 50% finder's fee to a payroll address. Every
+address in it is a placeholder. The daemon refuses to start while `pooladdress` is a placeholder,
+which is the intended behaviour of `poolfee_strict` (on by default). Replace both addresses with
+valid addresses for your network before the first start.
+
+Save as `cashstratum-prop.conf` in the installation directory:
+
+```json
+{
+	"btcd" : [
+		{
+			"url" : "127.0.0.1:8334",
+			"auth" : "rpcuser",
+			"pass" : "rpcpassword",
+			"notify" : false
+		}
+	],
+	"serverurl" : [ "0.0.0.0:3334" ],
+	"logdir" : "logs-prop",
+	"btcaddress" : "bitcoincash:qp...fallback-placeholder",
+	"poolfee" : 50,
+	"pooladdress" : "bitcoincash:qp...payroll-placeholder",
+	"poolfee_strict" : true,
+	"mindiff" : 1000,
+	"startdiff" : 1000,
+	"update_interval" : 30
+}
+```
+
+`btcaddress` is the fallback that solo mode needs for a username that is not an address. The daemon
+requires it with `-B`.
+
+`cashtop` shows the PROP view when the conf has `poolfee` 50 with a `pooladdress` set. Solo mode
+comes from `-B` on the command line, which is why the example conf has no solo key.
+
+Start it from the installation directory, so the relative `logdir` resolves there. The `-n` name
+matches the conf file's name, so `cashtop` finds the log without `--log`:
+
+```sh
+cd /opt/cashstratum
+./cashstratum -B -L -c cashstratum-prop.conf -n cashstratum-prop -s /tmp/cashstratum-prop
+printf 'stats\n' | ./ckpmsg -n cashstratum-prop -s /tmp/cashstratum-prop -N stratifier
+./cashtop --conf cashstratum-prop.conf
+```
+
+If `-n` differs from the conf file's name, for example `-n prop` with `cashstratum-prop.conf`,
+pass `--log` with the actual log path:
+
+```sh
+./cashtop --conf cashstratum-prop.conf --log /opt/cashstratum/logs-prop/prop.log
+```
+
+`cashtop` derives the log path only from the conf's file name, so `--log` is needed whenever the
+two names differ. Run the daemon and `cashtop` from the same installation directory.
+
+Give the round API its own state. Its defaults sit beside the log directory (see
+[Configuration](operator-api.md#configuration) in the operator API reference). A second instance
+whose `logdir` shares a parent with the first shares that state unless you set
+`CASHSTRATUM_INDEX_DIR` and `CASHSTRATUM_ROUNDS_DIR` for it.
+
 ## Stratum proxy
 
 The proxy installer builds CashStratum's Stratum V1 proxy, prompts for upstream

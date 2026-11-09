@@ -1,4 +1,4 @@
-package index
+package poolindex
 
 import (
 	"bytes"
@@ -309,6 +309,67 @@ func PayoutAddress(sh poolfmt.Share) string {
 	return poolfmt.NormalizeAddress(a)
 }
 
+// CanonicalPayout is PayoutAddress in canonical form (poolfmt.CanonicalAddress):
+// the key of every per-address round figure.
+func CanonicalPayout(sh poolfmt.Share) string {
+	return poolfmt.CanonicalAddress(PayoutAddress(sh))
+}
+
+// shareUsername is the payout identity exactly as the miner submitted it.
+func shareUsername(sh poolfmt.Share) string {
+	if sh.UserName != "" {
+		return sh.UserName
+	}
+	a, _ := poolfmt.SplitWorker(sh.WorkerName)
+	return a
+}
+
+// addRoundShare credits one accepted share, created at t, to a round: its
+// assigned difficulty to the work sum (block-sized shares included), one to
+// the share count, and t as the newest share when it is. The username of the
+// newest share is the one kept.
+func addRoundShare(sums map[string]float64, addrs map[string]AddrStat, sh poolfmt.Share, t time.Time) {
+	addr := CanonicalPayout(sh)
+	if addr == "" {
+		return
+	}
+	if sh.Diff > 0 {
+		sums[addr] += sh.Diff
+	}
+	st := addrs[addr]
+	st.Shares++
+	if !t.Before(st.Last) {
+		st.Last, st.Username = t, shareUsername(sh)
+	}
+	addrs[addr] = st
+}
+
+// noteBestMinute raises the pool's best share of t's minute to sdiff.
+func (ix *Index) noteBestMinute(t time.Time, sdiff float64) {
+	m := t.Unix() / seriesBucket * seriesBucket
+	if cur, ok := ix.st.BestSeries[m]; ok && cur >= sdiff {
+		return
+	}
+	ix.st.BestSeries[m] = sdiff
+	ix.dirty.bseries[m] = true
+}
+
+// pruneBestSeries drops minutes older than bestSeriesKeep before the newest.
+func pruneBestSeries(bs map[int64]float64) {
+	var newest int64
+	for m := range bs {
+		if m > newest {
+			newest = m
+		}
+	}
+	cut := newest - int64(bestSeriesKeep/time.Second)
+	for m := range bs {
+		if m < cut {
+			delete(bs, m)
+		}
+	}
+}
+
 // lastAccepted is the pool's newest accepted block.
 func (ix *Index) lastAccepted() (height int64, at time.Time, ok bool) {
 	for h, b := range ix.st.Blocks {
@@ -359,6 +420,7 @@ func (ix *Index) syncRound() {
 	if err != nil {
 		return
 	}
+	ix.syncFrozen()
 	s, d := ix.st, ix.dirty
 	h, at, have := ix.lastAccepted()
 	if !have {
@@ -474,15 +536,12 @@ func (ix *Index) scanRoundFile(path, key string) bool {
 		if k == "" {
 			continue
 		}
-		// The round's accepted work is the assigned difficulty of every
-		// accepted share, block-sized ones included.
-		if sh.Diff > 0 {
-			s.Round.Sums[PayoutAddress(sh)] += sh.Diff
-			d.round = true
-		}
+		addRoundShare(s.Round.Sums, s.Round.Addrs, sh, t)
+		d.round = true
 		if sh.SDiff <= 0 {
 			continue
 		}
+		ix.noteBestMinute(t, sh.SDiff)
 		// A block-sized share belongs to a solve (confirmed, rejected or on a
 		// stale job), never to the round; keeping it as the worker's single
 		// maximum would hide every real share behind it.

@@ -9,6 +9,22 @@ says so rather than implying one.
 
 ## Unreleased
 
+## 1.7.1 — 2026-11-09
+
+**`cashtop` only.** The stratum server and the API did not change; no pool restart is needed.
+
+- **Fix: a solo pool's blocks were shown as orphaned.** 1.7.0 decided whether a chain block is the
+  pool's own by the `pooladdress` paid at coinbase output 1 whenever the conf set one. A solo
+  conf sets `pooladdress` as its fee address, so blocks found while the operator used a different
+  fee address were classed as a competitor's and marked orphaned, though they were on the best
+  chain. Observed on a production solo pool: 5 of 61 blocks (976287 to 976456), all with the pool's
+  btcsig, all paying the fee address in use before a change.
+  - `pooladdress` now marks a block only in a PROP conf (`poolfee` 50), where it receives the
+    payroll output. Any other pool is told by its `btcsig`.
+  - With the ownership rule, the orphan check re-checks orphan verdicts too, and runs once at
+    start instead of only after 6 network blocks. A wrongly orphaned block is restored the first
+    time the new `cashtop` runs; on the affected pool all 5 returned to confirmed within a minute.
+
 ## 1.7.0 — 2026-11-09
 
 **The stratum server changed:** rebuild and restart the pool. The API and `cashtop` changed too.

@@ -123,3 +123,15 @@ func TestCheckOrphansNodeErrorChangesNothing(t *testing.T) {
 		t.Fatalf("changed on node error: %q %q", b.Status, b.Hash)
 	}
 }
+
+// A solve wrongly marked orphaned is restored once the chain block at its
+// height is seen to be ours.
+func TestCheckOrphansRestoresOurBlock(t *testing.T) {
+	a, h := orphanApp(t, "ourhash")
+	a.ix.SetBlockStatus(h, poolindex.StatusOrphaned)
+	a.chain = &chainNode{hash: map[int64]string{h: "ourhash"}, script: map[string]string{"ourhash": "x/mine/x"}}
+	a.checkOrphans(context.Background(), 10)
+	if b := blockAt(a, h); b.Status != poolindex.StatusAccepted {
+		t.Fatalf("status = %q, want accepted", b.Status)
+	}
+}

@@ -19,8 +19,8 @@ import (
 )
 
 // Owner says which coinbases are this pool's: the PROP pool pays its
-// pooladdress at vout 1; with no pooladdress, the coinbase script carries the
-// pool's btcsig. The zero value can decide nothing.
+// pooladdress at vout 1; any other pool is told by the btcsig its coinbase
+// script carries. The zero value can decide nothing.
 type Owner struct {
 	PoolAddress string // canonical
 	Sig         string
@@ -38,19 +38,29 @@ func (o Owner) Owns(cb noderpc.BlockCoinbase) bool {
 	return err == nil && o.Sig != "" && bytes.Contains(raw, []byte(o.Sig))
 }
 
-// LoadOwner reads pooladdress and btcsig from the pool conf.
+// LoadOwner reads the ownership marker from the pool conf. The pooladdress
+// marks a block only in a PROP conf (poolfee at the payroll share), where it
+// receives the payroll output. A solo pool pays its fee address at vout 1,
+// and that address is an operator setting that can change between blocks, so
+// a solo pool is told by its btcsig.
 func LoadOwner(confPath string) Owner {
 	if confPath == "" {
 		return Owner{}
 	}
-	o := Owner{PoolAddress: poolfmt.CanonicalAddress(ckconf.LoadPoolAddress(confPath))}
-	if data, err := os.ReadFile(confPath); err == nil {
-		var c struct {
-			BtcSig string `json:"btcsig"`
-		}
-		if json.Unmarshal(data, &c) == nil {
-			o.Sig = strings.TrimSpace(c.BtcSig)
-		}
+	data, err := os.ReadFile(confPath)
+	if err != nil {
+		return Owner{}
+	}
+	var c struct {
+		BtcSig  string  `json:"btcsig"`
+		PoolFee float64 `json:"poolfee"`
+	}
+	if json.Unmarshal(data, &c) != nil {
+		return Owner{}
+	}
+	o := Owner{Sig: strings.TrimSpace(c.BtcSig)}
+	if c.PoolFee == poolindex.PayrollPct {
+		o.PoolAddress = poolfmt.CanonicalAddress(ckconf.LoadPoolAddress(confPath))
 	}
 	return o
 }

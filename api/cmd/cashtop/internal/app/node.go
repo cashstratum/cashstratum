@@ -86,7 +86,14 @@ func (a *App) RefreshNode(ctx context.Context) {
 func (a *App) nodeLoop(ctx context.Context, send func(tea.Msg)) {
 	t := time.NewTicker(a.cfg.RPCEvery)
 	defer t.Stop()
+	// With the ownership rule the first pass checks at once, so an orphan
+	// verdict left by an earlier run is re-checked on start instead of after
+	// OrphanEvery network blocks. The hash comparison never revisits an
+	// orphan verdict, so it keeps its cadence.
 	checked := int64(0)
+	if a.owner.Known() && a.chain != nil {
+		checked = -int64(a.cfg.OrphanEvery)
+	}
 	for {
 		a.RefreshNode(ctx)
 		a.refreshCoinbase(ctx)
@@ -226,10 +233,12 @@ func (a *App) recordedHash(height int64) string {
 	return ""
 }
 
-// checkOrphans re-checks the newest accepted blocks against the chain. When
+// checkOrphans re-checks the newest settled blocks against the chain. When
 // the pool's coinbase marker is known the rule is the API's: the chain block
-// at the height must be ours, whatever hash is on record. Without one, the
-// recorded hash is compared with the chain's.
+// at the height must be ours, whatever hash is on record, and an orphan
+// verdict is re-checked too so a block that is ours again is restored.
+// Without a marker, the recorded hash of an accepted block is compared with
+// the chain's.
 func (a *App) checkOrphans(ctx context.Context, n int) {
 	byOwner := a.owner.Known() && a.chain != nil
 	a.mu.Lock()
@@ -239,7 +248,8 @@ func (a *App) checkOrphans(ctx context.Context, n int) {
 		if n == 0 || ctx.Err() != nil {
 			return
 		}
-		if b.Status != poolindex.StatusAccepted || (!byOwner && b.Hash == "") {
+		settled := b.Status == poolindex.StatusAccepted || (byOwner && b.Status == poolindex.StatusOrphaned)
+		if !settled || (!byOwner && b.Hash == "") {
 			continue
 		}
 		n--

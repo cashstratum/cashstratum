@@ -178,3 +178,23 @@ func TestPropDashboardAndAddress(t *testing.T) {
 		t.Fatalf("solo view changed:\n%s", solo)
 	}
 }
+
+// The PROP help states the miners' pot the pool conf configures, and only a
+// generic phrase when it is unknown.
+func TestPropHelpShowsMinersPot(t *testing.T) {
+	ctx := effortCtx()
+	for _, c := range []struct {
+		bp   int64
+		want string
+	}{
+		{4600, "miners' pot (46% of the coinbase)"},
+		{4800, "miners' pot (48% of the coinbase)"},
+		{4650, "miners' pot (46.5% of the coinbase)"},
+		{0, "share of the miners' pot, in BCH"},
+	} {
+		ctx.Snap.Prop = PropInfo{On: true, MinersPotBP: c.bp}
+		if out := plain(helpLines(ctx)); !strings.Contains(out, c.want) {
+			t.Errorf("bp %d: help is missing %q:\n%s", c.bp, c.want, out)
+		}
+	}
+}

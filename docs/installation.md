@@ -232,6 +232,15 @@ requires it with `-B`.
 `cashtop` shows the PROP view when the conf has `poolfee` 50 with a `pooladdress` set. Solo mode
 comes from `-B` on the command line, which is why the example conf has no solo key.
 
+The PROP view estimates each address's share of a miners' pot of 48% of the coinbase: the 50%
+payroll output minus 2% the operator keeps. If you split the payroll output differently, off-chain,
+set the pot in basis points of the coinbase with `miners_pot_bp`, from 1 to 5000. The daemon ignores
+the key; only `cashtop` reads it:
+
+```json
+"miners_pot_bp" : 4600
+```
+
 Start it from the installation directory, so the relative `logdir` resolves there. The `-n` name
 matches the conf file's name, so `cashtop` finds the log without `--log`:
 

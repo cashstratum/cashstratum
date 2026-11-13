@@ -9,6 +9,24 @@ says so rather than implying one.
 
 ## Unreleased
 
+## 1.7.2 — 2026-11-12
+
+**`cashtop` only.** The stratum server and the API did not change; no pool restart is needed.
+
+- **The PROP view takes the miners' share from the pool conf.** Before, `cashtop` always estimated
+  each address's reward from a miners' pot of 48% of the coinbase, the payroll output minus a fixed
+  2% operator share. An operator who keeps a different share off-chain saw estimates that did not
+  match what it pays.
+  - New conf key `miners_pot_bp`: the miners' pot in basis points of the coinbase, from 1 to 5000
+    (the whole payroll output). `4600` means 46%. The daemon ignores the key.
+  - Without the key the pot stays at 4800 (48%), so existing pools see no change. A value that is
+    not a whole number in range is logged and the 48% default is used.
+  - The pot is computed from the payroll output, as before, so an odd coinbase never estimates a
+    satoshi the output does not hold. The help screen states the configured percentage.
+- **Proofs: 132 verified blocks.** Three blocks found on the released v1.7.0 build (976731, 977082,
+  977085) are added to `docs/proofs/recent-blocks.json`, with redacted solve excerpts, and the README
+  proof figures follow.
+
 ## 1.7.1 — 2026-11-09
 
 **`cashtop` only.** The stratum server and the API did not change; no pool restart is needed.

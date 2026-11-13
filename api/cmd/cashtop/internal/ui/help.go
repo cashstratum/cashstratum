@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"fmt"
+
 	"cashstratumapi/cmd/cashtop/internal/termcap"
 	"cashstratumapi/cmd/cashtop/internal/ui/glyphs"
 )
@@ -15,9 +17,13 @@ func helpLines(ctx *Context) []string {
 	}
 	// A pro-rata pool gets its own section at the top: it is the view the
 	// operator opened the tool for.
+	pot := "the miners' pot"
+	if bp := ctx.Snap.Prop.MinersPotBP; bp > 0 {
+		pot = fmt.Sprintf("the miners' pot (%s%% of the coinbase)", bpPercent(bp))
+	}
 	return append([]string{
 		t.Title.Render("PROP view"),
-		k("est. reward", "an address's share of the miners' pot (48% of the coinbase), in BCH, an estimate"),
+		k("est. reward", "an address's share of "+pot+", in BCH, an estimate"),
 		k("", "until the block confirms; under 1% of the round is unpaid and shared by the rest"),
 		k("finder bonus", "the finder's 50% output; it is not part of the estimates"),
 		"",
@@ -118,4 +124,12 @@ func glyphLegend(ctx *Context) string {
 	ascii := ctx.Caps.Glyphs == termcap.ASCII
 	owned, other := glyphs.Badge(glyphs.ASIC, ascii), glyphs.Badge(glyphs.Unknown, ascii)
 	return owned + " own hardware (asic, axe)  " + other + " rental, proxy, software or unknown"
+}
+
+// bpPercent renders basis points as a percentage: 4600 is "46", 4650 "46.5".
+func bpPercent(bp int64) string {
+	if bp%100 == 0 {
+		return fmt.Sprintf("%d", bp/100)
+	}
+	return fmt.Sprintf("%g", float64(bp)/100)
 }

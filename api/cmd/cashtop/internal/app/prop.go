@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"math"
 	"os"
 
 	"cashstratumapi/cmd/cashtop/internal/ui"
@@ -31,6 +33,31 @@ func IsProp(conf string) bool {
 	return cf.PoolFee == propFeePct && cf.PoolAddress != ""
 }
 
+// MinersPotBP reads the miners' pot, in basis points of the coinbase, from
+// the pool configuration's "miners_pot_bp" key. The daemon ignores the key;
+// it only tells cashtop how the operator splits the payroll output. An
+// absent key, or a conf that cannot be read, gives DefaultMinersPotBP with
+// no error. A value that is not a whole number in (0, PayrollBP] gives
+// DefaultMinersPotBP and an error, so the caller can say so.
+func MinersPotBP(conf string) (int64, error) {
+	data, err := os.ReadFile(conf)
+	if err != nil {
+		return poolindex.DefaultMinersPotBP, nil
+	}
+	var cf struct {
+		MinersPotBP *float64 `json:"miners_pot_bp"`
+	}
+	if json.Unmarshal(data, &cf) != nil || cf.MinersPotBP == nil {
+		return poolindex.DefaultMinersPotBP, nil
+	}
+	v := *cf.MinersPotBP
+	if v != math.Trunc(v) || !poolindex.ValidMinersPotBP(int64(v)) {
+		return poolindex.DefaultMinersPotBP, fmt.Errorf("miners_pot_bp %v must be a whole number from 1 to %d; using %d",
+			v, poolindex.PayrollBP, poolindex.DefaultMinersPotBP)
+	}
+	return int64(v), nil
+}
+
 // refreshCoinbase reads the current template's coinbase value. A failure
 // keeps the last value.
 func (a *App) refreshCoinbase(ctx context.Context) {
@@ -50,9 +77,10 @@ func (a *App) refreshCoinbase(ctx context.Context) {
 }
 
 // applyProp fills the pro-rata estimates of the round from the coinbase
-// value. Without a known value the snapshot only marks the pool as pro rata.
-func applyProp(s *ui.Snapshot, coinbase int64) {
-	s.Prop = ui.PropInfo{On: true}
+// value and the miners' pot in basis points. Without a known coinbase value
+// the snapshot only marks the pool as pro rata.
+func applyProp(s *ui.Snapshot, coinbase, minersBP int64) {
+	s.Prop = ui.PropInfo{On: true, MinersPotBP: minersBP}
 	if coinbase <= 0 {
 		return
 	}
@@ -60,7 +88,7 @@ func applyProp(s *ui.Snapshot, coinbase int64) {
 	for _, m := range s.Round.Miners {
 		work[m.Address] = m.Diff
 	}
-	pot, est := poolindex.EstimatePayouts(coinbase, work)
+	pot, est := poolindex.EstimatePayouts(coinbase, minersBP, work)
 	byAddr := make(map[string]poolindex.PayoutEstimate, len(est))
 	for _, e := range est {
 		byAddr[e.Address] = e

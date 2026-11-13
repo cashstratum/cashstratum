@@ -93,6 +93,7 @@ type App struct {
 	hint    string
 
 	prop     bool  // the pool pays its miners pro rata
+	minersBP int64 // the miners' pot of a pro-rata pool, in basis points of the coinbase
 	coinbase int64 // coinbase value of the node's current template; zero when unknown
 }
 
@@ -192,6 +193,14 @@ func Open(cfg Config) (*App, error) {
 	}
 	a.owner = solvecheck.LoadOwner(cfg.Conf)
 	a.prop = cfg.Conf != "" && IsProp(cfg.Conf)
+	a.minersBP = poolindex.DefaultMinersPotBP
+	if a.prop {
+		bp, err := MinersPotBP(cfg.Conf)
+		if err != nil {
+			cfg.Log.Printf("%v", err)
+		}
+		a.minersBP = bp
+	}
 	a.refreshFiles()
 	return a, nil
 }

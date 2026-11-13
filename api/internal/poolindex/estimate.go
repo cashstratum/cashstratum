@@ -7,12 +7,15 @@ import (
 
 // Payout split of a proportional (PROP) pool: the coinbase pays PayrollPct
 // percent to the payroll output (the daemon's pool fee output) and the rest
-// to the finder; of the payroll, MinerPoints out of PayrollPoints go to the
-// miners pro rata and the remainder is the pool fee.
+// to the finder. Of the payroll, a miners' pot of minersBP basis points of
+// the coinbase is shared pro rata; the remainder stays with the operator.
 const (
-	PayrollPct    = 50
-	PayrollPoints = 50
-	MinerPoints   = 48
+	PayrollPct = 50
+	// PayrollBP is the payroll output in basis points of the coinbase.
+	PayrollBP = PayrollPct * 100
+	// DefaultMinersPotBP is the miners' pot when the pool configuration sets
+	// none: 48% of the coinbase, leaving 2% of it to the operator.
+	DefaultMinersPotBP = 4800
 	// DustSats is the daemon's dust threshold: a payroll output below it is
 	// not emitted and the finder receives the whole coinbase.
 	DustSats = 546
@@ -45,17 +48,29 @@ func PayrollOutput(coinbaseSats int64) int64 {
 	return payroll
 }
 
+// ValidMinersPotBP reports whether minersBP is a usable miners' pot: more
+// than zero and no more than the payroll output.
+func ValidMinersPotBP(minersBP int64) bool {
+	return minersBP > 0 && minersBP <= PayrollBP
+}
+
 // MinersPot is the part of a coinbase paid to miners pro rata:
-// floor(PayrollOutput * MinerPoints / PayrollPoints). It never exceeds the
-// payroll output.
-func MinersPot(coinbaseSats int64) int64 {
+// floor(PayrollOutput * minersBP / PayrollBP). Computing it from the payroll
+// output rather than the coinbase keeps an odd coinbase from allocating a
+// satoshi the payroll output does not hold. An invalid minersBP falls back
+// to DefaultMinersPotBP, so the pot never exceeds the payroll output.
+func MinersPot(coinbaseSats, minersBP int64) int64 {
+	if !ValidMinersPotBP(minersBP) {
+		minersBP = DefaultMinersPotBP
+	}
 	payroll := big.NewInt(PayrollOutput(coinbaseSats))
-	pot := new(big.Int).Quo(new(big.Int).Mul(payroll, big.NewInt(MinerPoints)), big.NewInt(PayrollPoints))
+	pot := new(big.Int).Quo(new(big.Int).Mul(payroll, big.NewInt(minersBP)), big.NewInt(PayrollBP))
 	return pot.Int64()
 }
 
-// EstimatePayouts splits the miners' pot of a coinbase across the round's
-// addresses by work. It is a pure function.
+// EstimatePayouts splits the miners' pot of a coinbase (minersBP basis points
+// of it, see MinersPot) across the round's addresses by work. It is a pure
+// function.
 //
 //   - An address is eligible when its work is at least EligiblePct percent
 //     of the round's total work. The pot is shared among eligible addresses
@@ -70,8 +85,8 @@ func MinersPot(coinbaseSats int64) int64 {
 //     stays unallocated.
 //
 // It returns the pot and one estimate per address, most work first.
-func EstimatePayouts(coinbaseSats int64, work map[string]float64) (pot int64, out []PayoutEstimate) {
-	pot = MinersPot(coinbaseSats)
+func EstimatePayouts(coinbaseSats, minersBP int64, work map[string]float64) (pot int64, out []PayoutEstimate) {
+	pot = MinersPot(coinbaseSats, minersBP)
 	total := new(big.Rat)
 	for a, w := range work {
 		out = append(out, PayoutEstimate{Address: a, Work: w})

@@ -31,6 +31,7 @@ type PropInfo struct {
 	On           bool
 	Reward       int64 // coinbase value of the current template
 	MinersPot    int64 // part of the reward shared pro rata
+	MinersPotBP  int64 // the miners' pot in basis points of the coinbase; zero means unknown
 	FinderBonus  int64 // finder output, which the estimates exclude
 	MinersShown  int   // addresses with an estimate
 	BelowMinimum int   // addresses under the eligibility threshold

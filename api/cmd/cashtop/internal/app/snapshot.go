@@ -231,7 +231,7 @@ func (a *App) snapshot(withFeed bool) ui.Snapshot {
 	s.Round = roundInfo(v, st.users, nd)
 	s.Round.Height = s.Pool.Height
 	if a.prop {
-		applyProp(&s, a.coinbase)
+		applyProp(&s, a.coinbase, a.minersBP)
 	}
 
 	from := max(len(st.recent)-ui.MaxShareDrops, 0)

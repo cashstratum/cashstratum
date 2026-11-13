@@ -478,13 +478,45 @@ func TestMinersPot(t *testing.T) {
 		312585443: {156292721, 150041012},
 		625000000: {312500000, 300000000},
 	} {
-		payroll, pot := PayrollOutput(cb), MinersPot(cb)
+		payroll, pot := PayrollOutput(cb), MinersPot(cb, DefaultMinersPotBP)
 		if payroll != want[0] || pot != want[1] {
 			t.Fatalf("coinbase %d: payroll %d pot %d, want %v", cb, payroll, pot, want)
 		}
 		if pot > payroll || (cb > 0 && payroll > cb-payroll) {
 			t.Fatalf("coinbase %d: pot %d exceeds payroll %d, or payroll above the finder output", cb, pot, payroll)
 		}
+	}
+}
+
+// The operator's miners_pot_bp sets the pot as a share of the payroll
+// output; an invalid value falls back to the default instead of paying out
+// more than the payroll output holds.
+func TestMinersPotBP(t *testing.T) {
+	for _, c := range []struct {
+		cb, bp, want int64
+	}{
+		{625000000, 4600, 287500000}, // 46% of the coinbase: 312500000 * 4600 / 5000
+		{312990001, 4600, 143975400}, // odd coinbase: computed from the payroll output, not the coinbase
+		{625000000, 5000, 312500000}, // the whole payroll output
+		{625000000, 1, 62500},
+		{1092, 4600, 502},
+		{625000000, 0, 300000000},    // invalid: the 48% default
+		{625000000, -1, 300000000},   // invalid
+		{625000000, 5001, 300000000}, // invalid: more than the payroll output
+	} {
+		if got := MinersPot(c.cb, c.bp); got != c.want {
+			t.Errorf("MinersPot(%d, %d) = %d, want %d", c.cb, c.bp, got, c.want)
+		}
+		if got := MinersPot(c.cb, c.bp); got > PayrollOutput(c.cb) {
+			t.Errorf("MinersPot(%d, %d) = %d exceeds the payroll output", c.cb, c.bp, got)
+		}
+	}
+	if ValidMinersPotBP(0) || ValidMinersPotBP(PayrollBP+1) || !ValidMinersPotBP(PayrollBP) || !ValidMinersPotBP(4600) {
+		t.Fatal("ValidMinersPotBP bounds")
+	}
+	pot, es := EstimatePayouts(100_000_000, 4600, map[string]float64{"a": 3, "b": 1})
+	if pot != 46_000_000 || es[0].Sats != 34_500_000 || es[1].Sats != 11_500_000 {
+		t.Fatalf("46%% split %d %+v", pot, es)
 	}
 }
 
@@ -504,13 +536,13 @@ func TestEstimatePayouts(t *testing.T) {
 	}
 
 	// A single miner takes the whole pot.
-	pot, es := EstimatePayouts(312990000, map[string]float64{"a": 12.5})
+	pot, es := EstimatePayouts(312990000, DefaultMinersPotBP, map[string]float64{"a": 12.5})
 	if pot != 150235200 || len(es) != 1 || !es[0].Eligible || es[0].Sats != pot {
 		t.Fatalf("single %d %+v", pot, es)
 	}
 
 	// Sub-1% work is redistributed to the eligible addresses pro rata.
-	pot, es = EstimatePayouts(100_000_000, map[string]float64{"a": 600, "b": 395, "c": 4.99, "d": 0.01, "z": 0})
+	pot, es = EstimatePayouts(100_000_000, DefaultMinersPotBP, map[string]float64{"a": 600, "b": 395, "c": 4.99, "d": 0.01, "z": 0})
 	m := byAddr(es)
 	if !m["a"].Eligible || !m["b"].Eligible || m["c"].Eligible || m["d"].Eligible || m["z"].Eligible {
 		t.Fatalf("eligibility %+v", es)
@@ -523,7 +555,7 @@ func TestEstimatePayouts(t *testing.T) {
 	}
 
 	// Exactly 1% is eligible.
-	_, es = EstimatePayouts(100_000_000, map[string]float64{"a": 99, "b": 1})
+	_, es = EstimatePayouts(100_000_000, DefaultMinersPotBP, map[string]float64{"a": 99, "b": 1})
 	if m := byAddr(es); !m["b"].Eligible || m["b"].Sats != 480_000 {
 		t.Fatalf("boundary %+v", es)
 	}
@@ -533,7 +565,7 @@ func TestEstimatePayouts(t *testing.T) {
 	for i := 0; i < 150; i++ {
 		work[fmt.Sprintf("m%03d", i)] = 1
 	}
-	pot, es = EstimatePayouts(100_000_000, work)
+	pot, es = EstimatePayouts(100_000_000, DefaultMinersPotBP, work)
 	for _, e := range es {
 		if !e.Eligible || e.Sats != pot/150 {
 			t.Fatalf("fallback %+v", e)
@@ -541,16 +573,16 @@ func TestEstimatePayouts(t *testing.T) {
 	}
 
 	// Payouts never exceed the pot, whatever the rounding.
-	pot, es = EstimatePayouts(312990001, map[string]float64{"a": 1.0 / 3, "b": 1.0 / 3, "c": 1.0 / 3, "d": 0.1, "e": 0.7})
+	pot, es = EstimatePayouts(312990001, DefaultMinersPotBP, map[string]float64{"a": 1.0 / 3, "b": 1.0 / 3, "c": 1.0 / 3, "d": 0.1, "e": 0.7})
 	if s := sum(es); s > pot || pot-s > int64(len(es)) {
 		t.Fatalf("sum %d pot %d", s, pot)
 	}
 
 	// No work or no coinbase pays nothing.
-	if pot, es := EstimatePayouts(100_000, map[string]float64{"a": 0}); pot != 48_000 || es[0].Sats != 0 || es[0].Eligible {
+	if pot, es := EstimatePayouts(100_000, DefaultMinersPotBP, map[string]float64{"a": 0}); pot != 48_000 || es[0].Sats != 0 || es[0].Eligible {
 		t.Fatalf("no work %d %+v", pot, es)
 	}
-	if pot, es := EstimatePayouts(0, map[string]float64{"a": 5}); pot != 0 || es[0].Sats != 0 || !es[0].Eligible {
+	if pot, es := EstimatePayouts(0, DefaultMinersPotBP, map[string]float64{"a": 5}); pot != 0 || es[0].Sats != 0 || !es[0].Eligible {
 		t.Fatalf("no coinbase %d %+v", pot, es)
 	}
 }

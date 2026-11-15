@@ -334,17 +334,21 @@ The `btcsig` parameter controls the **entire** coinbase message that appears in 
 > Note the 100-byte consensus limit on the whole coinbase scriptSig is *not* the binding one —
 > CashStratum's own 38-byte cap bites first. Sizing a signature against 100 will get it truncated.
 
-**What the coinbase message actually looks like on-chain.** `btcsig` is the last field of the
-coinbase scriptSig, and roughly 28 bytes of protocol data come *before* it: the BIP34 block
-height (consensus — it must be first), a `coinbaseaux` flags push, a timestamp, a nonce
-randomiser, and the extranonces that make each miner's work unique. Block explorers render those
-bytes as ASCII, so the message reads as garbage followed by your text:
+**What the coinbase message actually looks like on-chain.** `btcsig` is written raw, with no
+length byte, directly after the BIP34 block height (consensus — it must be first). The rest of
+the protocol data follows it: a `coinbaseaux` flags push, a timestamp, a nonce randomiser, and the
+extranonces that make each miner's work unique, with the extranonce last. Block explorers render
+the scriptSig bytes as ASCII, so the message reads as your text followed by a few bytes of
+garbage:
 
 ```
-<protocol bytes> CashStratum
+<height> CashStratum <protocol bytes>
 ```
 
-That prefix is protocol, not a misconfiguration, and it cannot be removed. Every CashStratum block
+Blocks mined by earlier versions carry the text last instead, behind about 28 bytes of protocol
+data, and keep that layout on-chain permanently.
+
+The trailing protocol bytes are not a misconfiguration and cannot be removed. Every CashStratum block
 looks like this.
 
 ### Difficulty Configuration Examples
@@ -757,7 +761,7 @@ split.
 | 7 | Multiple workers under one address aggregate to a single payout |
 | 8 | A block by one miner resets only that miner's round; a bystander's round survives |
 | 9 | Prefixed and bare spellings of the **same** address are one user account |
-| 10 | The coinbase scriptSig is consensus-shaped: BIP34 height first, ≤ 100 bytes, `btcsig` byte-exact and last |
+| 10 | The coinbase scriptSig is consensus-shaped: BIP34 height first, ≤ 100 bytes, `btcsig` byte-exact right after the height with no length byte, and the extranonce push last |
 
 > [!NOTE]
 > The pool canonicalises CashAddr usernames to the canonical form
@@ -792,7 +796,7 @@ useful without saying *where* and *what that chain can prove*:
 - **regtest is what proves the block path.** Difficulty is trivial, so a CPU miner solves in
   seconds and `submitblock` actually executes. A block mined there with a production-shaped
   config came back `BLOCK ACCEPTED!` with two outputs, the operator fee exactly 2.0000%, the
-  BIP34 height as the first scriptSig push, and the signature byte-exact and last.
+  BIP34 height as the first scriptSig push, and the signature byte-exact (then the last scriptSig field, before the layout change).
 - **testnet4 block submission is NOT proven, and this is not a defect.** BCH testnet has a
   20-minute rule — after 1200 s with no block, the next may be mined at minimum difficulty — so a
   CPU miner has a theoretical shot. Measured over 24 consecutive testnet4 blocks, **5 of 24
@@ -855,7 +859,7 @@ is reusable; the specific findings are in the PRs.
 
 > [!WARNING]
 > **The e2e binds a fixed stratum port (13333), and a stray miner will corrupt its results.**
-> `testing/minerd`'s command line contains neither the workdir path nor `ckpool-e2e`, so a
+> `testing/minerd`'s command line contains neither the workdir path nor `cashstratum-e2e`, so a
 > teardown that `pkill`s on either pattern leaves miners running. They reconnect to the *next*
 > run's pool and solve its blocks **paying their own address** — which surfaces as scenario 1/2
 > failing `vout[0] pays the expected miner address`, i.e. it looks precisely like a payout bug.

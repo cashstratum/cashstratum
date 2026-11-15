@@ -42,8 +42,8 @@ func heightDirName(height int) string {
 }
 
 // writeSharelog writes one *.sharelog file under base/<height dir>, named
-// after workinfoid the way ckpool names them. terminated controls whether
-// the final line gets its trailing newline -- false simulates ckpool's
+// after workinfoid the way CashStratum names them. terminated controls whether
+// the final line gets its trailing newline -- false simulates the daemon's
 // O_APPEND writer caught mid-write.
 func writeSharelog(t *testing.T, base string, height int, workinfoid uint64, lines []string, terminated bool) string {
 	t.Helper()
@@ -64,7 +64,7 @@ func writeSharelog(t *testing.T, base string, height int, workinfoid uint64, lin
 }
 
 // appendToSharelog appends raw bytes to an existing sharelog file, as
-// ckpool's O_APPEND writer would.
+// the daemon's O_APPEND writer would.
 func appendToSharelog(t *testing.T, path string, data string) {
 	t.Helper()
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
@@ -270,7 +270,7 @@ func TestSharesTornLineNotConsumed(t *testing.T) {
 		t.Fatalf("first poll shares = %v, want only the complete line [1]", got)
 	}
 
-	// ckpool finishes the write: the torn line finally gets its newline.
+	// the daemon finishes the write: the torn line finally gets its newline.
 	appendToSharelog(t, path, "\n")
 
 	second := getShares(t, map[string]string{"since": first.NextCursor, "limit": "10"})

@@ -79,6 +79,21 @@ int main(void) {
     CASE("{\"id\":\n{} }\n", false, 0);
     CASE("[]\n", false, 0);
     CASE("{broken}\n", false, 0);
+    /* Oversize input: a complete line past MAX_MSGSIZE, and a run of bytes
+     * with no newline at all, each refused with its own reason. */
+    {
+        static char big[4096];
+        size_t n;
+        memset(big, 'A', sizeof(big));
+        n = 1025; big[0] = '{'; big[n - 2] = '}'; big[n - 1] = '\n';
+        run_case(big, n, false, 0, DR_MSG_OVERSIZE);
+        memset(big, 'A', sizeof(big));
+        big[0] = '{';
+        run_case(big, 2000, false, 0, DR_BUF_OVERLOAD);
+        /* Arrays nested far deeper than any miner sends, unterminated. */
+        memset(big, '[', 500); big[500] = '\n';
+        run_case(big, 501, false, 0, DR_BAD_JSON);
+    }
     int fd[2]; cdata_t ctx = {0}; client_instance_t client = {0};
     int reason = -1, err = 0;
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, fd) == 0);

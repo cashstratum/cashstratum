@@ -169,7 +169,7 @@ func TestSharesUserFilterMatchesCashaddrSpellings(t *testing.T) {
 }
 
 // A legacy base58 username is a different string from any CashAddr spelling
-// -- even one that happens to encode the same key -- and ckpool keeps the
+// -- even one that happens to encode the same key -- and CashStratum keeps the
 // two accounting identities separate, so the /shares filter must never
 // cross them in either direction.
 func TestSharesUserFilterDoesNotCrossBase58AndCashaddr(t *testing.T) {
@@ -323,7 +323,7 @@ func TestSharesLimitClamping(t *testing.T) {
 }
 
 // version_mask is the BIP310 mask the miner submitted, appended to the
-// sharelog record by ckpool. It reaches /shares verbatim, and a line written
+// sharelog record by CashStratum. It reaches /shares verbatim, and a line written
 // before that field existed decodes as "" rather than failing to parse -- the
 // property that lets the API read a mixed-age sharelog. Both cases are asserted
 // from a RAW sharelog line rather than a marshalled ShareRecord, so the test
@@ -339,7 +339,7 @@ func TestSharesSurfacesVersionMask(t *testing.T) {
 		`"createcode":"parse_submit","createinet":"127.0.0.1:3333",` +
 		`"workername":"alice.w1","username":"alice","address":"127.0.0.1",` +
 		`"agent":"cpuminer/2.5.1","version_mask":"1fffe000"}`
-	// Exactly the same record as written before ckpool learned the field.
+	// Exactly the same record as written before CashStratum learned the field.
 	const withoutMask = `{"workinfoid":2,"clientid":1,"enonce1":"deadbeef",` +
 		`"nonce2":"0000000000000000","nonce":"55667788","ntime":"6a9b65bd",` +
 		`"diff":1.0,"sdiff":3.5,"hash":"def","result":true,"error":"Valid",` +

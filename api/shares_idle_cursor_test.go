@@ -21,7 +21,7 @@ func TestSharesIdleCursorRoundTripsAndLosesNothing(t *testing.T) {
 	base := useTempSharelogDir(t)
 	resetShareCache(t)
 
-	// Height dir exists (ckpool created it on the new workbase) but the pool
+	// Height dir exists (the daemon created it on the new workbase) but the pool
 	// has not written a share into it yet.
 	const height = 300
 	if err := os.MkdirAll(filepath.Join(base, heightDirName(height)), 0o755); err != nil {

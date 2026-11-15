@@ -136,7 +136,7 @@ def main():
     }
     responses = {}
     # Set True right before the mining.authorize request is sent, not after
-    # its reply arrives -- ckpool can (and does) push mining.set_difficulty
+    # its reply arrives -- CashStratum can (and does) push mining.set_difficulty
     # before the authorize response is fully processed, so gating on the
     # reply loses those pushes to a wire-ordering race.
     auth_diff_seen = False
@@ -211,7 +211,7 @@ def main():
             result["nonce2_size"] = sub["result"][2]
 
         # Set the marker BEFORE sending mining.authorize, not after its
-        # reply arrives: ckpool can (and on a live pool run does) push
+        # reply arrives: CashStratum can (and on a live pool run does) push
         # mining.set_difficulty before this side has finished processing
         # the authorize response, so gating on the reply loses that push
         # to a wire-ordering race.
@@ -233,7 +233,7 @@ def main():
             lambda: bool(result["set_difficulty_after_auth"]) and result["job_id"] is not None,
             deadline,
         )
-        # Short grace drain: ckpool sometimes follows the first post-auth
+        # Short grace drain: CashStratum sometimes follows the first post-auth
         # set_difficulty with a second one moments later -- take the LAST
         # one seen in this window, not the first.
         drain_for(client, 0.5)

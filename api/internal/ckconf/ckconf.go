@@ -32,7 +32,7 @@ type BtcdEndpoint struct {
 	Pass string `json:"pass"`
 	// ZmqNotify is this node's ZMQ block-notification endpoint
 	// (ckpool.conf's per-btcd "zmqnotify" key), e.g. "tcp://127.0.0.1:28332".
-	// ckpool itself prefers this over the top-level zmqblock key when both
+	// the daemon itself prefers this over the top-level zmqblock key when both
 	// are present -- see ResolveZMQEndpoint.
 	ZmqNotify string `json:"zmqnotify"`
 }
@@ -41,7 +41,7 @@ type BtcdEndpoint struct {
 // else in that file belongs to the pool.
 type Conf struct {
 	Btcd []BtcdEndpoint `json:"btcd"`
-	// UpdateInterval is how often (seconds) ckpool broadcasts a fresh
+	// UpdateInterval is how often (seconds) the daemon broadcasts a fresh
 	// mining.notify job on an idle pool. A pointer so an absent key (nil)
 	// is distinguishable from an explicit 0 -- both fall back to
 	// DefaultUpdateInterval in LoadUpdateInterval, but for different reasons.
@@ -96,12 +96,12 @@ func Candidates(logFile string) []string {
 func LoadBtcdRPC(confPath string) *BtcdEndpoint {
 	data, err := os.ReadFile(confPath)
 	if err != nil {
-		log.Printf("Node RPC: ckpool.conf unreadable at %s (%v) -- /stats will fall back to log-scraped height", confPath, err)
+		log.Printf("Node RPC: config unreadable at %s (%v) -- /stats will fall back to log-scraped height", confPath, err)
 		return nil
 	}
 	var conf Conf
 	if err := json.Unmarshal(data, &conf); err != nil {
-		log.Printf("Node RPC: ckpool.conf at %s is not parseable JSON (%v) -- falling back to log-scraped height", confPath, err)
+		log.Printf("Node RPC: config at %s is not parseable JSON (%v) -- falling back to log-scraped height", confPath, err)
 		return nil
 	}
 	for i := range conf.Btcd {
@@ -117,7 +117,7 @@ func LoadBtcdRPC(confPath string) *BtcdEndpoint {
 	return nil
 }
 
-// LoadUpdateInterval returns how often ckpool broadcasts a mining.notify job
+// LoadUpdateInterval returns how often the daemon broadcasts a mining.notify job
 // on an otherwise idle pool, read from the same ckpool.conf LoadBtcdRPC
 // reads -- reusing that file rather than a second, separately-maintained
 // source. An absent key, an unreadable file, unparseable JSON, or a

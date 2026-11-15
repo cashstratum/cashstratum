@@ -20,8 +20,16 @@ import (
 //
 //	coinbase = coinb1 ‖ en1 ‖ en2 ‖ coinb2Head ‖ len(script) ‖ script ‖ coinb3
 //
+//	coinb1      version | input | scriptSig length | height | btcsig text | flags | binary fields | en push length
+//	coinb2Head  ffffffff sequence | output count | miner value (8 LE)
+//
+// That is the text-first layout: the btcsig text follows the height directly,
+// without a length byte. Jobs from an older daemon carry it after the
+// extranonce instead, and both are accepted:
+//
 //	coinb1      version | input | scriptSig length | height | flags | time | nsec | en push length
-//	coinb2Head  [btcsig push] | ffffffff sequence | output count | miner value (8 LE)
+//	coinb2Head  btcsig push (length byte + text) | ffffffff sequence | output count | miner value (8 LE)
+//
 //	coinb3      [fee value | fee script] | [OP_RETURN output] | locktime
 //
 // So /coinbase probes the pool ONCE per height under a fixed identity, splits
@@ -86,7 +94,9 @@ func (t *coinbaseTemplate) assemble(script []byte) []byte {
 //
 // The btcsig push length is not guessed from coinb2: coinb1 declares the full
 // scriptSig length, so whatever the scriptSig still needs after coinb1, en1
-// and en2 is the btcsig push at the head of coinb2 (0 when there is none).
+// and en2 is the btcsig push at the head of coinb2. That remainder is 0 when
+// the text sits in coinb1 (text-first layout), and coinb2 then starts at the
+// ffffffff sequence.
 func splitCoinb2(coinb1 []byte, en1Size, en2Size int, coinb2 []byte) (head, script, coinb3 []byte, err error) {
 	const scriptSigLenOffset = 4 + 1 + 32 + 4 // version, input count, prevout
 	scriptLen, off, ok := readVarint(coinb1, scriptSigLenOffset)

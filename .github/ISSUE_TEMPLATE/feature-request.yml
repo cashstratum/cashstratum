@@ -1,0 +1,59 @@
+name: Feature request
+description: Suggest a change to the engine, the operator API, cashtop or the installers
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Requests backed by a real use case are the ones that get built.
+        Found a bug instead? Open a blank issue with the version, logs and steps to reproduce.
+        Security problems go to a private advisory, never a public issue.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Stratum engine (C daemon)
+        - Operator API
+        - cashtop
+        - Installers and packaging
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe what you run (solo or PROP, node, miners) and what is missing or hard today.
+      placeholder: My pool runs PROP with about 40 Bitaxes, and I can't tell from the API when...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+      description: The behaviour, conf key, endpoint or screen you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have tried
+      description: Workarounds, scripts or other software you use for this today.
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: CashStratum version
+      placeholder: "1.7.2"
+    validations:
+      required: false
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to help implement this

@@ -3,7 +3,7 @@
  *
  * C++ implementation of the Bitcoin Core mining IPC C interface declared in
  * mining_ipc.h. All Cap'n Proto / kj complexity is confined to this file so
- * the rest of ckpool stays pure C.
+ * the rest of CashStratum stays pure C.
  *
  * Transport: the Bitcoin Core IPC socket speaks Cap'n Proto RPC using the
  * libmultiprocess conventions. We talk to it directly with capnp's EzRpcClient
@@ -15,7 +15,7 @@
  * Threading: an EzRpcClient runs its kj event loop on the thread that
  * constructs it, and every call on it MUST be made from that same thread.
  * A single context is therefore created, connected and used entirely from one
- * caller thread (ckpool's ipcnotify thread). This is sufficient for the Phase 1
+ * caller thread (the ipcnotify thread). This is sufficient for the Phase 1
  * tip-notification surface; wider cross-thread use (block template generation)
  * will route calls through the event loop in a later phase.
  *
@@ -145,7 +145,7 @@ public:
 			our_threadmap_ = mp::ThreadMap::Client(kj::heap<ThreadMapServer>());
 			{
 				auto mk = our_threadmap_.makeThreadRequest();
-				mk.setName("ckpool-callback");
+				mk.setName("cs-callback");
 				callback_thread_ = mk.send().wait(ws).getResult();
 			}
 
@@ -329,7 +329,7 @@ private:
  * Phase 2: the "service" connection for block template generation.
  *
  * An EzRpcClient is thread affine, but template operations are driven from
- * several ckpool threads (block_update, share submission). We therefore own
+ * several CashStratum threads (block_update, share submission). We therefore own
  * the client on a dedicated internal thread running the kj event loop, and
  * marshal every call onto it with kj::Executor::executeSync(), which accepts a
  * promise-returning functor and drives the loop until it resolves. Callers on
@@ -502,7 +502,7 @@ private:
 		our_threadmap_ = mp::ThreadMap::Client(kj::heap<ThreadMapServer>());
 		{
 			auto mk = our_threadmap_.makeThreadRequest();
-			mk.setName("ckpool-svc-callback");
+			mk.setName("cs-svc-callback");
 			callback_thread_ = mk.send().wait(ws).getResult();
 		}
 		{
@@ -631,7 +631,7 @@ int MiningService::create_new_block(BlockTemplateHolder **out)
 } // namespace
 
 /* --------------------------------------------------------------------------
- * C API. No exception may cross this boundary into ckpool's C code.
+ * C API. No exception may cross this boundary into CashStratum's C code.
  * -------------------------------------------------------------------------- */
 
 extern "C" {

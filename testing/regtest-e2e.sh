@@ -98,7 +98,7 @@ RPC_PASS="e2epass"
 
 WORKDIR=""
 BITCOIND_PID=""
-CKPOOL_PID=""
+DAEMON_PID=""
 DIFFPOOL_PID=""
 PROP_PID=""
 MINERD_PIDS=()
@@ -149,9 +149,9 @@ cleanup() {
 	for pid in "${MINERD_PIDS[@]:-}"; do
 		[[ -n "$pid" ]] && kill "$pid" >/dev/null 2>&1 || true
 	done
-	if [[ -n "$CKPOOL_PID" ]] && kill -0 "$CKPOOL_PID" >/dev/null 2>&1; then
-		kill "$CKPOOL_PID" >/dev/null 2>&1 || true
-		wait "$CKPOOL_PID" 2>/dev/null || true
+	if [[ -n "$DAEMON_PID" ]] && kill -0 "$DAEMON_PID" >/dev/null 2>&1; then
+		kill "$DAEMON_PID" >/dev/null 2>&1 || true
+		wait "$DAEMON_PID" 2>/dev/null || true
 	fi
 	if [[ -n "$DIFFPOOL_PID" ]] && kill -0 "$DIFFPOOL_PID" >/dev/null 2>&1; then
 		kill "$DIFFPOOL_PID" >/dev/null 2>&1 || true
@@ -167,7 +167,7 @@ cleanup() {
 	fi
 	if [[ $rc -ne 0 && -n "$WORKDIR" && -d "$WORKDIR" ]]; then
 		warn "run failed -- preserving workdir for inspection: $WORKDIR"
-		[[ -f "$WORKDIR/logs/e2e.log" ]] && { warn "last 40 lines of ckpool log:"; tail -40 "$WORKDIR/logs/e2e.log" >&2 || true; }
+		[[ -f "$WORKDIR/logs/e2e.log" ]] && { warn "last 40 lines of CashStratum log:"; tail -40 "$WORKDIR/logs/e2e.log" >&2 || true; }
 		[[ -f "$WORKDIR/logs-diff/e2e-diff.log" ]] && { warn "last 40 lines of difficulty-policy pool log:"; tail -40 "$WORKDIR/logs-diff/e2e-diff.log" >&2 || true; }
 	elif [[ -n "$WORKDIR" && -d "$WORKDIR" ]]; then
 		rm -rf "$WORKDIR"
@@ -211,7 +211,7 @@ prereq_check() {
 	[[ -x "$MINERD_BIN" ]] || missing+=("$MINERD_BIN missing or not executable")
 
 	if [[ "$(uname -s)" != "Linux" ]]; then
-		missing+=("this host is $(uname -s), not Linux -- ckpool needs epoll(7) and testing/minerd is a Linux ELF binary; this script can only run on the Ubuntu pool server")
+		missing+=("this host is $(uname -s), not Linux -- CashStratum needs epoll(7) and testing/minerd is a Linux ELF binary; this script can only run on the Ubuntu pool server")
 	fi
 
 	if [[ ${#missing[@]} -gt 0 ]]; then
@@ -367,16 +367,16 @@ write_ckpool_conf() {
 }
 
 start_ckpool() {
-	log "starting ckpool -B ..."
+	log "starting CashStratum -B ..."
 	"$CKPOOL_BIN" -B -c "$CONF" -s "$SOCKDIR" -n e2e -l 7 -L \
 		>"$WORKDIR/ckpool.stdout.log" 2>&1 &
-	CKPOOL_PID=$!
+	DAEMON_PID=$!
 
 	if ! wait_for_tcp 127.0.0.1 "$STRATUM_PORT" 60; then
-		echo "regtest-e2e.sh: ckpool stratum port $STRATUM_PORT never came up (see $WORKDIR/ckpool.stdout.log and $LOGDIR/e2e.log)" >&2
+		echo "regtest-e2e.sh: CashStratum stratum port $STRATUM_PORT never came up (see $WORKDIR/ckpool.stdout.log and $LOGDIR/e2e.log)" >&2
 		exit 2
 	fi
-	log "ckpool stratum listening on 127.0.0.1:$STRATUM_PORT"
+	log "CashStratum stratum listening on 127.0.0.1:$STRATUM_PORT"
 }
 
 # ---------------------------------------------------------------------------
@@ -432,16 +432,16 @@ write_diffpolicy_conf() {
 }
 
 start_diffpolicy_pool() {
-	log "starting difficulty-policy ckpool -B ..."
+	log "starting difficulty-policy CashStratum -B ..."
 	"$CKPOOL_BIN" -B -c "$DIFFCONF" -s "$DIFFSOCKDIR" -n e2e-diff -l 7 -L \
 		>"$WORKDIR/ckpool-diff.stdout.log" 2>&1 &
 	DIFFPOOL_PID=$!
 
 	if ! wait_for_tcp 127.0.0.1 "$DIFFPOLICY_STRATUM_PORT" 60; then
-		echo "regtest-e2e.sh: difficulty-policy ckpool stratum port $DIFFPOLICY_STRATUM_PORT never came up (see $WORKDIR/ckpool-diff.stdout.log and $DIFFLOGDIR/e2e-diff.log)" >&2
+		echo "regtest-e2e.sh: difficulty-policy CashStratum stratum port $DIFFPOLICY_STRATUM_PORT never came up (see $WORKDIR/ckpool-diff.stdout.log and $DIFFLOGDIR/e2e-diff.log)" >&2
 		exit 2
 	fi
-	log "difficulty-policy ckpool stratum listening on 127.0.0.1:$DIFFPOLICY_STRATUM_PORT"
+	log "difficulty-policy CashStratum stratum listening on 127.0.0.1:$DIFFPOLICY_STRATUM_PORT"
 }
 
 # ---------------------------------------------------------------------------
@@ -495,16 +495,16 @@ write_prop_conf() {
 }
 
 start_prop_pool() {
-	log "starting PROP-shaped ckpool -B -L ..."
+	log "starting PROP-shaped CashStratum -B -L ..."
 	"$CKPOOL_BIN" -B -c "$PROPCONF" -s "$PROPSOCKDIR" -n e2e-prop -l 7 -L \
 		>"$WORKDIR/ckpool-prop.stdout.log" 2>&1 &
 	PROP_PID=$!
 
 	if ! wait_for_tcp 127.0.0.1 "$PROP_STRATUM_PORT" 60; then
-		echo "regtest-e2e.sh: PROP ckpool stratum port $PROP_STRATUM_PORT never came up (see $WORKDIR/ckpool-prop.stdout.log and $PROPLOGDIR/e2e-prop.log)" >&2
+		echo "regtest-e2e.sh: PROP CashStratum stratum port $PROP_STRATUM_PORT never came up (see $WORKDIR/ckpool-prop.stdout.log and $PROPLOGDIR/e2e-prop.log)" >&2
 		exit 2
 	fi
-	log "PROP ckpool stratum listening on 127.0.0.1:$PROP_STRATUM_PORT"
+	log "PROP CashStratum stratum listening on 127.0.0.1:$PROP_STRATUM_PORT"
 }
 
 # ---------------------------------------------------------------------------
@@ -807,8 +807,8 @@ scenario_5_typo_rejected() {
 	local has_generic_reject has_failover
 	has_generic_reject=$(printf '%s' "$logtext" | grep -qi "failed to authorise as user" && echo true || echo false)
 	has_failover=$(printf '%s' "$logtext" | grep -qi "Failed over" && echo true || echo false)
-	check "scenario5: ckpool.log records the generic auth-failure line" "$has_generic_reject"
-	check "scenario5: ckpool.log has NO 'Failed over' line (bitcoind was never marked dead)" \
+	check "scenario5: daemon log records the generic auth-failure line" "$has_generic_reject"
+	check "scenario5: daemon log has NO 'Failed over' line (bitcoind was never marked dead)" \
 		"$([[ "$has_failover" == "false" ]] && echo true || echo false)"
 }
 
@@ -1214,7 +1214,8 @@ scenario_9_prefixed_and_bare_same_user() {
 # violates BIP34 or the 100-byte cap starts, mines, and validates shares
 # normally, then fails at submitblock -- i.e. the first time a block is found.
 # These assertions are the gate for any future change to generate_coinbase().
-# (prevents coinbase scriptSig reordering regressions).
+# They also pin the order: height, operator text written raw, flags, then
+# direct pushes ending with the extranonce.
 # ---------------------------------------------------------------------------
 
 # hex_le_to_dec HEXSTRING -> decimal value of a little-endian byte string
@@ -1230,7 +1231,7 @@ scenario_10_coinbase_scriptsig() {
 	log "=== Scenario 10: coinbase scriptSig is consensus-shaped ==="
 	local hash block script height_actual
 	local total_bytes push0 height_hex height_decoded
-	local sig sig_hex sig_len sig_push tail_expected
+	local sig sig_hex sig_len sig_ofs after_ofs flags_byte flags_len pos n last_push walk_ok
 
 	hash=$(mine_block_as "${ADDR1}.w1")
 	if [[ -z "$hash" ]]; then
@@ -1256,19 +1257,40 @@ scenario_10_coinbase_scriptsig() {
 	check "scenario10: first push is the BIP34 block height (decoded $height_decoded, block is at $height_actual)" \
 		"$([[ "$height_decoded" == "$height_actual" ]] && echo true || echo false)"
 
-	# --- btcsig present, byte-exact, and the FINAL field ---
-	# write_ckpool_conf() sets this; keep the two in step.
+	# --- btcsig follows the height directly, raw, with no length byte ---
+	# Explorers and miner screens render the scriptSig as text, so the
+	# operator text sits straight after the height and is written without
+	# a push-length byte. write_ckpool_conf() sets this; keep the two in step.
 	sig="/regtest-e2e/"
 	sig_hex=$(printf '%s' "$sig" | od -An -tx1 | tr -d ' \n')
 	sig_len=$(( ${#sig_hex} / 2 ))
-	sig_push=$(printf '%02x' "$sig_len")
-	tail_expected="${sig_push}${sig_hex}"
-	check "scenario10: scriptSig ends with PUSH($sig_len) '$sig' -- signature present, byte-exact and last" \
-		"$([[ "$script" == *"$tail_expected" ]] && echo true || echo false)"
+	sig_ofs=$(( 2 + push0 * 2 ))
+	check "scenario10: '$sig' ($sig_len bytes) starts right after the height push, raw, with no length byte before it" \
+		"$([[ "${script:$sig_ofs:${#sig_hex}}" == "$sig_hex" ]] && echo true || echo false)"
 
-	# --- the signature push must be a direct push, never OP_PUSHDATA ---
-	check "scenario10: signature length $sig_len encodes as a direct push (1-75), no OP_PUSHDATA" \
-		"$([[ "$sig_len" -ge 1 && "$sig_len" -le 75 ]] && echo true || echo false)"
+	# --- after the text: flags length + flags, direct pushes, extranonce last ---
+	# The byte after the text is the coinbase flags length. Every later
+	# element is a direct push (1-75 bytes) and the last one is the
+	# 4 + 8 byte extranonce, which must end the scriptSig: coinb2 starts at
+	# the input's nSequence.
+	after_ofs=$(( sig_ofs + ${#sig_hex} ))
+	flags_byte=${script:$after_ofs:2}
+	flags_len=$(( 16#${flags_byte:-ff} ))
+	pos=$(( after_ofs + 2 + flags_len * 2 ))
+	last_push=0
+	walk_ok=true
+	[[ "$flags_len" -le 32 ]] || walk_ok=false
+	while [[ "$walk_ok" == true && "$pos" -lt "${#script}" ]]; do
+		n=$(( 16#${script:$pos:2} ))
+		if [[ "$n" -lt 1 || "$n" -gt 75 ]]; then
+			walk_ok=false
+			break
+		fi
+		last_push=$n
+		pos=$(( pos + 2 + n * 2 ))
+	done
+	check "scenario10: the byte after '$sig' is the flags length ($flags_len) and the 12-byte extranonce push ends the scriptSig" \
+		"$([[ "$walk_ok" == true && "$pos" -eq "${#script}" && "$last_push" -eq 12 ]] && echo true || echo false)"
 }
 
 # ---------------------------------------------------------------------------
@@ -1740,11 +1762,11 @@ scenario_16_restored_bestshare_clamped() {
 	fi
 	file="$LOGDIR/users/$addr"
 
-	if [[ -n "$CKPOOL_PID" ]] && kill -0 "$CKPOOL_PID" >/dev/null 2>&1; then
-		kill "$CKPOOL_PID" >/dev/null 2>&1 || true
-		wait "$CKPOOL_PID" 2>/dev/null || true
+	if [[ -n "$DAEMON_PID" ]] && kill -0 "$DAEMON_PID" >/dev/null 2>&1; then
+		kill "$DAEMON_PID" >/dev/null 2>&1 || true
+		wait "$DAEMON_PID" 2>/dev/null || true
 	fi
-	CKPOOL_PID=""
+	DAEMON_PID=""
 
 	if [[ ! -f "$file" ]]; then
 		check "scenario16: users file for $addr exists after stopping the pool" "false"
@@ -1908,7 +1930,7 @@ scenario_21_poolfee_fail_closed() {
 # ---------------------------------------------------------------------------
 main() {
 	prereq_check
-	WORKDIR=$(mktemp -d "${TMPDIR:-/tmp}/ckpool-e2e.XXXXXX")
+	WORKDIR=$(mktemp -d "${TMPDIR:-/tmp}/cashstratum-e2e.XXXXXX")
 	log "workdir: $WORKDIR"
 
 	start_bitcoind

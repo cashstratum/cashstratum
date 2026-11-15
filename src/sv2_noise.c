@@ -420,7 +420,7 @@ static bool write_seckey_file(const char *path, const uint8_t sk[32], const char
 		return false;
 	}
 	__bin2hex(hex, sk, 32);
-	fprintf(f, "# ckpool SV2 Noise %s seckey — keep secret, mode 0600\n",
+	fprintf(f, "# CashStratum SV2 Noise %s seckey — keep secret, mode 0600\n",
 		label ? label : "key");
 	fprintf(f, "%s\n", hex);
 	sodium_memzero(hex, sizeof(hex));

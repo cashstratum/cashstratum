@@ -1,7 +1,7 @@
 # Bitcoin Core mining IPC shim
 
 This directory contains a small C++ shim that lets the (otherwise pure C)
-ckpool codebase talk to a Bitcoin Core `bitcoin-node` over its Cap'n Proto
+CashStratum codebase talk to a Bitcoin Core `bitcoin-node` over its Cap'n Proto
 mining IPC interface (`interfaces::Mining`, obtained via `Init.makeMining`).
 The protocol is described in `../../ipc-protocol.md`.
 
@@ -13,7 +13,7 @@ The protocol is described in `../../ipc-protocol.md`.
 - `*.capnp.h` / `*.capnp.c++` — the client stubs generated from the schemas with
   `capnpc -o c++` (Cap'n Proto 1.1.0). Checked in so a `capnpc` is not required
   at build time.
-- `mining_ipc.h` — the pure C API exposed to ckpool.
+- `mining_ipc.h` — the pure C API exposed to CashStratum.
 - `mining_ipc.cpp` — the C++ implementation.
 
 ## Transport
@@ -26,14 +26,14 @@ dependency on libmultiprocess itself; only `capnp-rpc` is required.
 
 An `EzRpcClient` runs its kj event loop on the thread that constructs it, and
 every call on it must be made from that same thread. A context is therefore
-connected and used entirely from one caller thread — in ckpool that is the
+connected and used entirely from one caller thread — in CashStratum that is the
 `ipcnotify` thread in the stratifier.
 
 ## Build
 
 The shim is compiled into `ckpool` only when `configure` detects `capnp-rpc`
 (`HAVE_CAPNP`). Everything in `mining_ipc.h`/`.cpp` and its callers in
-`stratifier.c` is guarded by `#ifdef HAVE_CAPNP`, so ckpool still builds and
+`stratifier.c` is guarded by `#ifdef HAVE_CAPNP`, so CashStratum still builds and
 runs as before when Cap'n Proto is absent.
 
 ## Status
@@ -51,7 +51,7 @@ acting as a backstop).
 `mining_ipc_service_connect` opens a second connection with its own service
 thread. Callers may invoke `create_new_block`, template getters, and
 `submit_solution` from any thread; calls are marshalled onto that thread.
-ckpool stores this as `btc_template_svc` whenever a valid `ipcmining` socket
+CashStratum stores this as `btc_template_svc` whenever a valid `ipcmining` socket
 is configured.
 
 ### Phase 2 start — `checkBlock` (SV2 Job Declaration validation)
@@ -61,7 +61,7 @@ is configured.
 primitive for validating a fully serialised candidate block before accepting
 custom work (not `testmempoolaccept`).
 
-For JD, ckpool opens a **third** connection (`btc_validation_svc`) so a slow
+For JD, CashStratum opens a **third** connection (`btc_validation_svc`) so a slow
 `checkBlock` cannot head-of-line-block workgen/submit marshalling. Use
 `mining_check_opts_template()` (PoW off, merkle on) for unpaid templates.
 

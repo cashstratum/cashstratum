@@ -1,10 +1,10 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)
 LDADD = $(top_builddir)/src/libckpool.a
 
-check_PROGRAMS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat reject_stats \
-	password_diff
-TESTS = sha256 cashaddr addrclassify cbfinal merklebranch nodecompat reject_stats \
-	password_diff
+check_PROGRAMS = sha256 cashaddr addrclassify cbfinal cbscriptsig merklebranch nodecompat reject_stats \
+	password_diff v1_hostile
+TESTS = sha256 cashaddr addrclassify cbfinal cbscriptsig merklebranch nodecompat reject_stats \
+	password_diff v1_hostile
 
 sha256_SOURCES = sha256.c
 merklebranch_SOURCES = merklebranch.c
@@ -26,6 +26,16 @@ password_diff_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/ipc/mining
 password_diff_CFLAGS = $(AM_CFLAGS) $(CFLAGS) -ffunction-sections -fdata-sections
 password_diff_LDFLAGS = -Wl,--gc-sections
 
+# Stratum V1 hostile input: malformed and abusive frames fed to the method
+# dispatcher and the subscribe, authorise and submit parsers in
+# src/stratifier.c. The yyjson sources are linked in because the parsers build
+# their replies with them; the send queue and connector hand-off are replaced
+# by recorders inside the test.
+v1_hostile_SOURCES = v1_hostile.c $(top_srcdir)/src/yyjson.c $(top_srcdir)/src/yyjson_util.c
+v1_hostile_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/ipc/mining
+v1_hostile_CFLAGS = $(AM_CFLAGS) $(CFLAGS) -ffunction-sections -fdata-sections
+v1_hostile_LDFLAGS = -Wl,--gc-sections
+
 # BCH address unit tests (fork-local): CashAddr decode/checksum vectors and
 # the local cashaddr+legacy classifier that feeds address_to_txn().
 cashaddr_SOURCES = cashaddr.c
@@ -37,6 +47,11 @@ addrclassify_SOURCES = addrclassify.c
 # test/.deps and src/.deps collide on the same "coinbase_final.o" basename
 # (same rule as sv2_codec below), which is why the program is named cbfinal.
 cbfinal_SOURCES = cbfinal.c
+
+# Coinbase scriptSig layout: byte-exact prefixes and the declared length for
+# real and boundary inputs. The builder comes from libckpool.a; do not list
+# src/coinbase_scriptsig.c here (same .deps basename rule as cbfinal).
+cbscriptsig_SOURCES = cbscriptsig.c
 
 # Node RPC compatibility (BCHN, BCHD, Flowee the Hub): request ids, the GBT
 # capability list and template parsing. nodecompat.c includes src/bitcoin.c

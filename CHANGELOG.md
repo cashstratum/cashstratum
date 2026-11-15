@@ -9,6 +9,32 @@ says so rather than implying one.
 
 ## Unreleased
 
+## 1.8.0 — 2026-11-15
+
+**The stratum server changed:** rebuild and restart the pool for this to take effect. The API and
+`cashtop` need no restart for it to work, and the API reads jobs from daemons of either layout, so
+the API and the daemon can be upgraded in either order.
+
+- **The pool text now sits right after the block height in the coinbase.** Before, the text was
+  written after the extranonce, behind about 24 binary bytes and a stray length character, so
+  explorers and miner screens showed noise before the pool's name. Now it follows the height
+  directly and is written without a length byte, so those displays show it cleanly.
+  - The timestamp fields are kept; they now come after the text.
+  - Coinbase outputs, the payout split and the block reward are unchanged.
+  - Blocks already mined keep the old layout; nothing on chain changes.
+  - `/coinbase` now returns the text in `coinbase_message`; it was always empty before.
+  - The API accepts jobs from daemons of either layout. Against an older daemon
+    `coinbase_message` stays empty.
+- **The daemon warns if the coinbase scriptSig would be too long.** Consensus allows a coinbase
+  scriptSig of 2 to 100 bytes. The daemon now logs a warning when a job would exceed 100, since
+  nodes reject blocks from it; before, nothing said so.
+- **Wording cleanup.** Some log messages and comments now say CashStratum instead of ckpool, and
+  the regtest e2e temporary directory prefix is now `cashstratum-e2e.`. No binary, config key,
+  environment variable or file name changed.
+- **Proofs: 134 verified blocks.** Blocks 974043 (released v1.2.5 build) and 977317 (released v1.7.0
+  build) are added to `docs/proofs/recent-blocks.json` with redacted solve excerpts, and the README proof figures
+  follow.
+
 ## 1.7.2 — 2026-11-12
 
 **`cashtop` only.** The stratum server and the API did not change; no pool restart is needed.

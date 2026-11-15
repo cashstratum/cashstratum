@@ -49,7 +49,7 @@ auth/payout scenario against the plan's acceptance matrix.
   `src/ckpool` or `src/ckpmsg` aren't built yet).
 - Also requires `bitcoind`/`bitcoin-cli` (BCHN) and `jq` in `PATH`.
 - `TMPDIR` controls where the throwaway regtest workdir is created
-  (`mktemp -d "${TMPDIR:-/tmp}/ckpool-e2e.XXXXXX"`); set it if `/tmp` is
+  (`mktemp -d "${TMPDIR:-/tmp}/cashstratum-e2e.XXXXXX"`); set it if `/tmp` is
   constrained. On failure the workdir is preserved for inspection instead of
   being cleaned up; the last 40 lines of cashstratum's log are printed too.
 - `E2E_MINE_TIMEOUT` overrides the per-block mining ceiling (auto-scaled from

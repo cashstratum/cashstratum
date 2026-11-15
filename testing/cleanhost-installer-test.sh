@@ -64,7 +64,7 @@ collect_evidence() {
   result=$?
   mkdir -p /evidence
   cp /src/config.log /src/test/test-suite.log /src/test/sv2_interop.log /tmp/daemon-help.txt /evidence/ 2>/dev/null || true
-  tar -czf /evidence/runtime-logs.tar.gz --ignore-failed-read /tmp/install-node/regtest/debug.log /tmp/installed-pool.log /tmp/installed-proxy.log /tmp/interactive-pool.log /tmp/ckpool-e2e.* /solo-stage/opt/cashstratum/logs 2>/dev/null || true
+  tar -czf /evidence/runtime-logs.tar.gz --ignore-failed-read /tmp/install-node/regtest/debug.log /tmp/installed-pool.log /tmp/installed-proxy.log /tmp/interactive-pool.log /tmp/cashstratum-e2e.* /tmp/ckpool-e2e.* /solo-stage/opt/cashstratum/logs 2>/dev/null || true
   exit "$result"
 }
 trap collect_evidence EXIT

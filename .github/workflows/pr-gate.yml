@@ -222,7 +222,7 @@ jobs:
         if: failure()
         run: |
           rm -rf /tmp/pr-gate-logs && mkdir -p /tmp/pr-gate-logs
-          for d in "${TMPDIR:-/tmp}"/ckpool-e2e.*; do
+          for d in "${TMPDIR:-/tmp}"/cashstratum-e2e.* "${TMPDIR:-/tmp}"/ckpool-e2e.*; do
             [ -d "$d" ] || continue
             cp -r "$d"/logs /tmp/pr-gate-logs/ 2>/dev/null || true
             cp "$d"/*.conf /tmp/pr-gate-logs/ 2>/dev/null || true
@@ -230,7 +230,7 @@ jobs:
             cp "$d"/bitcoind.stdout.log /tmp/pr-gate-logs/ 2>/dev/null || true
           done
           cp test/*.log /tmp/pr-gate-logs/ 2>/dev/null || true
-          # Tar it. ckpool names per-user stat files after the miner's address,
+          # Tar it. CashStratum names per-user stat files after the miner's address,
           # so the tree contains paths like logs/users/bchreg:qppt... , and
           # upload-artifact REFUSES any path containing a colon (it rejects
           # characters NTFS cannot represent). Uploading the directory directly
@@ -251,7 +251,7 @@ jobs:
           retention-days: 14
 
       # testing/minerd's command line contains neither the workdir nor
-      # "ckpool-e2e", so a teardown keyed on either leaves miners running. They
+      # "cashstratum-e2e", so a teardown keyed on either leaves miners running. They
       # reconnect to the NEXT run's pool on the fixed port 13333 and solve its
       # blocks paying their own address -- which surfaces as a payout assertion
       # failure and looks exactly like a real payout bug. The bracket stops

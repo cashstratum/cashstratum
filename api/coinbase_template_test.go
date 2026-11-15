@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"cashstratumapi/internal/cashaddr"
+	"cashstratumapi/internal/noderpc"
+	"cashstratumapi/internal/solvecheck"
 )
 
 // ---------------------------------------------------------------------------
@@ -38,8 +40,10 @@ func readHexFixture(t *testing.T, name string) []byte {
 }
 
 // splitOnChainCoinbase cuts a full coinbase transaction into the parts a
-// Stratum job carries. coinb1 ends right after the extranonce push length,
-// which follows the height, flags, time and nsec pushes.
+// Stratum job carries. It only understands the btcsig-in-coinb2 layout: coinb1
+// ends right after the extranonce push length, which follows the height,
+// flags, time and nsec pushes. Text-first transactions are not fed to it; see
+// textFirstParts for building those jobs.
 func splitOnChainCoinbase(t *testing.T, tx []byte, en1Size int) (coinb1, en1, en2, coinb2 []byte) {
 	t.Helper()
 	_, pos, ok := readVarint(tx, 41)
@@ -182,6 +186,11 @@ type fakePool struct {
 func newFakePool(t *testing.T, mode fakePoolMode) *fakePool {
 	t.Helper()
 	coinb1, en1, en2Size, head, coinb3, _ := evidence04Parts(t)
+	return newFakePoolFrom(t, mode, coinb1, en1, en2Size, head, coinb3)
+}
+
+func newFakePoolFrom(t *testing.T, mode fakePoolMode, coinb1, en1 []byte, en2Size int, head, coinb3 []byte) *fakePool {
+	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
@@ -756,5 +765,248 @@ func TestCoinbaseNoTemplateFallsBackToProbe(t *testing.T) {
 	code, resp := getCoinbase(t, testAddr(0xc0), &height)
 	if code != http.StatusOK || resp.Error != "" || *resp.BlockHeight != height {
 		t.Fatalf("status %d error %q", code, resp.Error)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Text-first layout: the btcsig text sits right after the height push, with no
+// length byte, and coinb2 starts at the sequence.
+// ---------------------------------------------------------------------------
+
+// textFirstParts rebuilds the evidence 04 job in the text-first layout:
+// version | input | scriptSig length | height | text | flags | [time | nsec] |
+// extranonce push length, with coinb2 starting at ffffffff.
+func textFirstParts(t *testing.T, text string, withTime bool) (coinb1, en1 []byte, en2Size int, coinb2 []byte) {
+	t.Helper()
+	tx := readHexFixture(t, "coinbase-evidence04.hex")
+	oldCoinb1, en1, en2, oldCoinb2 := splitOnChainCoinbase(t, tx, 4)
+	_, off, ok := readVarint(oldCoinb1, 41)
+	if !ok || off != 42 {
+		t.Fatalf("unexpected scriptSig length encoding")
+	}
+	height := oldCoinb1[off : off+1+int(oldCoinb1[off])]
+	pos := off + len(height)
+	flags := oldCoinb1[pos : pos+1+int(oldCoinb1[pos])]
+	pos += len(flags)
+	timePushes := oldCoinb1[pos : len(oldCoinb1)-1]
+	enLen := oldCoinb1[len(oldCoinb1)-1]
+	rest := oldCoinb2[1+int(oldCoinb2[0]):]
+
+	body := append([]byte(nil), height...)
+	body = append(body, text...)
+	body = append(body, flags...)
+	if withTime {
+		body = append(body, timePushes...)
+	}
+	body = append(body, enLen)
+	total := len(body) + len(en1) + len(en2)
+	if total >= 0xfd {
+		t.Fatalf("scriptSig too long for a one-byte length: %d", total)
+	}
+	coinb1 = append(append([]byte(nil), oldCoinb1[:41]...), byte(total))
+	coinb1 = append(coinb1, body...)
+	return coinb1, en1, len(en2), append([]byte(nil), rest...)
+}
+
+var textFirstTexts = []string{
+	"/BlockSniper.ai/ AI Shared Mining",
+	"/BlockSniper.ai/ AI Smart Solo Mining",
+}
+
+func TestTextFirstJobBuildsTemplateAndMatchesOldOutputs(t *testing.T) {
+	oldTx := readHexFixture(t, "coinbase-evidence04.hex")
+	oc1, oen1, oen2, oc2 := splitOnChainCoinbase(t, oldTx, 4)
+	oldTmpl, err := newCoinbaseTemplate(jobFromParts(oc1, oen1, len(oen2), oc2), "bitcoincash", time.Now())
+	if err != nil {
+		t.Fatalf("old template: %v", err)
+	}
+	script, _ := cashaddr.OutputScript(cashaddr.TypeP2PKH, testHash(0x41))
+	wantOutputs, wantTotal := parseCoinbaseOutputs(hex.EncodeToString(oldTmpl.assemble(script)))
+
+	for _, text := range textFirstTexts {
+		for _, withTime := range []bool{true, false} {
+			name := fmt.Sprintf("%d chars time=%v", len(text), withTime)
+			coinb1, en1, en2Size, coinb2 := textFirstParts(t, text, withTime)
+			head, gotScript, _, err := splitCoinb2(coinb1, len(en1), en2Size, coinb2)
+			if err != nil {
+				t.Fatalf("%s: split: %v", name, err)
+			}
+			if !bytes.HasPrefix(head, []byte{0xff, 0xff, 0xff, 0xff}) || len(gotScript) == 0 {
+				t.Errorf("%s: head %x", name, head)
+			}
+			tmpl, err := newCoinbaseTemplate(jobFromParts(coinb1, en1, en2Size, coinb2), "bitcoincash", time.Now())
+			if err != nil {
+				t.Fatalf("%s: template: %v", name, err)
+			}
+			if h := extractBlockHeight(hex.EncodeToString(coinb1)); h == nil || *h != 975663 {
+				t.Errorf("%s: height %v", name, h)
+			}
+			gotOutputs, gotTotal := parseCoinbaseOutputs(hex.EncodeToString(tmpl.assemble(script)))
+			if gotTotal != wantTotal || !reflect.DeepEqual(gotOutputs, wantOutputs) {
+				t.Errorf("%s: outputs differ\n got %+v\nwant %+v", name, gotOutputs, wantOutputs)
+			}
+		}
+	}
+}
+
+func TestSplitCoinb2TextFirstRejectsMalformed(t *testing.T) {
+	for _, withTime := range []bool{true, false} {
+		coinb1, en1, en2Size, coinb2 := textFirstParts(t, textFirstTexts[0], withTime)
+		for _, delta := range []int{-1, 1} {
+			bad := append([]byte(nil), coinb1...)
+			bad[41] = byte(int(bad[41]) + delta)
+			if _, _, _, err := splitCoinb2(bad, len(en1), en2Size, coinb2); err == nil {
+				t.Errorf("time=%v: declared length %+d accepted", withTime, delta)
+			}
+		}
+		// A byte of scriptSig that follows the extranonce, ahead of the sequence.
+		extra := append([]byte{0x00}, coinb2...)
+		if _, _, _, err := splitCoinb2(coinb1, len(en1), en2Size, extra); err == nil {
+			t.Errorf("time=%v: stray byte after the extranonce accepted", withTime)
+		}
+	}
+}
+
+func TestExtractCoinbaseMessageTextFirst(t *testing.T) {
+	texts := []string{"/BlockSniper.ai/ AI Shared Mining", textFirstTexts[1], "/abcdefgh/"}
+	for _, text := range texts {
+		for _, withTime := range []bool{true, false} {
+			coinb1, _, _, _ := textFirstParts(t, text, withTime)
+			if got := extractCoinbaseMessage(hex.EncodeToString(coinb1)); got != text {
+				t.Errorf("time=%v: got %q want %q", withTime, got, text)
+			}
+		}
+	}
+
+	// Time bytes that look printable must not leak into the text.
+	coinb1, _, _, _ := textFirstParts(t, textFirstTexts[0], true)
+	printable := bytes.Replace(coinb1, []byte{0x04, 0xc6, 0xc0, 0xe8, 0x6a, 0x04, 0xb7, 0x8c, 0xaf, 0x15},
+		[]byte{0x04, 'a', 'b', 'c', 'd', 0x04, 'e', 'f', 'g', 'h'}, 1)
+	if bytes.Equal(printable, coinb1) {
+		t.Fatal("time pushes not found in the fixture")
+	}
+	if got := extractCoinbaseMessage(hex.EncodeToString(printable)); got != textFirstTexts[0] {
+		t.Errorf("printable time bytes: got %q", got)
+	}
+}
+
+func TestExtractCoinbaseMessageOldLayoutIsEmpty(t *testing.T) {
+	tx := readHexFixture(t, "coinbase-evidence04.hex")
+	coinb1, _, _, _ := splitOnChainCoinbase(t, tx, 4)
+	if got := extractCoinbaseMessage(hex.EncodeToString(coinb1)); got != "" {
+		t.Errorf("old-layout coinb1 gave %q", got)
+	}
+}
+
+func TestCoinbaseHandlerMessageByLayout(t *testing.T) {
+	text := textFirstTexts[0]
+	addr := testAddr(0x51)
+
+	for _, withTime := range []bool{true, false} {
+		useIsolatedTemplateState(t)
+		coinb1, en1, en2Size, coinb2 := textFirstParts(t, text, withTime)
+		head, _, coinb3, err := splitCoinb2(coinb1, len(en1), en2Size, coinb2)
+		if err != nil {
+			t.Fatalf("split: %v", err)
+		}
+		newFakePoolFrom(t, notifyBeforeAuth, coinb1, en1, en2Size, head, coinb3)
+		code, resp := getCoinbase(t, addr, nil)
+		if code != http.StatusOK || resp.Error != "" {
+			t.Fatalf("time=%v: code %d error %q", withTime, code, resp.Error)
+		}
+		if resp.CoinbaseMessage != text {
+			t.Errorf("time=%v: coinbase_message %q want %q", withTime, resp.CoinbaseMessage, text)
+		}
+	}
+
+	useIsolatedTemplateState(t)
+	newFakePool(t, notifyBeforeAuth)
+	code, resp := getCoinbase(t, addr, nil)
+	if code != http.StatusOK || resp.Error != "" || resp.CoinbaseMessage != "" {
+		t.Errorf("old layout: code %d error %q message %q", code, resp.Error, resp.CoinbaseMessage)
+	}
+}
+
+func TestSolvecheckOwnsTextFirstScriptSig(t *testing.T) {
+	coinb1, en1, en2Size, _ := textFirstParts(t, textFirstTexts[0], true)
+	_, off, _ := readVarint(coinb1, 41)
+	script := append(append([]byte(nil), coinb1[off:]...), en1...)
+	script = append(script, make([]byte, en2Size)...)
+	cb := noderpc.BlockCoinbase{ScriptSig: hex.EncodeToString(script)}
+	if !(solvecheck.Owner{Sig: "AI Shared Mining"}).Owns(cb) {
+		t.Error("owner not recognised by its text in a text-first scriptSig")
+	}
+	if (solvecheck.Owner{Sig: "Other Pool"}).Owns(cb) {
+		t.Error("foreign text matched")
+	}
+}
+
+// textFirstCapturedParts splits the captured text-first job at its known
+// boundaries: coinb1 ends right after the 0x0c extranonce push length, and
+// coinb2 starts at the input sequence.
+func textFirstCapturedParts(t *testing.T) (tx, coinb1, en1 []byte, en2Size int, coinb2 []byte) {
+	t.Helper()
+	tx = readHexFixture(t, "coinbase-textfirst-977534.hex")
+	const coinb1Len, en1Size = 91, 4
+	en2Size = 8
+	if len(tx) < coinb1Len+en1Size+en2Size {
+		t.Fatalf("fixture too short: %d", len(tx))
+	}
+	coinb1 = tx[:coinb1Len]
+	en1 = tx[coinb1Len : coinb1Len+en1Size]
+	coinb2 = tx[coinb1Len+en1Size+en2Size:]
+	if coinb1[len(coinb1)-1] != 0x0c {
+		t.Fatalf("coinb1 does not end at the extranonce push length: %x", coinb1[len(coinb1)-1])
+	}
+	return tx, coinb1, en1, en2Size, coinb2
+}
+
+func TestCoinbaseTemplateTextFirstCapturedRebuildsExactly(t *testing.T) {
+	tx, coinb1, en1, en2Size, coinb2 := textFirstCapturedParts(t)
+
+	head, script, coinb3, err := splitCoinb2(coinb1, len(en1), en2Size, coinb2)
+	if err != nil {
+		t.Fatalf("split: %v", err)
+	}
+	if !bytes.HasPrefix(head, []byte{0xff, 0xff, 0xff, 0xff}) {
+		t.Fatalf("head does not start at the input sequence: %x", head)
+	}
+	tmpl, err := newCoinbaseTemplate(jobFromParts(coinb1, en1, en2Size, coinb2), "bitcoincash", time.Now())
+	if err != nil {
+		t.Fatalf("template: %v", err)
+	}
+	if tmpl.height != 977534 {
+		t.Errorf("height = %d", tmpl.height)
+	}
+	if !bytes.Equal(tmpl.coinb2Head, head) || !bytes.Equal(tmpl.coinb3, coinb3) {
+		t.Fatal("template parts differ from the split")
+	}
+
+	got := tmpl.assemble(script)
+	if !bytes.Equal(got, tx) {
+		t.Fatalf("assembled\n%x\nwant\n%x", got, tx)
+	}
+}
+
+func TestTextFirstCapturedMessageHeightAndOutputs(t *testing.T) {
+	tx, coinb1, _, _, _ := textFirstCapturedParts(t)
+
+	if got := extractCoinbaseMessage(hex.EncodeToString(coinb1)); got != "/BlockSniper.ai/ AI Shared Mining" {
+		t.Errorf("message = %q", got)
+	}
+	h := extractBlockHeight(hex.EncodeToString(tx))
+	if h == nil || *h != 977534 {
+		t.Errorf("height = %v", h)
+	}
+	outputs, total := parseCoinbaseOutputs(hex.EncodeToString(tx))
+	if len(outputs) != 2 {
+		t.Fatalf("outputs = %d", len(outputs))
+	}
+	var sum int64
+	for _, o := range outputs {
+		sum += o.Value
+	}
+	if sum != total || total != 0x1244af2a+0x5f714a {
+		t.Errorf("sum %d total %d", sum, total)
 	}
 }

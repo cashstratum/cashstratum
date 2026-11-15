@@ -2488,6 +2488,12 @@ func longestPrintableRun(b []byte) string {
 
 // extractCoinbaseMessage recovers the pool signature from the coinbase input
 // script. Accepts either the full coinbase transaction or stratum's coinb1.
+//
+// It returns the longest printable run after the height push, so it is exact
+// for the text-first layout, where the text sits in coinb1 between the height
+// and the flags. A job from an older daemon keeps the text in coinb2, so the
+// result is empty there. A text of three characters or fewer can lose to a
+// printable-looking binary field and is not guaranteed.
 func extractCoinbaseMessage(hexStr string) string {
 	data, err := hex.DecodeString(hexStr)
 	if err != nil {

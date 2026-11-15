@@ -416,7 +416,7 @@ retry:
 		api_message(&buf, &sockd);
 #endif
 	} else if (cmdmatch(buf, "shutdown")) {
-		LOGWARNING("Listener received shutdown message, terminating ckpool");
+		LOGWARNING("Listener received shutdown message, terminating CashStratum");
 		send_unix_msg(sockd, "exiting");
 		goto out;
 	} else if (cmdmatch(buf, "ping")) {
@@ -937,7 +937,7 @@ void yyjson_rpc_msg(connsock_t *cs, const char *rpc_req)
 static void terminate_oldpid(const proc_instance_t *pi, const pid_t oldpid)
 {
 	if (!ckpool.killold) {
-		quit(1, "Process %s pid %d still exists, start ckpool with -H to get a handover or -k if you wish to kill it",
+		quit(1, "Process %s pid %d still exists, start CashStratum with -H to get a handover or -k if you wish to kill it",
 				pi->processname, oldpid);
 	}
 	LOGNOTICE("Terminating old process %s pid %d", pi->processname, oldpid);

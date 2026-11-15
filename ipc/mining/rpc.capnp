@@ -1,4 +1,4 @@
-# Local copy for ckpool IPC shim, based on Bitcoin Core IPC protocol.
+# Local copy for CashStratum IPC shim, based on Bitcoin Core IPC protocol.
 # This is a minimal schema for the Rpc interface described in ipc-protocol.md.
 
 @0x9f2e5a1c3b8d4e7f;

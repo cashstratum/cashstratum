@@ -4,7 +4,7 @@
  * C interface to the Bitcoin Core mining IPC (Cap'n Proto) interface.
  *
  * The Cap'n Proto / C++ complexity lives entirely in mining_ipc.cpp so the
- * rest of ckpool stays pure C. All functions are exception safe: no C++
+ * rest of CashStratum stays pure C. All functions are exception safe: no C++
  * exception ever crosses this boundary, failures are reported as return
  * codes.
  *
@@ -178,7 +178,7 @@ void mining_block_template_destroy(mining_block_template *t);
  * Isolation: for JD, call this on a *dedicated* mining_ipc_service connection
  * (ckpool.btc_validation_svc), not the workgen/submit service, so a slow
  * checkBlock cannot head-of-line-block tip templates or share submissions at
- * the ckpool marshalling layer. (bitcoind cs_main still serialises both.)
+ * the CashStratum marshalling layer. (bitcoind cs_main still serialises both.)
  * -------------------------------------------------------------------------- */
 
 /* C mirror of BlockCheckOptions. Non-zero = true. */

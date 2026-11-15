@@ -1,0 +1,21 @@
+Provenance for coinbase-textfirst-977534.hex
+
+A stratum job captured from a daemon running the text-first coinbase layout (BCH mainnet
+template, height 977534), assembled as coinb1 | en1 | en2 | coinb2 with a zeroed extranonce2.
+It is a job, not an on-chain transaction: no block was solved with it.
+
+scriptSig (length 0x3d = 61 bytes):
+  height   03 7eea0e                    (977534, little-endian)
+  text     33 raw bytes, no push length "/BlockSniper.ai/ AI Shared Mining"
+  flags    00
+  time     04 fd2dfa6a
+  nsec     04 296ea40b
+  en push  0c                           (en1 + en2 = 4 + 8 = 12 bytes)
+
+coinb1   = version | 1 input | null prevout | scriptSig length | scriptSig up to and including
+           the 0c extranonce push length (ends ...0004fd2dfa6a04296ea40b0c)
+en1      = 792dfa6a            (4 bytes)
+en2      = 0000000000000000    (8 bytes, en2 size 8, zeroed)
+coinb2   = ffffffff (input sequence) | 02 | two P2PKH outputs paying the same script
+           (values 0x1244af2a and 0x005f714a satoshis) | locktime 00000000
+         starts at ffffffff; the pool text sits in coinb1, so coinb2 carries no btcsig push.

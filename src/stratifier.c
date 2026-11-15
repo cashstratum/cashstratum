@@ -33,6 +33,7 @@
 #include "libckpool.h"
 #include "bitcoin.h"
 #include "coinbase_final.h"
+#include "coinbase_scriptsig.h"
 #include "sha2.h"
 #include "stratifier.h"
 #include "stratifier_stats.h"
@@ -642,34 +643,9 @@ static void info_msg_entries(char_entry_t **entries)
 
 static const int witnessdata_size = 36; // commitment header + hash
 
-/* Minimal CScriptNum encoding of block height exactly as Bitcoin Core expects */
-static int ser_bip34_height(uint8_t *buf, uint32_t height)
-{
-	if (height == 0) {
-		buf[0] = 0x00;                  /* OP_0 */
-		return 1;
-	}
-	if (height <= 16) {
-		buf[0] = 0x50 + (uint8_t)height; /* OP_1 (0x51) … OP_16 (0x60) */
-		return 1;
-	}
-
-	/* General case: shortest little-endian bytes + push length */
-	uint8_t tmp[5];
-	int nlen = 0;
-	uint32_t h = height;
-	do {
-		tmp[nlen++] = h & 0xff;
-		h >>= 8;
-	} while (h);
-
-	if (tmp[nlen-1] & 0x80)
-		tmp[nlen++] = 0x00;             /* sign byte for positive number */
-
-	buf[0] = (uint8_t)nlen;             /* push length */
-	memcpy(buf + 1, tmp, nlen);
-	return nlen + 1;
-}
+/* coinb1 is the 41-byte transaction prefix, the scriptSig length byte and
+ * the scriptSig up to the extranonce. */
+#define COINB1BIN_SIZE (42 + COINBASE_SCRIPTSIG_PREFIX_CAP)
 
 static void generate_coinbase(workbase_t *wb)
 {
@@ -677,81 +653,88 @@ static void generate_coinbase(workbase_t *wb)
 	sdata_t *sdata = ckpool.sdata;
 	bool poolfee_dust = false;
 	char header[272];
-	int len, ofs = 0;
+	uchar heightbin[8], flagsbin[MAX_GBT_FLAGS_LEN];
+	coinbase_stamp_t stamp;
+	int len, heightlen, flagslen, scriptlen = 0;
+	size_t siglen = 0;
 	ts_t now;
 
-	/* Set fixed length coinb1 arrays to be more than enough */
-	wb->coinb1 = ckzalloc(256);
-	wb->coinb1bin = ckzalloc(128);
+	wb->coinb1 = ckzalloc(COINB1BIN_SIZE * 2 + 1);
+	wb->coinb1bin = ckzalloc(COINB1BIN_SIZE);
 
 	/* Strings in wb should have been zero memset prior. Generate binary
 	 * templates first, then convert to hex */
 	memcpy(wb->coinb1bin, scriptsig_header_bin, 41);
-	ofs += 41; // Fixed header length;
 
-	ofs++; // Script length is filled in at the end @wb->coinb1bin[41];
-
-	/* Put block height at start of template */
+	/* Block height, which BIP34 requires at the start of the scriptSig */
 	if (unlikely(ckpool.regtest))
-		len = ser_bip34_height(wb->coinb1bin + ofs, wb->height);
+		heightlen = ser_bip34_height(heightbin, wb->height);
 	else
-		len = ser_number(wb->coinb1bin + ofs, wb->height);
-	ofs += len;
+		heightlen = ser_number(heightbin, wb->height);
 
-	/* Followed by flag. gen_gbtbase() bounds these but clamp again here
+	/* Upstream hard-codes a leading "ckpool" push. Here the coinbase
+	 * message is entirely operator-configurable via btcsig, written raw
+	 * straight after the height. */
+	if (ckpool.btcsig) {
+		siglen = strlen(ckpool.btcsig);
+		LOGDEBUG("Len %d sig %s", (int)siglen, ckpool.btcsig);
+	}
+
+	/* Coinbase flags. gen_gbtbase() bounds these but clamp again here
 	 * since overflowing the fixed size coinb1 arrays with them would be
 	 * fatal. */
-	len = strlen(wb->flags) / 2;
-	if (unlikely(len > MAX_GBT_FLAGS_LEN)) {
-		LOGWARNING("Truncating oversized coinbase flags of length %d", len);
-		len = MAX_GBT_FLAGS_LEN;
+	flagslen = strlen(wb->flags) / 2;
+	if (unlikely(flagslen > MAX_GBT_FLAGS_LEN)) {
+		LOGWARNING("Truncating oversized coinbase flags of length %d", flagslen);
+		flagslen = MAX_GBT_FLAGS_LEN;
 	}
-	wb->coinb1bin[ofs++] = len;
-	hex2bin(wb->coinb1bin + ofs, wb->flags, len);
-	ofs += len;
+	hex2bin(flagsbin, wb->flags, flagslen);
 
-	/* Followed by timestamp */
+	/* Timestamp, then our unique randomiser based on the nsec timestamp */
 	ts_realtime(&now);
-	len = ser_number(wb->coinb1bin + ofs, now.tv_sec);
-	ofs += len;
-
-	/* Followed by our unique randomiser based on the nsec timestamp */
-	len = ser_number(wb->coinb1bin + ofs, now.tv_nsec);
-	ofs += len;
+	stamp.tv_sec = now.tv_sec;
+	stamp.tv_nsec = now.tv_nsec;
 
 	wb->enonce1varlen = ckpool.nonce1length;
 	wb->enonce2varlen = ckpool.nonce2length;
-	wb->coinb1bin[ofs++] = wb->enonce1varlen + wb->enonce2varlen;
 
-	wb->coinb1len = ofs;
-
-	len = wb->coinb1len - 41;
-
-	len += wb->enonce1varlen;
-	len += wb->enonce2varlen;
-
-	wb->coinb2bin = ckzalloc(512);
-	/* Upstream hard-codes a leading "ckpool" push here. The fork drops it so
-	 * the coinbase message is entirely operator-configurable via btcsig --
-	 * the on-chain scriptSig of all 81 mainnet blocks this pool has solved
-	 * carries btcsig and nothing else. */
-	wb->coinb2len = 0;
-	if (ckpool.btcsig) {
-		int siglen = strlen(ckpool.btcsig);
-
-		LOGDEBUG("Len %d sig %s", siglen, ckpool.btcsig);
-		if (siglen) {
-			wb->coinb2bin[wb->coinb2len++] = siglen;
-			memcpy(wb->coinb2bin + wb->coinb2len, ckpool.btcsig, siglen);
-			wb->coinb2len += siglen;
-		}
+	len = coinbase_scriptsig_prefix(wb->coinb1bin + 42, COINB1BIN_SIZE - 42,
+					heightbin, heightlen, ckpool.btcsig, siglen,
+					flagsbin, flagslen, &stamp,
+					wb->enonce1varlen + wb->enonce2varlen,
+					&scriptlen);
+	if (unlikely(len < 0)) {
+		/* btcsig is capped at load time, so this only happens if that
+		 * cap and COINBASE_SCRIPTSIG_PREFIX_CAP disagree. Drop the
+		 * text rather than build a corrupt coinbase. */
+		LOGWARNING("Coinbase scriptSig does not fit with a %d byte btcsig, omitting it",
+			   (int)siglen);
+		len = coinbase_scriptsig_prefix(wb->coinb1bin + 42, COINB1BIN_SIZE - 42,
+						heightbin, heightlen, NULL, 0,
+						flagsbin, flagslen, &stamp,
+						wb->enonce1varlen + wb->enonce2varlen,
+						&scriptlen);
 	}
-	len += wb->coinb2len;
+	wb->coinb1len = 42 + len;
 
-	wb->coinb1bin[41] = len - 1; /* Set the length now */
+	/* The scriptSig ends with the extranonce, so its whole length is known
+	 * here. Every node rejects a block whose coinbase scriptSig is over
+	 * the consensus limit, so say so loudly rather than mine on it. */
+	if (unlikely(scriptlen > COINBASE_SCRIPTSIG_MAX))
+		LOGWARNING("Coinbase scriptSig is %d bytes, over the %d byte consensus limit: blocks from this work will be rejected. Shorten btcsig or nonce1length/nonce2length",
+			   scriptlen, COINBASE_SCRIPTSIG_MAX);
+
+	/* At most 6 + 38 + 1 + 32 + 10 + 1 + 16 = 104 bytes, so the length is
+	 * always the single-byte varint coinbase_finality() expects. */
+	wb->coinb1bin[41] = scriptlen;
 	__bin2hex(wb->coinb1, wb->coinb1bin, wb->coinb1len);
 	LOGDEBUG("Coinb1: %s", wb->coinb1);
 	/* Coinbase 1 complete */
+
+	/* Nothing follows the extranonce in the scriptSig: coinb2 starts with
+	 * the input's nSequence. */
+	wb->coinb2bin = ckzalloc(512);
+	wb->coinb2len = 0;
 
 	/* Upstream sets nSequence to 0xfffffffe for BIP54, which is a Bitcoin
 	 * proposal with no Bitcoin Cash equivalent. Keep the final-input

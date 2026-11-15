@@ -154,9 +154,9 @@ jobs:
         run: |
           mkdir -p /tmp/gate-logs
           # On failure the e2e script deliberately preserves its workdir at
-          # ${TMPDIR:-/tmp}/ckpool-e2e.XXXXXX (it only rm -rf's on success).
+          # ${TMPDIR:-/tmp}/cashstratum-e2e.XXXXXX (it only rm -rf's on success).
           i=0
-          for d in "${TMPDIR:-/tmp}"/ckpool-e2e.*; do
+          for d in "${TMPDIR:-/tmp}"/cashstratum-e2e.* "${TMPDIR:-/tmp}"/ckpool-e2e.*; do
             [ -d "$d" ] || continue
             i=$((i+1))
             mkdir -p "/tmp/gate-logs/e2e-$i"

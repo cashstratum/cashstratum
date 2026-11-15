@@ -1,5 +1,5 @@
 // blocksniper-notifier is a standalone daemon that watches the local
-// ckpool/node install for block activity and reports it to Laravel over the
+// CashStratum/node install for block activity and reports it to Laravel over the
 // webhook defined in the notifier integration contract.
 //
 // This binary wires two event sources -- the ZMQ hashblock subscriber
@@ -213,12 +213,12 @@ func main() {
 func readConf(confPath string) ckconf.Conf {
 	data, err := os.ReadFile(confPath)
 	if err != nil {
-		log.Printf("notifier: ckpool.conf unreadable at %s (%v)", confPath, err)
+		log.Printf("notifier: config unreadable at %s (%v)", confPath, err)
 		return ckconf.Conf{}
 	}
 	var conf ckconf.Conf
 	if err := json.Unmarshal(data, &conf); err != nil {
-		log.Printf("notifier: ckpool.conf at %s is not parseable JSON (%v)", confPath, err)
+		log.Printf("notifier: config at %s is not parseable JSON (%v)", confPath, err)
 		return ckconf.Conf{}
 	}
 	return conf

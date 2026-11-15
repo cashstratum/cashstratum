@@ -3,7 +3,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #
 # This is a local copy of Bitcoin Core's src/ipc/capnp/mining.capnp
-# for use by the ckpool IPC mining shim.
+# for use by the CashStratum IPC mining shim.
 #
 # Run:
 #     capnpc -o c++ mining.capnp common.capnp

@@ -43,7 +43,7 @@ func TestShortWorkerName(t *testing.T) {
 }
 
 // A malformed or unexpected shape must be passed through untouched rather
-// than panicking: /user-file relays a file whose schema ckpool owns.
+// than panicking: /user-file relays a file whose schema CashStratum owns.
 func TestAnnotateUserFileWorkersToleratesOddShapes(t *testing.T) {
 	for _, raw := range []string{
 		`{"worker": "not-an-array"}`,

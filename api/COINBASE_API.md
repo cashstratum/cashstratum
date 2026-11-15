@@ -78,7 +78,7 @@ Authorization: Bearer YOUR_API_KEY
 |-------|------|-------------|
 | `username` | string | The username parameter provided in the request |
 | `coinbase_hex` | string | Full coinbase transaction in hexadecimal format |
-| `coinbase_message` | string | Pool branding message extracted from coinbase (e.g., "BlockSniper.ai/[Solo]") |
+| `coinbase_message` | string | The pool text carried in the coinbase scriptSig (e.g., "BlockSniper.ai/[Solo]"). A daemon that writes its text right after the block height returns it here; the response of an older daemon, which writes it after the extranonce, has an empty string. |
 | `outputs` | array | Array of coinbase outputs (miner reward + pool fee) |
 | `total_value` | integer | Total block reward in satoshis |
 | `total_value_bch` | string | Total block reward formatted in BCH |

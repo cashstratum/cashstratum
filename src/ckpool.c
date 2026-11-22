@@ -1843,6 +1843,52 @@ static void parse_config(void)
 		ckpool.mindiff_overrides_count = n;
 		LOGINFO("Loaded %d mindiff override patterns", n);
 	}
+
+	/* Parse the useragent_diff object: case-insensitive useragent
+	 * substring -> difficulty floor for rental services. Order is kept as
+	 * written, since the first matching entry wins. Strings are copied for
+	 * the same reason as above. A present key replaces the built-in table. */
+	arr_val = yyjson_obj_get(json_conf, "useragent_diff");
+	if (arr_val && yyjson_is_obj(arr_val)) {
+		size_t idx, max;
+		yyjson_val *key, *v;
+		const char *pat;
+		int n = 0;
+
+		ckpool.useragent_diff_set = true;
+		max = yyjson_obj_size(arr_val);
+		if (max) {
+			yyjson_obj_iter iter;
+
+			ckpool.useragent_diff = ckzalloc(sizeof(mindiff_override_t) * max);
+			yyjson_obj_iter_init(arr_val, &iter);
+			for (idx = 0; idx < max; idx++) {
+				key = yyjson_obj_iter_next(&iter);
+				if (!key)
+					break;
+				v = yyjson_obj_iter_get_val(key);
+				pat = yyjson_get_str(key);
+				if (!pat || !pat[0]) {
+					LOGWARNING("useragent_diff entry with empty pattern ignored");
+					continue;
+				}
+				if (!v || !yyjson_is_int(v) || yyjson_get_sint(v) <= 0) {
+					LOGWARNING("useragent_diff entry '%s' ignored: value must be a positive integer", pat);
+					continue;
+				}
+				ckpool.useragent_diff[n].pattern = strdup(pat);
+				ckpool.useragent_diff[n].diff = yyjson_get_sint(v);
+				n++;
+			}
+		}
+		ckpool.useragent_diff_count = n;
+		LOGNOTICE("useragent_diff from config: %d pattern(s), built-in table replaced", n);
+		for (idx = 0; (int)idx < n; idx++)
+			LOGNOTICE("useragent_diff[%d]: '%s' -> %"PRId64, (int)idx,
+				  ckpool.useragent_diff[idx].pattern,
+				  ckpool.useragent_diff[idx].diff);
+	} else
+		LOGNOTICE("useragent_diff built-in table: nicehash, miningrigrentals, mrr-hash, braiins/hashpower (mindiff_overrides keys nicehash, miningrigrentals, braiins adjust the values)");
 	yyjson_obj_get_string(&ckpool.logdir, json_conf, "logdir");
 	yyjson_obj_get_int(&ckpool.maxclients, json_conf, "maxclients");
 	yyjson_obj_get_int64(&ckpool.maxsendqueue, json_conf, "maxsendqueue");
@@ -2364,13 +2410,19 @@ int main(int argc, char **argv)
 		ckpool.maxsubclients = 0;
 	if (!ckpool.mindiff)
 		ckpool.mindiff = 1;
-	/* Modern default; match shipped example confs. Override with "startdiff". */
+	/* Modern default; match shipped example confs. Override with "startdiff".
+	 * Must never be left at zero: parse_authorise() falls back to it when
+	 * nothing else assigned a client difficulty, and the authorize path
+	 * only announces mining.set_difficulty for a non-zero client->diff. */
 	if (!ckpool.startdiff)
 		ckpool.startdiff = 10000;
 	if (!ckpool.highdiff)
 		ckpool.highdiff = 1000000;
 	if (!ckpool.logdir)
 		ckpool.logdir = strdup("logs");
+	if (unlikely(ckpool.startdiff <= 0))
+		quit(1, "startdiff must be a positive difficulty after defaults are applied (got %"PRId64"), aborting!",
+		     ckpool.startdiff);
 #ifdef HAVE_SV2
 	/* Append each SV2 mining / JD bind onto serverurl[] (default ports
 	 * 3336 / 3337 — must not collide with serverurl SV1 ports).

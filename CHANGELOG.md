@@ -9,6 +9,61 @@ says so rather than implying one.
 
 ## Unreleased
 
+## 1.9.0 — 2026-11-22
+
+**The stratum server changed:** rebuild and restart the pool for this to take effect. The API and
+`cashtop` need no restart for the API and docs changes below to work, and the API and the daemon
+can be upgraded in either order.
+
+- **Per-client difficulty floors are now a conf table, `useragent_diff`.** Before, the floors for
+  rental services were compiled in. Now a case-insensitive useragent substring maps to a difficulty
+  floor; the first matching entry in file order wins, and the value is clamped to `[mindiff, maxdiff]`.
+  - Built-in table, used when the key is absent: `nicehash` 500k, `miningrigrentals` and `mrr-hash`
+    1M, and `braiins/hashpower` 1M, so Braiins Hashpower buyers are now matched out of the box.
+  - **A `useragent_diff` key in the conf replaces the built-in table entirely**, even when empty
+    (an empty object disables every floor). List every service you want a floor for. The startup
+    log shows the active table.
+  - The legacy `mindiff_overrides` keys `nicehash`, `miningrigrentals` (also used for `mrr-hash`)
+    and `braiins` are still honoured and adjust the built-in values.
+  - A client that sends no useragent matches nothing.
+- **Vardiff can bring a floor client back down toward its floor.** A client matched to a floor starts
+  there. Vardiff may raise it, and now also lowers it again toward the floor when its rate drops,
+  never below the floor. A lower `d=` password value is still raised to the floor; a higher one is
+  honoured and pinned.
+- **Solo connect order: the authorize result and difficulty come before the first job.** The first
+  `mining.notify` used to be able to reach a miner ahead of its authorize result. The sequence is now
+  subscribe result, `mining.set_difficulty`, authorize result, `mining.set_difficulty`, then the
+  first notify. The two `set_difficulty` messages are unchanged. Each client's outgoing messages now go
+  through one queue and one sender thread, so frames reach the miner in the order the pool queued them.
+  Before this, a pool with several sender threads could deliver two consecutive frames swapped.
+  Different clients are still sent in parallel.
+- **The payout script is published under the instance lock.** The per-user payout script is now built
+  in a local buffer and copied in while holding the instance lock, which the readers that assemble
+  the user coinbase also hold, so they never see it half written.
+- **Startup refuses a non-positive `startdiff`.** `startdiff` is the fallback difficulty when nothing
+  else assigned one, so zero or a negative value left a client with no usable difficulty. The daemon
+  now exits at startup with a clear message instead.
+- **Comments on the skipped finality check.** Blocks reported by an upstream node or a remote pool
+  skip the coinbase finality check, because this stratifier did not build their coinbase; the code
+  now says so. No behaviour change.
+- **API: `CASHSTRATUM_STRATUM_HOST`.** A second instance running its own operator API can set the
+  host the stratum probe connects to (its own stratum port); without it the probe uses the first pool.
+- **API: `/find-block` keeps found blocks cached.** Found blocks stay in the cache past the usual
+  expiry instead of dropping out and being looked up again.
+- **Docs.** The ping limit is documented as 300, and the second-instance guide covers the stratum
+  host setting.
+- **Tests.** Regtest e2e scenario 8 now gates on cumulative shares, so a miner that solves on its
+  very first share no longer fails it intermittently. New `testing/connect-order-probe.py` checks
+  the connect order against a running pool. The password-difficulty unit test covers the new
+  table and the floor behaviour, and the remote payout regression stubs the instance lock.
+- **Proofs: 139 verified blocks.** Blocks 977797, 977885, 978109, 978283 and 978349 (released v1.8.0
+  build) are added to `docs/proofs/recent-blocks.json` with redacted solve excerpts, and the README
+  proof figures follow.
+
+**Upgrading.** A conf without `useragent_diff` keeps its NiceHash and MiningRigRentals behaviour and
+gains a Braiins Hashpower floor. A conf that adds `useragent_diff` replaces the table, so list every
+service you want a floor for.
+
 ## 1.8.0 — 2026-11-15
 
 **The stratum server changed:** rebuild and restart the pool for this to take effect. The API and

@@ -194,7 +194,7 @@ that every configuration has been validated on mainnet.
 ##### a) **Password-Based Difficulty** (Highest Priority) ✅ TESTED
   - Pin a fixed difficulty via the password field: `-p d=500000` or `-p diff=1000000`
   - **Both formats supported**: `d=` (short) and `diff=` (long). Lower-case only, whole digits, at the start of the password or after `,`, `;` or a space
-  - The value is clamped by the pool: raised to `mindiff`, raised to the NiceHash/MiningRigRentals floor for rental useragents, and capped at `maxdiff`
+  - The value is clamped by the pool: raised to `mindiff`, raised to the rental floor for matching useragents (see `useragent_diff`), and capped at `maxdiff`
   - The connection stays at that difficulty. Vardiff never moves it and `mining.suggest_difficulty` is ignored
   - The pin lasts for the life of the connection: the pool accepts one `mining.authorize` per connection, so changing the difficulty means reconnecting with a new password
   - Any other password (for example `x`) leaves the connection on vardiff
@@ -216,9 +216,23 @@ that every configuration has been validated on mainnet.
   - **Automatically detects rental services** from mining.subscribe
   - No special configuration needed by miners!
   - Applied immediately during connection
-  - Supported services:
-    - **NiceHash**: Detects `"NiceHashMiner"` in useragent → 500k diff
-    - **MiningRigRentals**: Detects `"MiningRigRentals"` → 1M diff
+  - Driven by the `useragent_diff` table in `cashstratum.conf`: a case-insensitive useragent substring mapped to a difficulty floor. The first matching entry in file order wins, and the value is clamped to `[mindiff, maxdiff]`
+  - Built-in table, used when the key is absent:
+    - `nicehash` → 500k
+    - `miningrigrentals` and `mrr-hash` → 1M
+    - `braiins/hashpower` → 1M
+  - A match starts the client at the floor. Vardiff may raise it, or lower it back toward the floor, but never below it. A lower `d=` password value is raised back to the floor; a higher one is honoured and pinned
+  - The legacy `mindiff_overrides` keys `nicehash`, `miningrigrentals` (also used for `mrr-hash`) and `braiins` still adjust the built-in values
+  - ⚠️ **A `useragent_diff` key in the config replaces the built-in table entirely.** List every service you want a floor for; an empty object disables them all. The startup log shows the active table
+    ```json
+    "useragent_diff": {
+        "nicehash": 500000,
+        "miningrigrentals": 1000000,
+        "mrr-hash": 1000000,
+        "braiins/hashpower": 1000000
+    }
+    ```
+  - A client that sends no useragent matches nothing
   - Works exactly like AsicSteer and other modern pools
 
 ##### c) **Worker Name Pattern Matching** (Config-Based)
@@ -364,7 +378,7 @@ looks like this.
 }
 ```
 
-**Note**: Rental services are **automatically detected** via useragent. The mindiff_overrides values are used as the difficulty to apply when detected.
+**Note**: Rental services are **automatically detected** via useragent using the `useragent_diff` table (built-in defaults when the key is absent; a configured table replaces them). The mindiff_overrides keys `nicehash`, `miningrigrentals` and `braiins` still adjust the built-in values.
 
 #### For Custom Worker Groups
 

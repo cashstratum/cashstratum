@@ -901,7 +901,9 @@ func handleFindBlock(w http.ResponseWriter, r *http.Request) {
 
 	// Check cache
 	cacheKey := "block:" + height
-	if cached, found := responseCache.Get(cacheKey); found {
+	// Only found blocks are ever stored under this key, and a confirmed block
+	// never changes, so the lookup ignores CacheTTL.
+	if cached, found := responseCache.GetPersistent(cacheKey); found {
 		json.NewEncoder(w).Encode(cached)
 		return
 	}
@@ -2775,6 +2777,8 @@ func main() {
 	if v := getEnvWithFallback("CASHSTRATUM_CASHADDR_PREFIX", "CKPOOL_CASHADDR_PREFIX"); v != "" {
 		cashaddrPrefix = v
 	}
+
+	stratumHost = stratumHostFromEnv()
 
 	port = getEnvWithFallback("CASHSTRATUM_API_PORT", "CKPOOL_API_PORT")
 	if port == "" {

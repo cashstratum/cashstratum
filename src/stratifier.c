@@ -384,7 +384,7 @@ struct stratum_instance {
 	bool sv2; /* Virtual SV2 mining session (no connector TCP client) */
 
 	bool rental_diff; /* Difficulty already applied from useragent-based rental
-			   * service detection (NiceHash/MiningRigRentals), so the
+			   * service detection (the useragent_diff table), so the
 			   * mindiff_overrides pattern loop must not clobber it */
 	bool pinned_diff; /* Difficulty fixed by a d=/diff= password token. Vardiff
 			   * and mining.suggest_difficulty leave it alone. Set in
@@ -547,7 +547,8 @@ struct stratifier_data {
 	char lastswaphash[68];
 
 	ckmsgq_t *updateq;	// Generator base work updates
-	ckmsgq_t *ssends;	// Stratum sends
+	ckmsgq_t **ssends;	// Stratum sends, one single-thread queue per shard
+	int ssend_shards;	// Number of ssends queues
 	ckmsgq_t *srecvs;	// Stratum receives
 	ckmsgq_t *sshareq;	// Stratum share sends
 	ckmsgq_t *sauthq;	// Stratum authorisations
@@ -1003,32 +1004,77 @@ static void age_share_hashtable(sdata_t *sdata, const int64_t wb_id)
 		LOGINFO("Aged %d shares from share hashtable", aged);
 }
 
-/* Append a bulk list already created to the ssends list */
+/* Stratum sends are sharded by client id over independent queues, each
+ * drained by exactly one thread. Every frame for a given client therefore
+ * passes through the same FIFO and the same sender thread, so frames queued
+ * back to back (auth result, set_difficulty, notify) reach the connector, and
+ * the wire, in the order they were queued. A single queue shared by several
+ * threads lets two consecutive frames for one client be dequeued by different
+ * threads and delivered swapped. Different clients still send in parallel. */
+static inline int ssend_shard(const sdata_t *sdata, const int64_t client_id)
+{
+	return (int)((uint64_t)client_id % (uint64_t)sdata->ssend_shards);
+}
+
+static inline ckmsgq_t *ssend_queue(const sdata_t *sdata, const int64_t client_id)
+{
+	return sdata->ssends[ssend_shard(sdata, client_id)];
+}
+
+/* Split a bulk list of smsg_t messages into per-shard lists, preserving the
+ * relative order of each client's messages, and add each list to its shard
+ * queue at the tail, or at the head for high priority messages. */
+static void ssend_bulk_add(sdata_t *sdata, ckmsg_t *bulk_send, const bool prepend)
+{
+	const int shards = sdata->ssend_shards;
+	ckmsg_t **lists = ckzalloc(sizeof(ckmsg_t *) * shards);
+	int *counts = ckzalloc(sizeof(int) * shards);
+	ckmsg_t *msg, *tmp;
+	int i;
+
+	DL_FOREACH_SAFE(bulk_send, msg, tmp) {
+		const smsg_t *smsg = msg->data;
+
+		i = ssend_shard(sdata, smsg->client_id);
+		DL_DELETE(bulk_send, msg);
+		DL_APPEND(lists[i], msg);
+		counts[i]++;
+	}
+
+	for (i = 0; i < shards; i++) {
+		ckmsgq_t *ssends = sdata->ssends[i];
+
+		if (!lists[i])
+			continue;
+		mutex_lock(ssends->lock);
+		ssends->messages += counts[i];
+		if (prepend) {
+			tmp = ssends->msgs;
+			ssends->msgs = lists[i];
+			DL_CONCAT(ssends->msgs, tmp);
+		} else
+			DL_CONCAT(ssends->msgs, lists[i]);
+		pthread_cond_signal(ssends->cond);
+		mutex_unlock(ssends->lock);
+	}
+
+	free(counts);
+	free(lists);
+}
+
+/* Append a bulk list already created to the ssends queues */
 static void ssend_bulk_append(sdata_t *sdata, ckmsg_t *bulk_send, const int messages)
 {
-	ckmsgq_t *ssends = sdata->ssends;
-
-	mutex_lock(ssends->lock);
-	ssends->messages += messages;
-	DL_CONCAT(ssends->msgs, bulk_send);
-	pthread_cond_signal(ssends->cond);
-	mutex_unlock(ssends->lock);
+	(void)messages;
+	ssend_bulk_add(sdata, bulk_send, false);
 }
 
 /* As ssend_bulk_append but for high priority messages to be put at the front
- * of the list. */
+ * of each queue. */
 static void ssend_bulk_prepend(sdata_t *sdata, ckmsg_t *bulk_send, const int messages)
 {
-	ckmsgq_t *ssends = sdata->ssends;
-	ckmsg_t *tmp;
-
-	mutex_lock(ssends->lock);
-	tmp = ssends->msgs;
-	ssends->msgs = bulk_send;
-	ssends->messages += messages;
-	DL_CONCAT(ssends->msgs, tmp);
-	pthread_cond_signal(ssends->cond);
-	mutex_unlock(ssends->lock);
+	(void)messages;
+	ssend_bulk_add(sdata, bulk_send, true);
 }
 
 /* Send a yyjson doc msg to an upstream trusted remote server */
@@ -2760,7 +2806,11 @@ static void submit_node_block(sdata_t *sdata, yyjson_mut_val *val)
 		share_diff(coinbase, enonce1bin, wb, nonce2, ntime32, version_mask, nonce, hash, swap, &cblen);
 	}
 
-	/* Now we have enough to assemble a block */
+	/* Now we have enough to assemble a block. The coinbase finality check
+	 * done on the local share path is deliberately skipped here: this
+	 * solve was reported by an upstream node, so the coinbase comes from
+	 * that node's workbase rather than being built by this stratifier,
+	 * and there is no payout layout of ours to verify. */
 	gbt_block = process_block(wb, coinbase, cblen, swap, hash, flip32, blockhash);
 	ret = local_block_submit(gbt_block, flip32, wb->height);
 
@@ -3015,6 +3065,7 @@ static sdata_t *duplicate_sdata(const sdata_t *sdata)
 
 	/* Use the same work queues for all subproxies */
 	dsdata->ssends = sdata->ssends;
+	dsdata->ssend_shards = sdata->ssend_shards;
 	dsdata->srecvs = sdata->srecvs;
 	dsdata->sshareq = sdata->sshareq;
 	dsdata->sauthq = sdata->sauthq;
@@ -4537,7 +4588,7 @@ static void stratum_add_yysend(sdata_t *sdata, yyjson_mut_doc *doc, const int64_
 	msg = ckzalloc(sizeof(smsg_t));
 	msg->doc = doc;
 	msg->client_id = client_id;
-	if (likely(ckmsgq_add(sdata->ssends, msg)))
+	if (likely(ckmsgq_add(ssend_queue(sdata, client_id), msg)))
 		return;
 	yyjson_mut_doc_free(doc);
 	free(msg);
@@ -5015,6 +5066,28 @@ static yyjson_mut_val *ckmsgq_stats(ckmsgq_t *ckmsgq, const int size, yyjson_mut
 	return yyjson_mut_pack_val(doc, "{si,sI,sI}", "count", objects, "memory", memsize, "generated", generated);
 }
 
+/* As ckmsgq_stats, summed over every ssends shard */
+static yyjson_mut_val *ssends_stats(const sdata_t *sdata, yyjson_mut_doc *doc)
+{
+	int64_t memsize, generated = 0;
+	int i, objects = 0;
+	ckmsg_t *msg;
+
+	for (i = 0; i < sdata->ssend_shards; i++) {
+		ckmsgq_t *ssends = sdata->ssends[i];
+		int count;
+
+		mutex_lock(ssends->lock);
+		DL_COUNT(ssends->msgs, msg, count);
+		generated += ssends->messages;
+		mutex_unlock(ssends->lock);
+		objects += count;
+	}
+
+	memsize = (int64_t)(sizeof(ckmsg_t) + sizeof(smsg_t)) * objects;
+	return yyjson_mut_pack_val(doc, "{si,sI,sI}", "count", objects, "memory", memsize, "generated", generated);
+}
+
 char *stratifier_stats(void *data)
 {
 	yyjson_mut_doc *doc = yyjson_mut_doc_new(&ckyyalc);
@@ -5092,7 +5165,7 @@ char *stratifier_stats(void *data)
 	yyjson_mut_obj_add_val(doc, root, "transactions", subval);
 	ck_runlock(&sdata->txn_lock);
 
-	subval = ckmsgq_stats(sdata->ssends, sizeof(smsg_t), doc);
+	subval = ssends_stats(sdata, doc);
 	yyjson_mut_obj_add_val(doc, root, "ssends", subval);
 	/* Don't know exactly how big the string is so just count the pointer for now */
 	subval = ckmsgq_stats(sdata->srecvs, sizeof(char *), doc);
@@ -6227,6 +6300,64 @@ static int64_t mindiff_override_diff(const char *key, const int64_t fallback)
 	return clamp_requested_diff(fallback);
 }
 
+/* Built-in useragent floors, used when the config has no "useragent_diff"
+ * key. legacy names the mindiff_overrides key that may override the value. */
+static const struct {
+	const char *pattern;
+	const char *legacy;
+	int64_t diff;
+} builtin_useragent_diff[] = {
+	{"nicehash", "nicehash", 500000},
+	{"miningrigrentals", "miningrigrentals", 1000000},
+	{"mrr-hash", "miningrigrentals", 1000000},
+	{"braiins/hashpower", "braiins", 1000000},
+};
+
+/* Find the first useragent_diff entry (config, else built-in) whose pattern
+ * is a case-insensitive substring of ua. Returns the clamped floor and sets
+ * *pattern, or returns 0 when nothing matches. */
+static int64_t useragent_diff_match(const char *ua, const char **pattern)
+{
+	int i;
+
+	if (!ua || !*ua)
+		return 0;
+	if (ckpool.useragent_diff_set) {
+		for (i = 0; i < ckpool.useragent_diff_count; i++) {
+			if (ckpool.useragent_diff[i].diff <= 0 ||
+			    !strcasestr(ua, ckpool.useragent_diff[i].pattern))
+				continue;
+			*pattern = ckpool.useragent_diff[i].pattern;
+			return clamp_requested_diff(ckpool.useragent_diff[i].diff);
+		}
+		return 0;
+	}
+	for (i = 0; i < (int)(sizeof(builtin_useragent_diff) / sizeof(builtin_useragent_diff[0])); i++) {
+		if (!strcasestr(ua, builtin_useragent_diff[i].pattern))
+			continue;
+		*pattern = builtin_useragent_diff[i].pattern;
+		return mindiff_override_diff(builtin_useragent_diff[i].legacy,
+					     builtin_useragent_diff[i].diff);
+	}
+	return 0;
+}
+
+/* A useragent match is a rental floor: the client starts at the floor, vardiff
+ * may raise it but not go below, and a lower d= is raised back to it. */
+static void apply_useragent_diff(stratum_instance_t *client)
+{
+	const char *pattern = NULL;
+	int64_t diff = useragent_diff_match(client->useragent, &pattern);
+
+	if (!diff)
+		return;
+	client->suggest_diff = client->base_suggest_diff = diff;
+	client->diff = client->old_diff = diff;
+	client->rental_diff = true;
+	LOGNOTICE("useragent_diff pattern '%s' matched useragent '%s' for client %s, applied difficulty %"PRId64,
+		  pattern, client->useragent, client->identity, diff);
+}
+
 static yyjson_mut_doc *parse_subscribe(stratum_instance_t *client, const int64_t client_id,
 				       yyjson_mut_val *params_val)
 {
@@ -6285,32 +6416,11 @@ static yyjson_mut_doc *parse_subscribe(stratum_instance_t *client, const int64_t
 	if (strcasestr(client->useragent, "gminer"))
 		client->messages = true;
 
-	/* Rental services in the useragent get a difficulty floor applied
-	 * immediately, before authorise.
-	 *
-	 * NiceHash sends a useragent like "NiceHashMiner/1.0.0".
-	 * MiningRigRentals sends "MiningRigRentals" ONLY on its pool-test
-	 * connection; live rentals present as "MRR-Hash/<ver> <seller> ...",
-	 * so both spellings must be matched or a real MRR rental never gets
-	 * the floor and the marketplace flags the pool. */
-	if (strcasestr(client->useragent, "nicehash")) {
-		int64_t nicehash_diff = mindiff_override_diff("nicehash", 500000);
-
-		client->suggest_diff = client->base_suggest_diff = nicehash_diff;
-		client->diff = client->old_diff = nicehash_diff;
-		client->rental_diff = true;
-		LOGNOTICE("NiceHash detected from useragent '%s' for client %s, applied difficulty %"PRId64,
-			  client->useragent, client->identity, nicehash_diff);
-	} else if (strcasestr(client->useragent, "miningrigrentals") ||
-		   strcasestr(client->useragent, "mrr-hash")) {
-		int64_t mrr_diff = mindiff_override_diff("miningrigrentals", 1000000);
-
-		client->suggest_diff = client->base_suggest_diff = mrr_diff;
-		client->diff = client->old_diff = mrr_diff;
-		client->rental_diff = true;
-		LOGNOTICE("MiningRigRentals detected from useragent '%s' for client %s, applied difficulty %"PRId64,
-			  client->useragent, client->identity, mrr_diff);
-	}
+	/* Rental services identified by the useragent_diff table get a
+	 * difficulty floor applied immediately, before authorise. Live
+	 * MiningRigRentals rentals present as "MRR-Hash/<ver> ...", the pool-test
+	 * connection as "MiningRigRentals", so both are in the built-in table. */
+	apply_useragent_diff(client);
 
 	/* We got what we needed */
 	if (ckpool.node)
@@ -7057,13 +7167,23 @@ static user_instance_t *generate_user(stratum_instance_t *client,
 	ck_wunlock(&sdata->instance_lock);
 
 	if (!ckpool.proxy && (new_user || !user->btcaddress)) {
+		/* The payout script is built in a local buffer and published
+		 * under instance_lock, txnbin before txnlen, because
+		 * __generate_userwb() and generate_userwbs() read both while
+		 * holding that lock. */
+		char txnbin[sizeof(user->txnbin)];
+
+		memset(txnbin, 0, sizeof(txnbin));
 		if (addr_valid) {
-			int txnlen = address_to_txn(user->txnbin, username, addr_script, addr_segwit);
+			int txnlen = address_to_txn(txnbin, username, addr_script, addr_segwit);
 
 			if (txnlen > 0) {
+				ck_wlock(&sdata->instance_lock);
+				memcpy(user->txnbin, txnbin, sizeof(user->txnbin));
 				user->btcaddress = true;
 				user->script = addr_script;
 				user->txnlen = txnlen;
+				ck_wunlock(&sdata->instance_lock);
 			} else {
 				LOGWARNING("Address %s validated but address_to_txn returned 0 bytes, "
 					   "treating as not an address", username);
@@ -7080,9 +7200,12 @@ static user_instance_t *generate_user(stratum_instance_t *client,
 				LOGWARNING("Username %s looks like a BCH address but failed validation",
 					   username);
 			} else if (!user->pool_fallback) {
-				memcpy(user->txnbin, sdata->txnbin, sizeof(user->txnbin));
+				memcpy(txnbin, sdata->txnbin, sizeof(txnbin));
+				ck_wlock(&sdata->instance_lock);
+				memcpy(user->txnbin, txnbin, sizeof(user->txnbin));
 				user->txnlen = sdata->txnlen;
 				user->pool_fallback = true;
+				ck_wunlock(&sdata->instance_lock);
 				LOGNOTICE("User %s is not a BCH address, mining to pool address",
 					  username);
 			}
@@ -7472,7 +7595,13 @@ static bool parse_authorise(stratum_instance_t *client, yyjson_mut_val *params_v
 	if (!ckpool.remote || ckpool.btcsolo)
 		client_auth(client, user, ret);
 out:
-	if (ckpool.btcsolo && ret && !client->remote) {
+	/* The first solo mining.notify for a connector client is sent by
+	 * sauth_process(), after the authorisation result and the
+	 * difficulty, so a miner is told it is authorised and at what
+	 * difficulty before it is handed work. Only the node path, which
+	 * calls this directly from node_client_msg() and never sends an
+	 * authorisation result of its own, is still notified from here. */
+	if (ckpool.btcsolo && ckpool.node && ret && !client->remote) {
 		sdata_t *sdata = ckpool.sdata;
 		workbase_t *wb;
 
@@ -7497,17 +7626,15 @@ out:
 			wb->readcount--;
 			ck_wunlock(&sdata->workbase_lock);
 		}
-
-		/* No stratum_send_diff() here. sauth_process() reconciles
-		 * client->diff against mindiff/suggest_diff after this returns and
-		 * sends the difficulty itself, immediately after the authorisation
-		 * response. Sending here would announce the pre-reconciliation
-		 * value a moment before that, so a solo client saw THREE
-		 * mining.set_difficulty in the subscribe -> authorize window
-		 * (subscribe-time floor, this one, then the reconciled value).
-		 * Dropping it leaves the last-announced difficulty byte-identical
-		 * and matches what a non-solo client already receives. */
 	}
+	/* No stratum_send_diff() in this function. sauth_process() reconciles
+	 * client->diff against mindiff/suggest_diff after this returns and
+	 * sends the difficulty itself, immediately after the authorisation
+	 * response. Sending here as well would announce the
+	 * pre-reconciliation value a moment earlier, giving a client three
+	 * mining.set_difficulty in the subscribe -> authorize window
+	 * (subscribe-time floor, this one, then the reconciled value)
+	 * instead of two. */
 	return ret;
 }
 
@@ -7587,9 +7714,11 @@ static int64_t vardiff_target(const double dsps, const int64_t cur_diff,
 	if (drr > 0.15 && drr < 0.4)
 		return 0;
 
-	/* Allow slightly lower diffs when users choose their own mindiff */
+	/* Allow slightly lower diffs when users choose their own mindiff. Above
+	 * its floor, a floor client comes back down only on a real rate drop;
+	 * the floor stays the minimum (clamped below). */
 	if (floor_diff) {
-		if (drr < 0.5)
+		if (drr < 0.5 && (cur_diff <= floor_diff || drr > 0.15))
 			return 0;
 		optimal = lround(dsps * 2.4);
 	} else
@@ -9510,7 +9639,7 @@ static void send_node_all_txns(sdata_t *sdata, const stratum_instance_t *client)
 	msg = ckzalloc(sizeof(smsg_t));
 	msg->doc = doc;
 	msg->client_id = client->id;
-	ckmsgq_add(sdata->ssends, msg);
+	ckmsgq_add(ssend_queue(sdata, client->id), msg);
 	LOGNOTICE("Sending new node client %s all transactions", client->identity);
 }
 
@@ -9898,20 +10027,31 @@ static user_instance_t *generate_remote_user(const char *workername)
 	if (!ckpool.proxy && (new_user || !user->btcaddress)) {
 		/* segwit is always false on BCH; user_instance no longer
 		 * stores it, so a throwaway local receives it. */
-		bool segwit_unused;
+		bool segwit_unused, script;
 
 		/* Is this a BCH address based username? */
-		if (generator_checkaddr(username, &user->script, &segwit_unused)) {
-			int txnlen = address_to_txn(user->txnbin, username, user->script, segwit_unused);
+		if (generator_checkaddr(username, &script, &segwit_unused)) {
+			/* Build the payout script locally and publish it under
+			 * instance_lock, txnbin before txnlen, as the userwb
+			 * readers hold that lock. */
+			char txnbin[sizeof(user->txnbin)];
+			int txnlen;
 
+			memset(txnbin, 0, sizeof(txnbin));
+			txnlen = address_to_txn(txnbin, username, script, segwit_unused);
+			ck_wlock(&sdata->instance_lock);
+			user->script = script;
 			if (unlikely(txnlen < 1)) {
-				LOGWARNING("Remote address %s produced an empty payout script", username);
 				user->btcaddress = false;
 				user->txnlen = 0;
+				ck_wunlock(&sdata->instance_lock);
+				LOGWARNING("Remote address %s produced an empty payout script", username);
 				return NULL;
 			}
+			memcpy(user->txnbin, txnbin, sizeof(user->txnbin));
 			user->txnlen = txnlen;
 			user->btcaddress = true;
+			ck_wunlock(&sdata->instance_lock);
 		}
 	}
 	if (new_user) {
@@ -10256,6 +10396,10 @@ static void parse_remote_block(sdata_t *sdata, yyjson_mut_doc *doc, yyjson_mut_v
 		}
 		sha256(swap, 80, hash1);
 		sha256(hash1, 32, hash);
+		/* The coinbase finality check done on the local share path is
+		 * deliberately skipped here: the coinbase was built by the
+		 * remote pool, not by this stratifier, so there is no payout
+		 * layout of ours to verify. */
 		gbt_block = process_block(wb, coinbase, cblen, swap, hash, flip32, blockhash);
 		dealloc(coinbase);
 		/* Note nodes use jobid of the mapped_id instead of workinfoid */
@@ -11006,11 +11150,48 @@ static void sauth_process(json_params_t *jp)
 	 * a rental rig mines the startdiff until the first vardiff adjustment
 	 * and the marketplace flags the pool. parse_authorise() has already
 	 * clamped whatever it assigned into [mindiff, maxdiff], so this cannot
-	 * announce an out-of-range difficulty. */
+	 * announce an out-of-range difficulty.
+	 *
+	 * The guard always holds for an authorised client: parse_authorise()
+	 * falls back to ckpool.startdiff when nothing else assigned a
+	 * difficulty, and startup refuses a zero startdiff. It stays as a
+	 * backstop, because skipping this send would leave the solo notify
+	 * below going out at the subscribe-time difficulty. */
 	if (client->diff > 0) {
 		stratum_send_diff(sdata, client);
 		LOGINFO("Sent initial difficulty %"PRId64" to client %s after authorization",
 			client->diff, client->identity);
+	}
+
+	/* First solo work, sent last so the connect sequence reads
+	 * subscribe result, set_difficulty, authorize result, set_difficulty,
+	 * mining.notify: the miner knows it is authorised and at what
+	 * difficulty before it starts hashing. Node mode never reaches this
+	 * with a local client; parse_authorise() notifies those itself. */
+	if (ckpool.btcsolo && !ckpool.node) {
+		user_instance_t *user = client->user_instance;
+		workbase_t *wb;
+
+		/* To avoid grabbing recursive lock. current_workbase is NULL
+		 * until the first template arrives (bitcoind startup/IBD), so
+		 * the NULL check is required. */
+		ck_wlock(&sdata->workbase_lock);
+		wb = sdata->current_workbase;
+		if (likely(wb))
+			wb->readcount++;
+		ck_wunlock(&sdata->workbase_lock);
+
+		if (wb) {
+			ck_wlock(&sdata->instance_lock);
+			__generate_userwb(sdata, wb, user);
+			ck_wunlock(&sdata->instance_lock);
+
+			update_solo_client(sdata, wb, client->id, user);
+
+			ck_wlock(&sdata->workbase_lock);
+			wb->readcount--;
+			ck_wunlock(&sdata->workbase_lock);
+		}
 	}
 
 out:
@@ -12158,7 +12339,7 @@ void *stratifier(void *arg)
 {
 	pthread_t pth_blockupdate, pth_statsupdate, pth_throbber, pth_zmqnotify;
 	proc_instance_t *pi = (proc_instance_t *)arg;
-	int threads, tvsec_diff = 0;
+	int threads, shard, tvsec_diff = 0;
 	int64_t randomiser;
 	sdata_t *sdata;
 
@@ -12252,7 +12433,15 @@ void *stratifier(void *arg)
 	threads = sysconf(_SC_NPROCESSORS_ONLN) / 2 ? : 1;
 	sdata->updateq = create_ckmsgq("updater", &block_update);
 	sdata->sshareq = create_ckmsgqs("sprocessor", &sshare_process, threads);
-	sdata->ssends = create_ckmsgqs("ssender", &ssend_process, threads);
+	/* One single-thread queue per send shard, see ssend_shard() */
+	sdata->ssend_shards = threads;
+	sdata->ssends = ckalloc(sizeof(ckmsgq_t *) * threads);
+	for (shard = 0; shard < threads; shard++) {
+		char qname[16];
+
+		snprintf(qname, sizeof(qname), "ssender%x", shard);
+		sdata->ssends[shard] = create_ckmsgq(qname, &ssend_process);
+	}
 	sdata->sauthq = create_ckmsgq("authoriser", &sauth_process);
 	sdata->stxnq = create_ckmsgq("stxnq", &send_transactions);
 	sdata->srecvs = create_ckmsgqs("sreceiver", &srecv_process, threads);

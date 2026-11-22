@@ -281,6 +281,13 @@ struct ckpool_instance {
 	mindiff_override_t *mindiff_overrides;
 	int mindiff_overrides_count;
 
+	/* Rental useragent floors from the config's "useragent_diff" object, in
+	 * file order (first match wins). When the key is present it replaces
+	 * the built-in table entirely, even if it is empty. */
+	mindiff_override_t *useragent_diff;
+	int useragent_diff_count;
+	bool useragent_diff_set;
+
 	/* Coinbase data */
 	char *cashaddr_prefix; // CashAddr network prefix ("bitcoincash"/"bchtest"/"bchreg"),
 				// detected from bitcoind's chain at connect time

@@ -23,7 +23,7 @@ import (
 	"cashstratumapi/internal/poolindex"
 )
 
-const version = "1.8.0"
+const version = "1.9.0"
 
 type options struct {
 	showVersion     bool

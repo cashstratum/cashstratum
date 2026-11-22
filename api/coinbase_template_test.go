@@ -1010,3 +1010,42 @@ func TestTextFirstCapturedMessageHeightAndOutputs(t *testing.T) {
 		t.Errorf("sum %d total %d", sum, total)
 	}
 }
+
+func TestResolveStratumHost(t *testing.T) {
+	if got := resolveStratumHost(""); got != DefaultStratumHost {
+		t.Errorf("unset = %q, want %q", got, DefaultStratumHost)
+	}
+	if got := resolveStratumHost("  "); got != DefaultStratumHost {
+		t.Errorf("blank = %q, want %q", got, DefaultStratumHost)
+	}
+	if got := resolveStratumHost(" 127.0.0.1:3334 "); got != "127.0.0.1:3334" {
+		t.Errorf("set = %q, want 127.0.0.1:3334", got)
+	}
+}
+
+func TestProbeUsesConfiguredStratumHost(t *testing.T) {
+	useIsolatedTemplateState(t)
+	pool := newFakePool(t, notifyBeforeAuth)
+
+	// Point stratumHost somewhere else, then configure it through the
+	// environment exactly as main() does.
+	orig := stratumHost
+	t.Cleanup(func() { stratumHost = orig })
+	stratumHost = "127.0.0.1:1"
+	t.Setenv("CASHSTRATUM_STRATUM_HOST", pool.ln.Addr().String())
+	stratumHost = stratumHostFromEnv()
+
+	before := pool.conns.Load()
+	fetchCoinbaseFromStratum(testAddr(0x21))
+	if got := pool.conns.Load(); got <= before {
+		t.Fatalf("probe did not connect to the configured host %s", pool.ln.Addr())
+	}
+}
+
+func TestStratumHostFromEnvDefault(t *testing.T) {
+	t.Setenv("CASHSTRATUM_STRATUM_HOST", "")
+	t.Setenv("CKPOOL_STRATUM_HOST", "")
+	if got := stratumHostFromEnv(); got != DefaultStratumHost {
+		t.Errorf("unset = %q, want %q", got, DefaultStratumHost)
+	}
+}

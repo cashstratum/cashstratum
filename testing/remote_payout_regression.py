@@ -21,7 +21,9 @@ HARNESS = r'''
 #define LOGNOTICE(...) ((void)0)
 #define CANON_USERNAME_SIZE 256
 #define strdupa(s) strcpy(alloca(strlen(s) + 1), s)
-typedef struct { int unused; } sdata_t;
+typedef struct { int instance_lock; } sdata_t;
+#define ck_wlock(l) ((void)(l))
+#define ck_wunlock(l) ((void)(l))
 typedef struct { bool btcaddress, script; int txnlen; char txnbin[64]; } user_instance_t;
 static struct { bool proxy; sdata_t *sdata; } ckpool;
 static user_instance_t user;

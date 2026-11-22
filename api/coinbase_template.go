@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,6 +45,20 @@ import (
 // stratumHost is the Stratum endpoint /coinbase probes. A variable only so
 // tests can point it at a fake pool.
 var stratumHost = DefaultStratumHost
+
+// stratumHostFromEnv reads the probe endpoint from the environment.
+func stratumHostFromEnv() string {
+	return resolveStratumHost(getEnvWithFallback("CASHSTRATUM_STRATUM_HOST", "CKPOOL_STRATUM_HOST"))
+}
+
+// resolveStratumHost returns the configured probe endpoint, or the default
+// when none is set.
+func resolveStratumHost(v string) string {
+	if v = strings.TrimSpace(v); v != "" {
+		return v
+	}
+	return DefaultStratumHost
+}
 
 // coinbaseTemplateIdentity is the canonical CashAddr the template probe
 // authorises (as "<addr>."+ProbeWorkerSuffix), set in main from ckpool.conf's

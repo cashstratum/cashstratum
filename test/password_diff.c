@@ -9,8 +9,8 @@
  * Password difficulty and vardiff. A valid d=/diff= password token pins the
  * client's difficulty: vardiff never re-targets it and suggest_difficulty is
  * ignored. Clients without one keep the vardiff target computed by
- * vardiff_target(), whose current behaviour is recorded here, including the
- * one-way ratchet a floor client has today.
+ * vardiff_target(), whose behaviour is recorded here, including how a floor
+ * client is raised and lowered. Useragent rental floors are covered too.
  */
 #include "config.h"
 #include <assert.h>
@@ -88,17 +88,28 @@ static int64_t target(double dsps, int64_t cur, int64_t floor_diff)
 }
 
 /* (a) A floor client (suggest_diff or worker mindiff set, not pinned) is
- * raised once its rate reaches drr 0.5, and can then never come back down:
- * any drr below 0.5 leaves it where it is. This is the current behaviour. */
+ * raised once its rate reaches drr 0.5, and may come back down toward its
+ * floor while above it, but never below the floor. */
 static void test_floor_client_ratchets(void)
 {
 	assert(target(80, 100, 100) == 192);	/* drr 0.8: 2.4x */
 	assert(target(50, 100, 100) == 120);	/* drr 0.5 exactly */
-	assert(target(45, 100, 100) == 0);	/* drr 0.45: held */
+	assert(target(45, 100, 100) == 0);	/* at the floor, drr 0.45: held */
 	assert(target(30, 100, 100) == 0);	/* hysteresis band */
-	/* Raised well above the floor, then the rate drops: stuck. */
-	assert(target(10, 400, 100) == 0);
-	assert(target(1, 400, 100) == 0);
+	/* At the floor, a falling rate cannot lower it further. */
+	assert(target(10, 100, 100) == 0);
+	/* Raised well above the floor, then the rate drops: lowered toward it. */
+	assert(target(10, 400, 100) == 100);	/* lround(24) clamped up to floor */
+	assert(target(50, 4000, 100) == 120);	/* drr 0.0125: 2.4x */
+	assert(target(1, 400, 100) == 100);	/* never below the floor */
+	assert(target(0.5, 4000000, 1000000) == 1000000);
+	/* Above the floor, the 0.4-0.5 dead band holds: no jitter. */
+	assert(target(45, 100, 50) == 0);	/* drr 0.45 */
+	assert(target(180, 400, 100) == 0);	/* drr 0.45 */
+	assert(target(10, 100, 50) == 50);	/* drr 0.1: lowered to floor */
+	assert(target(80, 100, 50) == 192);	/* drr 0.8: raised as before */
+	/* Hysteresis band still holds above the floor. */
+	assert(target(100, 400, 100) == 0);	/* drr 0.25 */
 	/* The floor still bounds a raise from below. */
 	assert(target(1000, 2000, 5000) == 5000);
 }
@@ -262,6 +273,135 @@ static void test_reauth_unpins_rental(void)
 	assert(!client.pinned_diff && client.suggest_diff == 500000 && client.diff == 500000);
 }
 
+/* Run the subscribe-time useragent match for ua, returning the client. */
+static void ua_client(stratum_instance_t *client, const char *ua)
+{
+	memset(client, 0, sizeof(*client));
+	strcpy(client->identity, "9");
+	client->useragent = (char *)ua;
+	client->diff = client->old_diff = ckpool.startdiff;
+	apply_useragent_diff(client);
+}
+
+static void reset_ua_conf(void)
+{
+	ckpool.useragent_diff = NULL;
+	ckpool.useragent_diff_count = 0;
+	ckpool.useragent_diff_set = false;
+	ckpool.mindiff_overrides = NULL;
+	ckpool.mindiff_overrides_count = 0;
+	ckpool.maxdiff = 0;
+}
+
+static void assert_floor(const char *ua, int64_t diff)
+{
+	stratum_instance_t client;
+
+	ua_client(&client, ua);
+	if (client.diff != diff) {
+		fprintf(stderr, "ua '%s': diff %"PRId64" want %"PRId64"\n", ua, client.diff, diff);
+		assert(0);
+	}
+	assert(client.rental_diff == (diff != ckpool.startdiff));
+	if (client.rental_diff)
+		assert(client.suggest_diff == diff && client.base_suggest_diff == diff &&
+		       client.old_diff == diff);
+	else
+		assert(client.suggest_diff == 0);
+}
+
+static void test_useragent_defaults(void)
+{
+	stratum_instance_t client;
+
+	reset_ua_conf();
+	assert_floor("NiceHashMiner/1.0.0", 500000);
+	assert_floor("MiningRigRentals", 1000000);
+	assert_floor("MRR-Hash/1.2 seller rig", 1000000);
+	assert_floor("Braiins/Hashpower", 1000000);
+	assert_floor("braiins/hashpower 2.0", 1000000);
+	/* Bare Braiins firmware, plain miners and an empty useragent: no floor. */
+	assert_floor("Braiins OS 22.08", ckpool.startdiff);
+	assert_floor("cgminer/4.11", ckpool.startdiff);
+	assert_floor("", ckpool.startdiff);
+
+	/* The match is logged with pattern, useragent, client and diff. */
+	log_count = 0;
+	ua_client(&client, "Braiins/Hashpower");
+	assert(log_count == 1);
+	assert(strstr(last_log, "'braiins/hashpower'") && strstr(last_log, "client 9") &&
+	       strstr(last_log, "1000000"));
+
+	/* Braiins d=500000 is raised to the floor; d=2000000 is pinned above. */
+	ua_client(&client, "Braiins/Hashpower");
+	apply_password_diff(&client, "d=500000");
+	assert(client.pinned_diff && client.diff == 1000000 && client.suggest_diff == 1000000);
+	ua_client(&client, "Braiins/Hashpower");
+	apply_password_diff(&client, "d=2000000");
+	assert(client.pinned_diff && client.diff == 2000000 && client.suggest_diff == 2000000);
+}
+
+static void test_useragent_legacy_override(void)
+{
+	mindiff_override_t ov[] = {
+		{"NiceHash", 0}, {"nicehash", 750000}, {"MiningRigRentals", 2000000},
+		{"braiins", 1500000},
+	};
+
+	reset_ua_conf();
+	ckpool.mindiff_overrides = ov;
+	ckpool.mindiff_overrides_count = 4;
+	/* Case-insensitive, first positive wins, non-positive skipped. */
+	assert_floor("NiceHashMiner/1", 750000);
+	assert_floor("MiningRigRentals", 2000000);
+	assert_floor("MRR-Hash/1", 2000000);
+	assert_floor("Braiins/Hashpower", 1500000);
+	assert_floor("Braiins OS", ckpool.startdiff);
+	reset_ua_conf();
+}
+
+static void test_useragent_conf_replaces(void)
+{
+	mindiff_override_t table[] = {{"foo", 300000}};
+	mindiff_override_t ov[] = {{"nicehash", 750000}};
+
+	reset_ua_conf();
+	ckpool.useragent_diff = table;
+	ckpool.useragent_diff_count = 1;
+	ckpool.useragent_diff_set = true;
+	ckpool.mindiff_overrides = ov;
+	ckpool.mindiff_overrides_count = 1;
+	assert_floor("Foo/1", 300000);
+	assert_floor("xFOOx", 300000);
+	/* The built-ins and legacy keys no longer apply. */
+	assert_floor("NiceHashMiner/1", ckpool.startdiff);
+	assert_floor("Braiins/Hashpower", ckpool.startdiff);
+
+	/* An empty present key disables every floor. */
+	ckpool.useragent_diff_count = 0;
+	assert_floor("NiceHashMiner/1", ckpool.startdiff);
+	reset_ua_conf();
+}
+
+static void test_useragent_order_and_clamp(void)
+{
+	mindiff_override_t table[] = {
+		{"braiins", 2000000}, {"braiins/hashpower", 1000000}, {"x", 1},
+	};
+
+	reset_ua_conf();
+	ckpool.useragent_diff = table;
+	ckpool.useragent_diff_count = 3;
+	ckpool.useragent_diff_set = true;
+	assert_floor("Braiins/Hashpower", 2000000);
+
+	/* Values are clamped to [mindiff, maxdiff]. */
+	assert_floor("x", POOL_MINDIFF);
+	ckpool.maxdiff = 1500000;
+	assert_floor("Braiins/Hashpower", 1500000);
+	reset_ua_conf();
+}
+
 /* A server highdiff floor comes back too, above startdiff as at connect. */
 static void test_reauth_unpins_highdiff(void)
 {
@@ -370,6 +510,10 @@ int main(void)
 	test_reauth_unpins_plain();
 	test_reauth_unpins_rental();
 	test_reauth_unpins_highdiff();
+	test_useragent_defaults();
+	test_useragent_legacy_override();
+	test_useragent_conf_replaces();
+	test_useragent_order_and_clamp();
 	test_reauth_unpinned_untouched();
 	test_repin_logs_suggest_again();
 	puts("password_diff: all OK");

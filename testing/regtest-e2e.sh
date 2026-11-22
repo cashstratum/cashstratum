@@ -926,8 +926,9 @@ scenario_7_multi_worker() {
 # target. That makes "A accumulates a multi-share round before its solve"
 # structurally impossible here (round_shares gets reset by A's own solve
 # before a second share can ever land), unlike mainnet where network_diff
-# vastly exceeds any single share's diff. So A's pre-solve baseline is left
-# at the same bare ">0" as B's, and the independence proof rests entirely
+# vastly exceeds any single share's diff. So A's pre-solve baseline gates on
+# the cumulative "shares" counter (A's first share may itself be the solve,
+# which resets round_shares), and the independence proof rests entirely
 # on: (a) B's round staying untouched and non-zero across A's solve (the
 # actual point of this whole plan), and (b) A's post-solve round/bestshare
 # being bounded by -- not equal to zero, but no more than -- the winning
@@ -962,18 +963,24 @@ scenario_8_per_user_round_independence() {
 	pre_b_round=$(printf '%s' "$pre_b" | jq -r '.roundshares // 0')
 	pre_b_bestever=$(printf '%s' "$pre_b" | jq -r '.bestever // 0')
 
-	# A mines next, kept running (not stopped) once it has accumulated some
-	# round_shares -- same bare ">0" tolerance as B above; per the NOTE
+	# A mines next, kept running (not stopped) once it has an accepted share
+	# -- gated on the cumulative "shares" counter because A's first share
+	# may itself be the solve; per the NOTE
 	# above the function, a multi-share pre-solve baseline is not
 	# achievable on this harness, so the independence proof rests on B's
 	# untouched round plus A's residual-bounded post-solve state instead.
 	local start_height pid_a pre_a
 	start_height=$(bch_cli getblockcount)
 	pid_a=$(run_miner "${addr_a}.w1")
-	if pre_a=$(wait_for_user_field "$addr_a" '.roundshares > 0' "$E2E_MINE_TIMEOUT"); then
-		check "scenario8: A accumulated round_shares before its solve" "true"
+	# Gate on the cumulative accepted-share counter, not on roundshares: a
+	# block solve resets the finder's round_shares, and here the very first
+	# accepted share can itself be the solve, so ".roundshares > 0" may never
+	# be observed. "shares" is never reset by a solve, so it turns positive
+	# whether A's first share solved or a later one did.
+	if pre_a=$(wait_for_user_field "$addr_a" '.shares > 0' "$E2E_MINE_TIMEOUT"); then
+		check "scenario8: A had an accepted share before its solve" "true"
 	else
-		check "scenario8: A accumulated round_shares before its solve" "false"
+		check "scenario8: A had an accepted share before its solve" "false"
 		stop_miner "$pid_a"
 		return
 	fi

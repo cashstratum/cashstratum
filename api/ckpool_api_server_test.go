@@ -1108,3 +1108,51 @@ func TestRaisedDefaultAndCustomRateLimit(t *testing.T) {
 	}
 }
 
+
+func TestFindBlockFoundResponseSurvivesTTLNotFoundDoesNot(t *testing.T) {
+	useIsolatedCoinbaseState(t)
+
+	logDir := t.TempDir()
+	origLogPath := logPath
+	logPath = filepath.Join(logDir, "cashstratum.log")
+	t.Cleanup(func() { logPath = origLogPath })
+	if err := os.WriteFile(logPath, []byte("[2026-10-31 09:11:22.022] Solved and confirmed block 975301 by x on SV1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	call := func(h string) FindBlockResponse {
+		rec := httptest.NewRecorder()
+		handleFindBlock(rec, httptest.NewRequest(http.MethodGet, "/find-block?height="+h, nil))
+		var r FindBlockResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &r); err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	age := func(key string) {
+		responseCache.mu.Lock()
+		if e, ok := responseCache.cache[key]; ok {
+			e.timestamp = time.Now().Add(-time.Hour)
+		}
+		responseCache.mu.Unlock()
+	}
+
+	if !call("975301").Found {
+		t.Fatal("block should be found")
+	}
+	age("block:975301")
+	// Remove the evidence: a re-read would now report not found.
+	if err := os.WriteFile(logPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !call("975301").Found {
+		t.Error("found block was not served from cache after TTL")
+	}
+
+	if call("975999").Found {
+		t.Fatal("unexpected find")
+	}
+	if _, ok := responseCache.GetPersistent("block:975999"); ok {
+		t.Error("not-found response must not be cached persistently")
+	}
+}

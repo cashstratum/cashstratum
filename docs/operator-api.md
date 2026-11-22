@@ -48,7 +48,7 @@ on that IP's first request and resets exactly 60 s later — not a rolling avera
 |---|---|---|---|
 | Default | everything except `/shares` and `/ping` | 20 req / 60 s | `CASHSTRATUM_RATE_LIMIT` (`CKPOOL_RATE_LIMIT`) |
 | Shares | `/shares` only | 60 req / 60 s | `CASHSTRATUM_SHARES_RATE_LIMIT` (`CKPOOL_SHARES_RATE_LIMIT`) |
-| Ping | `/ping` only, unauthenticated | 60 req / 60 s | `CASHSTRATUM_PING_RATE_LIMIT` (`CKPOOL_PING_RATE_LIMIT`) |
+| Ping | `/ping` only, unauthenticated | 300 req / 60 s | `CASHSTRATUM_PING_RATE_LIMIT` (`CKPOOL_PING_RATE_LIMIT`) |
 
 The three buckets are independent: spending the `/shares` budget does not affect `/find-block` or
 `/ping`. On authenticated routes the budget is charged **after** authentication, so a bad key
@@ -909,11 +909,12 @@ the `CASHSTRATUM_*` prefix, with `CKPOOL_*` supported for backwards compatibilit
 | `CASHSTRATUM_LOG_PATH` | `~/cashstratum/logs/cashstratum.log` | must match the pool's `logdir` (fallback: `CKPOOL_LOG_PATH` / `~/ckpool/logs/ckpool.log`) |
 | `CASHSTRATUM_USER_LOGS_PATH` | `~/cashstratum/logs/users` | ditto (fallback: `CKPOOL_USER_LOGS_PATH` / `~/ckpool/logs/users`) |
 | `CASHSTRATUM_API_PORT` | `8888` | (fallback: `CKPOOL_API_PORT`) |
+| `CASHSTRATUM_STRATUM_HOST` | `127.0.0.1:3333` | the Stratum endpoint `/coinbase` probes; a second instance (for example a pro-rata pool on `:3334`) sets its own, such as `127.0.0.1:3334` (fallback: `CKPOOL_STRATUM_HOST`) |
 | `CASHSTRATUM_CASHADDR_PREFIX` | `bitcoincash` | CashAddr network prefix (no trailing `:`) used by `/coinbase`'s probe; a regtest/testnet rig sets `bchreg` / `bchtest` (fallback: `CKPOOL_CASHADDR_PREFIX`) |
 | `CASHSTRATUM_CONF_PATH` | `<logdir>/../cashstratum.conf`, then `<logdir>/cashstratum.conf` | the pool's own configuration, read once at startup for the node RPC endpoint (fallback: `CKPOOL_CONF_PATH` / `ckpool.conf`) |
 | `CASHSTRATUM_RATE_LIMIT` | `20` | per-IP budget for all endpoints except `/shares` and `/ping`, per 60 s window (fallback: `CKPOOL_RATE_LIMIT`) |
 | `CASHSTRATUM_SHARES_RATE_LIMIT` | `60` | per-IP budget for `/shares` only (fallback: `CKPOOL_SHARES_RATE_LIMIT`) |
-| `CASHSTRATUM_PING_RATE_LIMIT` | `60` | per-IP budget for `/ping` only (fallback: `CKPOOL_PING_RATE_LIMIT`) |
+| `CASHSTRATUM_PING_RATE_LIMIT` | `300` | per-IP budget for `/ping` only (fallback: `CKPOOL_PING_RATE_LIMIT`) |
 | `DAYS_TO_KEEP` | `60` | sharelog retention in days, used by the pruning timer (`cashstratum-logprune.timer`) |
 | `CASHSTRATUM_INDEX_DIR` | `<root>/api-state/index` | round index cache (fallback: `CKPOOL_INDEX_DIR`) |
 | `CASHSTRATUM_ROUNDS_DIR` | `<root>/api-state/rounds` | frozen round store, kept indefinitely; back it up with the pool (fallback: `CKPOOL_ROUNDS_DIR`) |

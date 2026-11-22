@@ -122,12 +122,14 @@ static int nsent;
 static int queued_other;	/* work queued for authorise/share/txn threads */
 static char reply[MAX_SENDS][2048];
 static int nreply;
+/* A single send shard, so every client maps to ssend_q[0]. */
+static ckmsgq_t *ssend_q[1];
 
 bool _ckmsgq_add(ckmsgq_t *ckmsgq, void *data, bool head, const char *file,
 		 const char *func, const int line)
 {
 	(void)head; (void)file; (void)func; (void)line;
-	if (ckmsgq == sdata.ssends) {
+	if (ckmsgq == sdata.ssends[0]) {
 		assert(nsent < MAX_SENDS);
 		sent[nsent++] = data;
 		return true;
@@ -183,7 +185,9 @@ static void reset_world(void)
 	mutex_init(&sdata.uastats_lock);
 	cklock_init(&sdata.workbase_lock);
 	cklock_init(&sdata.instance_lock);
-	sdata.ssends = (ckmsgq_t *)&sdata;	/* identity only, never dereferenced */
+	ssend_q[0] = (ckmsgq_t *)&sdata;	/* identity only, never dereferenced */
+	sdata.ssends = ssend_q;
+	sdata.ssend_shards = 1;
 	sdata.sauthq = (ckmsgq_t *)&wb;
 	sdata.sshareq = (ckmsgq_t *)&wb;
 	sdata.stxnq = (ckmsgq_t *)&wb;

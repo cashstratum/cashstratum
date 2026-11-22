@@ -188,6 +188,8 @@ The `sockdir` configuration key is **not read**. Set the socket directory with `
 
 Two other points:
 
+- If the second instance runs its own operator API, set `CASHSTRATUM_STRATUM_HOST=127.0.0.1:3334`
+  (its own stratum port) in that API's environment. Otherwise `/coinbase` probes the first pool.
 - `-B` selects solo mode on the command line. It is not a configuration key, so start every
   solo-mode instance with it.
 - `-L` (`--log-shares`) writes a sharelog for each share, under `<logdir>/<height>/`. The log-prune
